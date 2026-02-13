@@ -19,7 +19,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
-```
+    ```
 4. Run the app:
   ```bash
   python src/main.py
@@ -28,6 +28,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 
 ## Structure
 
+```
 SafeMARC/
 ├── .gitignore      
 ├── requirements.txt
@@ -44,3 +45,4 @@ SafeMARC/
 ├── assets/                <-- Icons, logos, UI themes (non-code)
 ├── tests/                 <-- Unit tests (eventually)
 └── docs/                  <-- FYP documentation
+```

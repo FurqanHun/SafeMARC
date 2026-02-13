@@ -1,0 +1,15 @@
+PyQt6
+#pyqt6-tools
+pyqtdarktheme
+
+pymupdf
+
+opencv-python
+numpy
+Pillow
+
+mediapipe
+
+pytesseract
+
+pyinstaller

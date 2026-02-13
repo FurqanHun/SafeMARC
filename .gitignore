@@ -1,0 +1,47 @@
+# --- PYTHON BASICS ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- VIRTUAL ENVIRONMENTS ---
+venv/
+.venv/
+env/
+.env/
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+.zed/
+.DS_Store
+Thumbs.db
+
+# --- SAFE MARC SPECIFIC ---
+test_data/
+inputs/
+outputs/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.docx
+
+# --- BUILD ARTIFACTS ---
+build/
+dist/
+*.spec
+
+# --- LOGS & DEBUGGING ---
+*.log
+crash_reports/
+
+# --- ML MODELS ---
+models/
+*.pth
+*.pt
+*.onnx
+
+# --- SECRETS ---
+.env
+secrets.json
+config_local.py

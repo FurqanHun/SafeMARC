@@ -10,14 +10,14 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 
 ## Setup for Windows
 
-1. **Install Python 3.10+**: Make sure "Add to PATH" is checked.
+1. **Install Python 3.14+**: Make sure "Add to PATH" is checked.
 2. **Install Tesseract OCR**:
    - Download the installer here: https://github.com/UB-Mannheim/tesseract/wiki
    - **IMPORTANT:** During install, copy the path (usually `C:\Program Files\Tesseract-OCR`).
    - You might need to add this path to your System Environment Variables.
 3. **Create Virtual Environment (CRITICAL)**:
    Open your terminal in the project folder and run:
-```
+  ```
    python -m venv .venv
    .venv\Scripts\activate
   ```

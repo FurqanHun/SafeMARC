@@ -21,10 +21,12 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
    python -m venv .venv
    .venv\Scripts\activate
   ```
+
 4. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
     ```
+  
 5. **Run the app**:
   ```bash
   python src/main.py

@@ -17,7 +17,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
    - You might need to add this path to your System Environment Variables.
 3. **Create Virtual Environment (CRITICAL)**:
    Open your terminal in the project folder and run:
-   ```powershell
+```
    python -m venv .venv
    .venv\Scripts\activate
   ```

@@ -30,7 +30,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 5. **Run the app**:
   ```bash
   python src/main.py
-```
+  ```
 
 
 ## Structure

@@ -40,6 +40,8 @@ models/
 *.pth
 *.pt
 *.onnx
+*.task
+*.tflite
 
 # --- SECRETS ---
 .env

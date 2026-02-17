@@ -10,7 +10,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 
 ## Setup for Windows
 
-1. **Install Python 3.14+**: Make sure "Add to PATH" is checked.
+1. **Install Python 3.11**: Make sure "Add to PATH" is checked.
 2. **Install Tesseract OCR**:
    - Download the installer here: https://github.com/UB-Mannheim/tesseract/wiki
    - **IMPORTANT:** During install, copy the path (usually `C:\Program Files\Tesseract-OCR`).
@@ -32,6 +32,8 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
   python src/main.py
   ```
 
+Download the following model in root as `object_detector_heavy.tflite`
+https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite
 
 ## Structure
 

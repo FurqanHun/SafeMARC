@@ -2,7 +2,8 @@ import os
 import shutil
 import sys
 
-from PyQt6.QtWidgets import (
+import qdarktheme
+from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QMainWindow,
@@ -13,8 +14,7 @@ from PyQt6.QtWidgets import (
 
 # Check imports from structure
 try:
-    import core
-    import utils
+    from src import core, utils
 
     STRUCTURE_CHECK = "Project Structure: OK"
 except ImportError as e:
@@ -31,7 +31,7 @@ class SafeMARC(QMainWindow):
         # Main Layout
         layout = QVBoxLayout()
 
-        self.label = QLabel("SafeMARC is Online")
+        self.label = QLabel("SafeMARC is Online (PySide6 Edition)")
         self.label.setStyleSheet("font-size: 24px; font-weight: bold; color: #4CAF50;")
         layout.addWidget(self.label)
 
@@ -39,7 +39,7 @@ class SafeMARC(QMainWindow):
         self.struct_label = QLabel(STRUCTURE_CHECK)
         layout.addWidget(self.struct_label)
 
-        # Tesseract Check (The Windows Trap)
+        # Tesseract Check
         self.tess_label = QLabel(self.check_tesseract())
         layout.addWidget(self.tess_label)
 
@@ -66,6 +66,7 @@ class SafeMARC(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarktheme.load_stylesheet())
     window = SafeMARC()
     window.show()
 

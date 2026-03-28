@@ -1,4 +1,4 @@
-PyQt6
+PySide6
 #pyqt6-tools
 pyqtdarktheme
 

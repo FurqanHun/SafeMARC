@@ -6,7 +6,7 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "PyQt6",
+        "PySide6",
         "pymupdf",
         "opencv-python",
         "mediapipe",

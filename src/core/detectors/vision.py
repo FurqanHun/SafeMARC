@@ -12,7 +12,7 @@ from src.core.types import SensitiveHit
 
 class FaceDetector(BaseDetector):
     def __init__(self):
-        model_path = os.path.abspath("object_detector_heavy.tflite")
+        model_path = os.path.abspath("efficientdet_lite2.tflite")
         base_options = mp_python.BaseOptions(model_asset_path=model_path)
 
         options = vision.ObjectDetectorOptions(

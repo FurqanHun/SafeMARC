@@ -29,7 +29,7 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
   
 5. **Run the app**:
   ```bash
-  python src/main.py
+  python main.py
   ```
 
 Download the following model in root as `efficientdet_lite2.tflite`

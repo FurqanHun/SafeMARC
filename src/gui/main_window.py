@@ -135,23 +135,24 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Action Buttons
         action_layout = QHBoxLayout()
-        self.btn_scan = QPushButton("🔍 Scan Image")
-        self.btn_scan.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #1976D2; color: white; border-radius: 6px;")
-        self.btn_scan.setEnabled(False)
-        self.btn_scan.clicked.connect(self.scan_current)
 
-        self.btn_redact_single = QPushButton("🛡️ Redact Active")
-        self.btn_redact_single.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #d32f2f; color: white; border-radius: 6px;")
-        self.btn_redact_single.setEnabled(False)
-        self.btn_redact_single.clicked.connect(self.redact_current)
+        self.btn_skip = QPushButton("⏭️ Skip")
+        self.btn_skip.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #555555; color: white; border-radius: 6px;")
+        self.btn_skip.hide()
+        self.btn_skip.clicked.connect(self.skip_current)
 
-        self.btn_redact_all = QPushButton("🚀 Batch Redact All")
-        self.btn_redact_all.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #388E3C; color: white; border-radius: 6px;")
-        self.btn_redact_all.clicked.connect(self.redact_all)
+        self.btn_redact_next = QPushButton("🛡️ Redact & Next")
+        self.btn_redact_next.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #d32f2f; color: white; border-radius: 6px;")
+        self.btn_redact_next.hide()
+        self.btn_redact_next.clicked.connect(self.redact_current)
 
-        action_layout.addWidget(self.btn_scan)
-        action_layout.addWidget(self.btn_redact_single)
-        action_layout.addWidget(self.btn_redact_all)
+        self.btn_start_review = QPushButton("🚀 Start Review Process")
+        self.btn_start_review.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #388E3C; color: white; border-radius: 6px;")
+        self.btn_start_review.clicked.connect(self.start_batch)
+
+        action_layout.addWidget(self.btn_skip)
+        action_layout.addWidget(self.btn_redact_next)
+        action_layout.addWidget(self.btn_start_review)
         preview_layout.addLayout(action_layout)
 
         self.splitter.addWidget(preview_container)
@@ -159,6 +160,11 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.current_file_path = None
         self.current_hits = []
+        
+        # Batch Mode State
+        self.is_batch_mode = False
+        self.batch_index = -1
+        self.batch_success_count = 0
 
     def on_vision_mode_changed(self, index):
         if not self.scanner:
@@ -167,12 +173,17 @@ class SafeMARCMainWindow(QMainWindow):
         mode = self.cmb_vision_mode.itemData(index)
         try:
             self.scanner.set_vision_mode(mode)
-            # If we have an image currently loaded and scanned, maybe rescan it?
-            # Or just clear the preview hits so they scan again.
-            if self.current_file_path:
-                self.btn_redact_single.setEnabled(False)
+            if self.is_batch_mode and self.current_file_path:
+                self.btn_redact_next.setEnabled(False)
                 self.preview_widget.load_image(self.current_file_path)
                 self.current_hits = []
+                hits = self.scanner.scan(self.current_file_path)
+                if hits:
+                    self.current_hits = hits
+                    self.preview_widget.display_hits(hits)
+                    self.btn_redact_next.setEnabled(True)
+                else:
+                    QMessageBox.information(self, "Result", f"No {mode} found in this image.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load {mode} model: {e}")
 
@@ -206,10 +217,22 @@ class SafeMARCMainWindow(QMainWindow):
         self.preview_widget.scene.clear()
         self.current_file_path = None
         self.current_hits = []
-        self.btn_scan.setEnabled(False)
-        self.btn_redact_single.setEnabled(False)
+        
+        # Reset batch mode if active
+        if self.is_batch_mode:
+            self.cancel_batch_mode()
+
+    def cancel_batch_mode(self):
+        self.is_batch_mode = False
+        self.btn_start_review.show()
+        self.btn_skip.hide()
+        self.btn_redact_next.hide()
 
     def on_file_selected(self, item):
+        # If user manually clicks an item during batch mode, cancel batch mode
+        if self.is_batch_mode and self.file_list.row(item) != self.batch_index:
+            self.cancel_batch_mode()
+            
         file_path = item.data(Qt.UserRole)
         self.current_file_path = file_path
         self.current_hits = []
@@ -217,31 +240,6 @@ class SafeMARCMainWindow(QMainWindow):
         # Load preview (PDFs might need special handling, but for images it works directly)
         if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
             self.preview_widget.load_image(file_path)
-            self.btn_scan.setEnabled(True)
-            self.btn_redact_single.setEnabled(False)
-        else:
-            self.btn_scan.setEnabled(False)
-            self.btn_redact_single.setEnabled(False)
-
-    def scan_current(self):
-        if not self.scanner or not self.current_file_path:
-            return
-            
-        self.btn_scan.setEnabled(False)
-        QApplication.processEvents()
-        
-        try:
-            hits = self.scanner.scan(self.current_file_path)
-            if not hits:
-                QMessageBox.information(self, "Result", "No sensitive data found.")
-            else:
-                self.current_hits = hits
-                self.preview_widget.display_hits(hits)
-                self.btn_redact_single.setEnabled(True)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to scan: {e}")
-            
-        self.btn_scan.setEnabled(True)
 
     def redact_current(self):
         if not self.scanner or not self.current_file_path or not self.current_hits:
@@ -259,51 +257,79 @@ class SafeMARCMainWindow(QMainWindow):
         
         success = self.scanner.redact(self.current_file_path, out_path, selected_hits)
         if success:
-            QMessageBox.information(self, "Success", f"Saved redacted file to:\n{out_path}")
-            # Show the redacted image
-            self.preview_widget.load_image(out_path)
-            self.btn_redact_single.setEnabled(False)
-            self.btn_scan.setEnabled(False)
+            self.batch_success_count += 1
+            self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
+            self.batch_index += 1
+            self.load_next_batch_item()
         else:
             QMessageBox.warning(self, "Error", "Failed to redact image.")
 
-    def redact_all(self):
+    def start_batch(self):
         if not self.processor or self.file_list.count() == 0:
             QMessageBox.warning(self, "Warning", "Queue is empty.")
             return
 
-        items_count = self.file_list.count()
+        self.is_batch_mode = True
+        self.batch_index = 0
+        self.batch_success_count = 0
         
-        progress = QProgressDialog("Processing queue...", "Cancel", 0, items_count, self)
-        progress.setWindowTitle("Batch Redaction")
-        progress.setWindowModality(Qt.WindowModal)
+        # Update UI state
+        self.btn_start_review.hide()
+        self.btn_skip.show()
+        self.btn_redact_next.show()
+        self.btn_redact_next.setEnabled(False)
         
-        success_count = 0
-        use_suffix = self.chk_suffix.isChecked()
-        
-        for i in range(items_count):
-            if progress.wasCanceled():
-                break
-                
-            file_path = self.file_list.item(i).data(Qt.UserRole)
-            progress.setLabelText(f"Processing: {os.path.basename(file_path)}")
-            
-            # Simple process logic for batch (auto-selects all hits)
-            try:
-                out_path = self.processor.get_output_path(file_path, use_suffix=use_suffix)
-                hits = self.scanner.scan(file_path)
-                if hits:
-                    if self.scanner.redact(file_path, out_path, hits):
-                        success_count += 1
-                        
-                # Update item appearance to show done
-                self.file_list.item(i).setForeground(QColor("#4CAF50"))
-            except Exception as e:
-                self.file_list.item(i).setForeground(QColor("#d32f2f"))
-                print(f"Error processing {file_path}: {e}")
-                
-            progress.setValue(i + 1)
-            QApplication.processEvents()
+        self.load_next_batch_item()
 
-        progress.setValue(items_count)
-        QMessageBox.information(self, "Complete", f"Processed {success_count}/{items_count} files successfully.")
+    def skip_current(self):
+        if not self.is_batch_mode:
+            return
+            
+        self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
+        self.batch_index += 1
+        self.load_next_batch_item()
+
+    def load_next_batch_item(self):
+        # Base case: Finished queue
+        if self.batch_index >= self.file_list.count():
+            self.cancel_batch_mode()
+            QMessageBox.information(self, "Complete", f"Review complete.\nSuccessfully redacted {self.batch_success_count} files.")
+            return
+            
+        # Highlight current item in the list
+        item = self.file_list.item(self.batch_index)
+        self.file_list.setCurrentItem(item)
+        file_path = item.data(Qt.UserRole)
+        
+        self.current_file_path = file_path
+        self.current_hits = []
+        
+        # Attempt to load and auto-scan
+        if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            self.preview_widget.load_image(file_path)
+            
+            try:
+                hits = self.scanner.scan(file_path)
+                if not hits:
+                    # Auto skip if no hits found
+                    item.setForeground(QColor("#888888"))
+                    self.batch_index += 1
+                    # Use QTimer to prevent recursion depth issues on huge empty queues
+                    from PySide6.QtCore import QTimer
+                    QTimer.singleShot(0, self.load_next_batch_item)
+                    return
+                else:
+                    self.current_hits = hits
+                    self.preview_widget.display_hits(hits)
+                    self.btn_redact_next.setEnabled(True)
+            except Exception as e:
+                item.setForeground(QColor("#d32f2f"))
+                print(f"Error processing {file_path}: {e}")
+                self.batch_index += 1
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self.load_next_batch_item)
+        else:
+            # Skip unhandled file types for now
+            self.batch_index += 1
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, self.load_next_batch_item)

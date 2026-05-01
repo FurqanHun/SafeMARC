@@ -4,7 +4,7 @@ from typing import List, Generator, Tuple
 from src.core.scanner import SafeScanner
 from src.core.types import SensitiveHit
 
-SUPPORTED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.pdf'}
+SUPPORTED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.pdf', '.webp', '.bmp', '.tiff'}
 
 class BatchProcessor:
     def __init__(self, scanner: SafeScanner = None):

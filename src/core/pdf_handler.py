@@ -1,0 +1,64 @@
+import os
+import tempfile
+import fitz  # PyMuPDF
+from PIL import Image
+
+class PDFHandler:
+    @staticmethod
+    def extract_pages(pdf_path: str) -> list[str]:
+        """
+        Extracts all pages of a PDF to a temporary directory as high-quality PNGs.
+        Returns a list of file paths to the extracted images.
+        """
+        doc = fitz.open(pdf_path)
+        temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
+        page_paths = []
+        
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            # Increase resolution for better OCR and redaction accuracy
+            zoom = 2.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat)
+            
+            out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
+            pix.save(out_path)
+            page_paths.append(out_path)
+            
+        return page_paths
+
+    @staticmethod
+    def extract_first_page(pdf_path: str) -> str:
+        doc = fitz.open(pdf_path)
+        if len(doc) > 0:
+            temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
+            page = doc.load_page(0)
+            zoom = 2.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat)
+            out_path = os.path.join(temp_dir, "page_1.png")
+            pix.save(out_path)
+            return out_path
+        return None
+
+    @staticmethod
+    def build_pdf(image_paths: list[str], output_pdf_path: str) -> bool:
+        """
+        Combines a list of image paths into a single PDF.
+        """
+        if not image_paths:
+            return False
+            
+        try:
+            # We use PIL to save the images as a multi-page PDF
+            images = [Image.open(img_path).convert('RGB') for img_path in image_paths]
+            if images:
+                images[0].save(
+                    output_pdf_path, 
+                    save_all=True, 
+                    append_images=images[1:]
+                )
+            return True
+        except Exception as e:
+            print(f"Failed to build PDF: {e}")
+            return False

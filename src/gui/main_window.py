@@ -23,7 +23,8 @@ from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QIcon, QColor
 
 from src.core.scanner import SafeScanner
-from src.core.batch_processor import BatchProcessor
+from src.core.batch_processor import BatchProcessor, SUPPORTED_EXTENSIONS
+from src.core.pdf_handler import PDFHandler
 from src.gui.preview_widget import PreviewWidget
 
 
@@ -190,6 +191,11 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = False
         self.batch_index = -1
         self.batch_success_count = 0
+        
+        # PDF Sub-loop State
+        self.active_pdf_pages = []
+        self.active_pdf_index = -1
+        self.active_pdf_outputs = []
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()
@@ -290,7 +296,8 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to load {mode} model: {e}")
 
     def add_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Select Images", "", "Supported (*.png *.jpg *.jpeg *.pdf)")
+        exts = " ".join([f"*{ext}" for ext in SUPPORTED_EXTENSIONS])
+        files, _ = QFileDialog.getOpenFileNames(self, "Select Files", "", f"Supported ({exts})")
         if files:
             for f in files:
                 self.add_to_queue(f)
@@ -300,7 +307,7 @@ class SafeMARCMainWindow(QMainWindow):
         if folder:
             for root, _, filenames in os.walk(folder):
                 for filename in filenames:
-                    if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                    if filename.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
                         self.add_to_queue(os.path.join(root, filename))
 
     def add_to_queue(self, file_path):
@@ -362,8 +369,15 @@ class SafeMARCMainWindow(QMainWindow):
         self.current_file_path = file_path
         self.current_hits = []
         
-        # Load preview (PDFs might need special handling, but for images it works directly)
-        if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+        # Load preview
+        if file_path.lower().endswith('.pdf'):
+            try:
+                preview_page = PDFHandler.extract_first_page(file_path)
+                if preview_page:
+                    self.preview_widget.load_image(preview_page)
+            except Exception as e:
+                print(f"Failed to load PDF preview: {e}")
+        elif file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
 
     def redact_current(self):
@@ -380,6 +394,20 @@ class SafeMARCMainWindow(QMainWindow):
             use_suffix=self.chk_suffix.isChecked()
         )
         
+        # Handle PDF sub-loop
+        if self.active_pdf_pages:
+            import tempfile
+            fd, temp_path = tempfile.mkstemp(suffix=".png")
+            os.close(fd)
+            success = self.scanner.redact(self.current_file_path, temp_path, selected_hits)
+            if success:
+                self.active_pdf_outputs.append(temp_path)
+                self.active_pdf_index += 1
+                self.load_next_batch_item()
+            else:
+                QMessageBox.warning(self, "Error", "Failed to redact PDF page.")
+            return
+        
         success = self.scanner.redact(self.current_file_path, out_path, selected_hits)
         if success:
             self.batch_success_count += 1
@@ -393,6 +421,10 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.processor or self.file_list.count() == 0:
             QMessageBox.warning(self, "Warning", "Queue is empty.")
             return
+            
+        has_pdf = any(self.file_list.item(i).data(Qt.UserRole).lower().endswith('.pdf') for i in range(self.file_list.count()))
+        if has_pdf:
+            QMessageBox.information(self, "PDF Rasterization", "PDFs in the queue will be rasterized to guarantee redaction security. Hidden text layers and vectors will be destroyed.")
 
         self.is_batch_mode = True
         self.batch_index = 0
@@ -410,14 +442,73 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.is_batch_mode:
             return
             
+        if self.active_pdf_pages:
+            self.active_pdf_outputs.append(self.current_file_path)
+            self.active_pdf_index += 1
+            self.load_next_batch_item()
+            return
+            
         self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
         self.batch_index += 1
         self.load_next_batch_item()
 
     def load_next_batch_item(self):
+        # PDF Sub-loop
+        if self.active_pdf_pages:
+            if self.active_pdf_index < len(self.active_pdf_pages):
+                # Load next page of the active PDF
+                page_path = self.active_pdf_pages[self.active_pdf_index]
+                self.current_file_path = page_path
+                self.current_hits = []
+                self.title_label.setText(f"🛡️ SafeMARC - Page {self.active_pdf_index + 1}/{len(self.active_pdf_pages)}")
+                
+                self.preview_widget.load_image(page_path)
+                try:
+                    hits = self.scanner.scan(page_path)
+                    if not hits:
+                        # Auto skip page
+                        self.active_pdf_outputs.append(page_path)
+                        self.active_pdf_index += 1
+                        from PySide6.QtCore import QTimer
+                        QTimer.singleShot(0, self.load_next_batch_item)
+                        return
+                    else:
+                        self.current_hits = hits
+                        self.preview_widget.display_hits(hits)
+                        self.btn_redact_next.setEnabled(True)
+                except Exception as e:
+                    print(f"Error processing page: {e}")
+                    self.active_pdf_outputs.append(page_path)
+                    self.active_pdf_index += 1
+                    from PySide6.QtCore import QTimer
+                    QTimer.singleShot(0, self.load_next_batch_item)
+                return
+            else:
+                # Finished PDF, rebuild
+                out_path = self.processor.get_output_path(
+                    self.file_list.item(self.batch_index).data(Qt.UserRole),
+                    use_suffix=self.chk_suffix.isChecked()
+                )
+                success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
+                if success:
+                    self.batch_success_count += 1
+                    self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
+                else:
+                    self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
+                
+                # Cleanup and move to next item
+                self.active_pdf_pages = []
+                self.active_pdf_outputs = []
+                self.batch_index += 1
+                self.title_label.setText("🛡️ SafeMARC")
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self.load_next_batch_item)
+                return
+
         # Base case: Finished queue
         if self.batch_index >= self.file_list.count():
             self.cancel_batch_mode()
+            self.title_label.setText("🛡️ SafeMARC")
             QMessageBox.information(self, "Complete", f"Review complete.\nSuccessfully redacted {self.batch_success_count} files.")
             return
             
@@ -426,11 +517,28 @@ class SafeMARCMainWindow(QMainWindow):
         self.file_list.setCurrentItem(item)
         file_path = item.data(Qt.UserRole)
         
+        # Check if it's a PDF
+        if file_path.lower().endswith('.pdf'):
+            try:
+                self.active_pdf_pages = PDFHandler.extract_pages(file_path)
+                self.active_pdf_index = 0
+                self.active_pdf_outputs = []
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self.load_next_batch_item)
+                return
+            except Exception as e:
+                item.setForeground(QColor("#d32f2f"))
+                print(f"Error extracting PDF: {e}")
+                self.batch_index += 1
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self.load_next_batch_item)
+                return
+        
         self.current_file_path = file_path
         self.current_hits = []
         
         # Attempt to load and auto-scan
-        if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+        if file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
             
             try:

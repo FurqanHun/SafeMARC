@@ -50,6 +50,11 @@ class PDFHandler:
             return False
             
         try:
+            # Ensure the output directory exists
+            output_dir = os.path.dirname(output_pdf_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                
             # We use PIL to save the images as a multi-page PDF
             images = [Image.open(img_path).convert('RGB') for img_path in image_paths]
             if images:

@@ -126,6 +126,10 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_suffix.setToolTip("If unchecked, creates a 'safemarc_redacted_output' folder.")
         settings_layout.addWidget(self.chk_suffix)
 
+        self.chk_auto_skip = QCheckBox("Auto-Skip Clean Images")
+        self.chk_auto_skip.setChecked(True)
+        settings_layout.addWidget(self.chk_auto_skip)
+
         sidebar_layout.addWidget(settings_group)
         
         # Text Patterns Group
@@ -160,26 +164,35 @@ class SafeMARCMainWindow(QMainWindow):
         preview_layout.addWidget(self.preview_widget)
 
         # Action Buttons
-        action_layout = QHBoxLayout()
-
+        actions_layout = QHBoxLayout()
+        
+        self.btn_previous = QPushButton("⬅️ Previous")
+        self.btn_previous.setEnabled(False)
+        self.btn_previous.hide()
+        self.btn_previous.clicked.connect(self.go_previous)
+        self.btn_previous.setStyleSheet("padding: 10px; background-color: #555; border-radius: 4px;")
+        
         self.btn_skip = QPushButton("⏭️ Skip")
-        self.btn_skip.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #555555; color: white; border-radius: 6px;")
         self.btn_skip.hide()
         self.btn_skip.clicked.connect(self.skip_current)
-
+        self.btn_skip.setStyleSheet("padding: 10px; background-color: #555; border-radius: 4px;")
+        
         self.btn_redact_next = QPushButton("🛡️ Redact & Next")
-        self.btn_redact_next.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #d32f2f; color: white; border-radius: 6px;")
+        self.btn_redact_next.setEnabled(False)
         self.btn_redact_next.hide()
         self.btn_redact_next.clicked.connect(self.redact_current)
-
+        self.btn_redact_next.setStyleSheet("padding: 10px; background-color: #b71c1c; border-radius: 4px; font-weight: bold;")
+        
+        actions_layout.addWidget(self.btn_previous)
+        actions_layout.addWidget(self.btn_skip)
+        actions_layout.addWidget(self.btn_redact_next)
+        
         self.btn_start_review = QPushButton("🚀 Start Review Process")
         self.btn_start_review.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #388E3C; color: white; border-radius: 6px;")
         self.btn_start_review.clicked.connect(self.start_batch)
 
-        action_layout.addWidget(self.btn_skip)
-        action_layout.addWidget(self.btn_redact_next)
-        action_layout.addWidget(self.btn_start_review)
-        preview_layout.addLayout(action_layout)
+        preview_layout.addLayout(actions_layout)
+        preview_layout.addWidget(self.btn_start_review)
 
         self.splitter.addWidget(preview_container)
         self.splitter.setSizes([300, 700])
@@ -196,6 +209,21 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_pages = []
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
+
+    def cancel_batch_mode(self):
+        self.is_batch_mode = False
+        self.batch_index = -1
+        self.batch_success_count = 0
+        self.active_pdf_pages = []
+        self.active_pdf_outputs = []
+        self.active_pdf_index = -1
+        
+        self.btn_previous.hide()
+        self.btn_skip.hide()
+        self.btn_redact_next.hide()
+        self.btn_start_review.show()
+        self.preview_widget.scene.clear()
+        self.current_hits = []
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()
@@ -354,11 +382,6 @@ class SafeMARCMainWindow(QMainWindow):
         if self.is_batch_mode:
             self.cancel_batch_mode()
 
-    def cancel_batch_mode(self):
-        self.is_batch_mode = False
-        self.btn_start_review.show()
-        self.btn_skip.hide()
-        self.btn_redact_next.hide()
 
     def on_file_selected(self, item):
         # If user manually clicks an item during batch mode, cancel batch mode
@@ -381,7 +404,12 @@ class SafeMARCMainWindow(QMainWindow):
             self.preview_widget.load_image(file_path)
 
     def redact_current(self):
-        if not self.scanner or not self.current_file_path or not self.current_hits:
+        if not self.scanner or not self.current_file_path:
+            return
+
+        # Always check if there are hits to be redacted before proceeding
+        if not self.current_hits:
+            QMessageBox.warning(self, "Warning", "No detected items to redact.")
             return
 
         selected_hits = self.preview_widget.get_selected_hits()
@@ -432,7 +460,9 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Update UI state
         self.btn_start_review.hide()
+        self.btn_previous.show()
         self.btn_skip.show()
+        self.btn_skip.setEnabled(True)
         self.btn_redact_next.show()
         self.btn_redact_next.setEnabled(False)
         
@@ -452,7 +482,62 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_index += 1
         self.load_next_batch_item()
 
+    def go_previous(self):
+        if not self.is_batch_mode:
+            return
+            
+        # Scenario A: Inside a PDF sub-loop
+        if self.active_pdf_pages and self.active_pdf_index > 0:
+            if self.active_pdf_outputs:
+                self.active_pdf_outputs.pop()
+            self.active_pdf_index -= 1
+            self.load_next_batch_item()
+            return
+            
+        # Scenario B: Moving to the previous queue item
+        if self.batch_index > 0:
+            prev_index = self.batch_index - 1
+            prev_item = self.file_list.item(prev_index)
+            prev_path = prev_item.data(Qt.UserRole)
+            
+            if prev_path.lower().endswith('.pdf'):
+                # User wants to go back to a finished PDF
+                msg_box = QMessageBox(self)
+                msg_box.setWindowTitle("Finished PDF")
+                msg_box.setText(f"The previous item is a completed PDF.\nRe-entering it will restart from Page 1.\n\nWhat would you like to do?")
+                
+                btn_restart = msg_box.addButton("Restart PDF", QMessageBox.AcceptRole)
+                btn_skip = msg_box.addButton("Go Back Further", QMessageBox.ActionRole)
+                btn_cancel = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+                
+                msg_box.exec()
+                
+                if msg_box.clickedButton() == btn_restart:
+                    self._undo_queue_item(prev_index)
+                    self.batch_index = prev_index
+                    self.load_next_batch_item()
+                elif msg_box.clickedButton() == btn_skip:
+                    self._undo_queue_item(prev_index)
+                    self.batch_index = prev_index
+                    self.go_previous() # Recursive call
+                else:
+                    return # Cancel
+            else:
+                self._undo_queue_item(prev_index)
+                self.batch_index = prev_index
+                self.load_next_batch_item()
+
+    def _undo_queue_item(self, index):
+        item = self.file_list.item(index)
+        if item.foreground().color() == QColor("#4CAF50"):
+            self.batch_success_count -= 1
+        item.setData(Qt.ForegroundRole, None)
+
     def load_next_batch_item(self):
+        # Update Previous button state
+        can_go_back = bool(self.batch_index > 0 or (self.active_pdf_pages and self.active_pdf_index > 0))
+        self.btn_previous.setEnabled(can_go_back)
+
         # PDF Sub-loop
         if self.active_pdf_pages:
             if self.active_pdf_index < len(self.active_pdf_pages):
@@ -465,7 +550,8 @@ class SafeMARCMainWindow(QMainWindow):
                 self.preview_widget.load_image(page_path)
                 try:
                     hits = self.scanner.scan(page_path)
-                    if not hits:
+                    self.current_hits = hits
+                    if not hits and self.chk_auto_skip.isChecked():
                         # Auto skip page
                         self.active_pdf_outputs.append(page_path)
                         self.active_pdf_index += 1
@@ -473,7 +559,6 @@ class SafeMARCMainWindow(QMainWindow):
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
                     else:
-                        self.current_hits = hits
                         self.preview_widget.display_hits(hits)
                         self.btn_redact_next.setEnabled(True)
                 except Exception as e:
@@ -543,16 +628,16 @@ class SafeMARCMainWindow(QMainWindow):
             
             try:
                 hits = self.scanner.scan(file_path)
-                if not hits:
+                self.current_hits = hits
+                if not hits and self.chk_auto_skip.isChecked():
                     # Auto skip if no hits found
-                    item.setForeground(QColor("#888888"))
+                    self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
                     self.batch_index += 1
                     # Use QTimer to prevent recursion depth issues on huge empty queues
                     from PySide6.QtCore import QTimer
                     QTimer.singleShot(0, self.load_next_batch_item)
                     return
                 else:
-                    self.current_hits = hits
                     self.preview_widget.display_hits(hits)
                     self.btn_redact_next.setEnabled(True)
             except Exception as e:

@@ -592,9 +592,10 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Base case: Finished queue
         if self.batch_index >= self.file_list.count():
+            final_count = self.batch_success_count
             self.cancel_batch_mode()
             self.title_label.setText("🛡️ SafeMARC")
-            QMessageBox.information(self, "Complete", f"Review complete.\nSuccessfully redacted {self.batch_success_count} files.")
+            QMessageBox.information(self, "Complete", f"Review complete.\nSuccessfully redacted {final_count} files.")
             return
             
         # Highlight current item in the list

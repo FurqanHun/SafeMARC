@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressDialog,
     QComboBox,
+    QLineEdit,
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QIcon, QColor
@@ -101,7 +102,7 @@ class SafeMARCMainWindow(QMainWindow):
         sidebar_layout.addLayout(queue_btns_layout)
 
         # Settings Group
-        settings_group = QGroupBox("Processing Settings")
+        settings_group = QGroupBox("Vision Settings")
         settings_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 15px; margin-top: 10px; }")
         settings_layout = QVBoxLayout(settings_group)
         
@@ -122,6 +123,27 @@ class SafeMARCMainWindow(QMainWindow):
         settings_layout.addWidget(self.chk_suffix)
 
         sidebar_layout.addWidget(settings_group)
+        
+        # Text Patterns Group
+        text_group = QGroupBox("Text Redaction")
+        text_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 15px; margin-top: 10px; }")
+        text_layout = QVBoxLayout(text_group)
+        
+        self.text_patterns_layout = QVBoxLayout()
+        text_layout.addLayout(self.text_patterns_layout)
+        
+        btn_add_text = QPushButton("➕ Add Text")
+        btn_add_text.clicked.connect(lambda: self.add_pattern_row(is_regex=False))
+        btn_add_regex = QPushButton("➕ Add Regex")
+        btn_add_regex.clicked.connect(lambda: self.add_pattern_row(is_regex=True))
+        
+        text_btns = QHBoxLayout()
+        text_btns.addWidget(btn_add_text)
+        text_btns.addWidget(btn_add_regex)
+        text_layout.addLayout(text_btns)
+        
+        sidebar_layout.addWidget(text_group)
+
         self.splitter.addWidget(sidebar_widget)
 
         # === Preview Area ===
@@ -165,6 +187,83 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = False
         self.batch_index = -1
         self.batch_success_count = 0
+
+    def add_pattern_row(self, is_regex=False):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        
+        label = QLabel("Regex:" if is_regex else "Text:")
+        label.setStyleSheet("color: #aaa;")
+        
+        input_field = QLineEdit()
+        input_field.setPlaceholderText("e.g. \\b\\d{4}\\b" if is_regex else "e.g. CONFIDENTIAL")
+        input_field.setProperty("is_regex", is_regex)
+        # Use editingFinished so it doesn't trigger Tesseract on every keystroke
+        input_field.editingFinished.connect(self.update_text_patterns)
+        
+        btn_remove = QPushButton("❌")
+        btn_remove.setFixedWidth(30)
+        btn_remove.clicked.connect(lambda checked=False, rw=row_widget: self.remove_pattern_row(rw))
+        
+        row_layout.addWidget(label)
+        row_layout.addWidget(input_field)
+        
+        if not is_regex:
+            chk_whole = QCheckBox("Whole Word")
+            chk_whole.setChecked(True)
+            chk_whole.setObjectName("chk_whole")
+            chk_whole.stateChanged.connect(self.update_text_patterns)
+            row_layout.addWidget(chk_whole)
+            
+        row_layout.addWidget(btn_remove)
+        
+        self.text_patterns_layout.addWidget(row_widget)
+        self.update_text_patterns()
+        
+    def remove_pattern_row(self, row_widget):
+        row_widget.hide()  # Hide immediately so it gets filtered out
+        self.text_patterns_layout.removeWidget(row_widget)
+        row_widget.deleteLater()
+        self.update_text_patterns()
+        
+    def update_text_patterns(self):
+        if not self.scanner:
+            return
+            
+        patterns = []
+        for i in range(self.text_patterns_layout.count()):
+            item = self.text_patterns_layout.itemAt(i)
+            if item:
+                row_widget = item.widget()
+                if row_widget and row_widget.isVisible():
+                    input_field = row_widget.findChild(QLineEdit)
+                    chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
+                    is_whole_word = chk_whole.isChecked() if chk_whole else False
+                    
+                    if input_field and input_field.text().strip():
+                        patterns.append({
+                            "label": "REGEX" if input_field.property("is_regex") else "TEXT",
+                            "pattern": input_field.text(),
+                            "is_regex": input_field.property("is_regex"),
+                            "whole_word": is_whole_word
+                        })
+                    
+        self.scanner.set_text_patterns(patterns)
+        
+        # Auto-rescan if in batch mode
+        if self.is_batch_mode and self.current_file_path:
+            self.btn_redact_next.setEnabled(False)
+            self.preview_widget.load_image(self.current_file_path)
+            self.current_hits = []
+            try:
+                hits = self.scanner.scan(self.current_file_path)
+                self.current_hits = hits
+                if hits:
+                    self.preview_widget.display_hits(hits)
+                    self.btn_redact_next.setEnabled(True)
+            except Exception as e:
+                print(f"Rescan error: {e}")
 
     def on_vision_mode_changed(self, index):
         if not self.scanner:

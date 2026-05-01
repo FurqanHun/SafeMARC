@@ -90,14 +90,17 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_add_file.clicked.connect(self.add_files)
         self.btn_add_folder = QPushButton("📁 Add Folder")
         self.btn_add_folder.clicked.connect(self.add_folder)
+        self.btn_remove = QPushButton("➖ Remove")
+        self.btn_remove.clicked.connect(self.remove_selected_file)
         self.btn_clear = QPushButton("🗑️ Clear")
         self.btn_clear.clicked.connect(self.clear_queue)
         
-        for btn in (self.btn_add_file, self.btn_add_folder, self.btn_clear):
+        for btn in (self.btn_add_file, self.btn_add_folder, self.btn_remove, self.btn_clear):
             btn.setStyleSheet("padding: 8px; border-radius: 4px; background-color: #333;")
         
         queue_btns_layout.addWidget(self.btn_add_file)
         queue_btns_layout.addWidget(self.btn_add_folder)
+        queue_btns_layout.addWidget(self.btn_remove)
         queue_btns_layout.addWidget(self.btn_clear)
         sidebar_layout.addLayout(queue_btns_layout)
 
@@ -310,6 +313,29 @@ class SafeMARCMainWindow(QMainWindow):
         item.setData(Qt.UserRole, file_path)
         item.setToolTip(file_path)
         self.file_list.addItem(item)
+
+    def remove_selected_file(self):
+        selected_items = self.file_list.selectedItems()
+        if not selected_items:
+            return
+            
+        for item in selected_items:
+            # If the removed item is the currently loaded file, clear preview
+            if item.data(Qt.UserRole) == self.current_file_path:
+                self.preview_widget.scene.clear()
+                self.current_file_path = None
+                self.current_hits = []
+                
+            row = self.file_list.row(item)
+            self.file_list.takeItem(row)
+            
+            # If we remove something during batch mode, we might mess up the index
+            if self.is_batch_mode:
+                if row < self.batch_index:
+                    self.batch_index -= 1
+                elif row == self.batch_index:
+                    # If we removed the current batch item, move to the next one
+                    self.load_next_batch_item()
 
     def clear_queue(self):
         self.file_list.clear()

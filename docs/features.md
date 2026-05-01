@@ -7,3 +7,6 @@
 
 
 Supported Documents: Images, PDFs, maybe docx and shit too idk.
+
+We must do non-destructive processing, as we want to allow the user to unselect the regions or faces or text they dont wanna redact, or select the ones that the model might've missed.
+

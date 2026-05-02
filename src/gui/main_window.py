@@ -127,7 +127,7 @@ class SafeMARCMainWindow(QMainWindow):
         settings_layout.addWidget(self.chk_suffix)
 
         self.chk_auto_skip = QCheckBox("Auto-Skip Clean Images")
-        self.chk_auto_skip.setChecked(True)
+        self.chk_auto_skip.setChecked(False)
         settings_layout.addWidget(self.chk_auto_skip)
 
         sidebar_layout.addWidget(settings_group)
@@ -434,12 +434,7 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.scanner or not self.current_file_path:
             return
 
-        # Always check if there are hits to be redacted before proceeding
-        if not self.current_hits:
-            QMessageBox.warning(self, "Warning", "No detected items to redact.")
-            return
-
-        selected_hits = self.preview_widget.get_selected_hits()
+        selected_hits = self.preview_widget.get_selected_hits()   
         if not selected_hits:
             QMessageBox.warning(self, "Warning", "No hits selected for redaction.")
             return

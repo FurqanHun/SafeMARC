@@ -43,15 +43,25 @@ SafeMARC/
 ├── requirements.txt
 ├── README.md
 ├── setup.py
+├── main.py                <-- Entry point of the application
 │
 ├── src/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── gui/
-│   ├── core/              <-- OCR, Redaction logic
-│   └── utils/             <-- Helpers (PDF parsers, Config loaders)
+│   ├── cli/               <-- Command Line Interface logic
+│   ├── core/              <-- OCR, Redaction, and Scanning logic
+│   │   ├── detectors/     <-- Face & text detection algorithms
+│   │   ├── batch_processor.py
+│   │   ├── pdf_handler.py
+│   │   ├── redactor.py
+│   │   ├── scanner.py
+│   │   └── types.py
+│   ├── gui/               <-- PySide6-based Graphical User Interface
+│   │   ├── main_window.py <-- Main application window layout & workflows
+│   │   └── preview_widget.py <-- Interactive image preview, zoom & draw area
+│   └── utils/             <-- Helpers (file path normalizers, conversions)
 │
-├── assets/                <-- Icons, logos, UI themes (non-code)
-├── tests/                 <-- Unit tests (eventually)
-└── docs/                  <-- FYP documentation
+├── assets/                <-- Icons, logos, UI themes
+├── tests/                 <-- Unit and integration tests
+└── docs/                  <-- Project and developer documentation
+    ├── features.md        <-- Project feature roadmap & status
+    └── shortcuts.md       <-- Keyboard and mouse shortcut guide
 ```

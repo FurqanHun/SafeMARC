@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QIcon, QColor
+from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
 
 from src.core.scanner import SafeScanner
 from src.core.batch_processor import BatchProcessor, SUPPORTED_EXTENSIONS
@@ -127,7 +127,7 @@ class SafeMARCMainWindow(QMainWindow):
         settings_layout.addWidget(self.chk_suffix)
 
         self.chk_auto_skip = QCheckBox("Auto-Skip Clean Images")
-        self.chk_auto_skip.setChecked(True)
+        self.chk_auto_skip.setChecked(False)
         settings_layout.addWidget(self.chk_auto_skip)
 
         sidebar_layout.addWidget(settings_group)
@@ -161,7 +161,22 @@ class SafeMARCMainWindow(QMainWindow):
         
         self.preview_widget = PreviewWidget()
         self.preview_widget.setStyleSheet("border: 2px dashed #4CAF50; border-radius: 8px; background-color: #121212;")
+        self.preview_widget.on_manual_hit_added = lambda: self.btn_redact_next.setEnabled(True)
         preview_layout.addWidget(self.preview_widget)
+
+        # Draw Tool
+        draw_layout = QHBoxLayout()
+        self.btn_draw_mode = QPushButton("✏️ Draw Box (D)")
+        self.btn_draw_mode.setCheckable(True)
+        self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
+        self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+        draw_layout.addWidget(self.btn_draw_mode)
+        preview_layout.addLayout(draw_layout)
+        
+        # Shortcut for Draw Mode
+        from PySide6.QtGui import QShortcut
+        self.shortcut_draw = QShortcut(QKeySequence("D"), self)
+        self.shortcut_draw.activated.connect(self.btn_draw_mode.click)
 
         # Action Buttons
         actions_layout = QHBoxLayout()
@@ -210,6 +225,13 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
 
+    def toggle_draw_mode(self, checked):
+        self.preview_widget.set_drawing_mode(checked)
+        if checked:
+            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #1976D2; color: white; border-radius: 4px;")
+        else:
+            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; color: white; border-radius: 4px;")
+
     def cancel_batch_mode(self):
         self.is_batch_mode = False
         self.batch_index = -1
@@ -224,6 +246,11 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_start_review.show()
         self.preview_widget.scene.clear()
         self.current_hits = []
+        
+        # Reset draw mode
+        if self.btn_draw_mode.isChecked():
+            self.btn_draw_mode.setChecked(False)
+            self.toggle_draw_mode(False)
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()
@@ -407,12 +434,7 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.scanner or not self.current_file_path:
             return
 
-        # Always check if there are hits to be redacted before proceeding
-        if not self.current_hits:
-            QMessageBox.warning(self, "Warning", "No detected items to redact.")
-            return
-
-        selected_hits = self.preview_widget.get_selected_hits()
+        selected_hits = self.preview_widget.get_selected_hits()   
         if not selected_hits:
             QMessageBox.warning(self, "Warning", "No hits selected for redaction.")
             return

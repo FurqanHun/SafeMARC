@@ -25,7 +25,7 @@
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.
 - [ ] **UI/UX Polish**: High-fidelity UI styling and enhanced layouts (Planned).
-- [x] **CLI Interface**: Command-line batch processing with ArgumentParser.
+- [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.
 

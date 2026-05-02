@@ -550,6 +550,12 @@ class SafeMARCMainWindow(QMainWindow):
             
         # Scenario B: Moving to the previous queue item
         if self.batch_index > 0:
+            if self.active_pdf_pages and self.active_pdf_index == 0:
+                self.active_pdf_pages = []
+                self.active_pdf_outputs = []
+                self.active_pdf_index = 0
+                self.active_pdf_source = None
+            
             prev_index = self.batch_index - 1
             prev_item = self.file_list.item(prev_index)
             prev_path = prev_item.data(Qt.UserRole)

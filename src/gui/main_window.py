@@ -164,19 +164,47 @@ class SafeMARCMainWindow(QMainWindow):
         self.preview_widget.on_manual_hit_added = lambda: self.btn_redact_next.setEnabled(True)
         preview_layout.addWidget(self.preview_widget)
 
-        # Draw Tool
+        # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
         self.btn_draw_mode = QPushButton("✏️ Draw Box (D)")
         self.btn_draw_mode.setCheckable(True)
         self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
         self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+        
+        self.btn_zoom_in = QPushButton("➕ Zoom In")
+        self.btn_zoom_in.clicked.connect(self.preview_widget.zoom_in)
+        self.btn_zoom_in.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+        
+        self.btn_zoom_out = QPushButton("➖ Zoom Out")
+        self.btn_zoom_out.clicked.connect(self.preview_widget.zoom_out)
+        self.btn_zoom_out.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+        
+        self.btn_reset_zoom = QPushButton("🔄 Reset Zoom")
+        self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
+        self.btn_reset_zoom.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+
         draw_layout.addWidget(self.btn_draw_mode)
+        draw_layout.addWidget(self.btn_zoom_in)
+        draw_layout.addWidget(self.btn_zoom_out)
+        draw_layout.addWidget(self.btn_reset_zoom)
         preview_layout.addLayout(draw_layout)
         
-        # Shortcut for Draw Mode
+        # Shortcuts
         from PySide6.QtGui import QShortcut
         self.shortcut_draw = QShortcut(QKeySequence("D"), self)
         self.shortcut_draw.activated.connect(self.btn_draw_mode.click)
+
+        self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl+="), self)
+        self.shortcut_zoom_in.activated.connect(self.preview_widget.zoom_in)
+
+        self.shortcut_zoom_in2 = QShortcut(QKeySequence("Ctrl++"), self)
+        self.shortcut_zoom_in2.activated.connect(self.preview_widget.zoom_in)
+
+        self.shortcut_zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
+        self.shortcut_zoom_out.activated.connect(self.preview_widget.zoom_out)
+
+        self.shortcut_zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.shortcut_zoom_reset.activated.connect(self.preview_widget.reset_zoom)
 
         # Action Buttons
         actions_layout = QHBoxLayout()

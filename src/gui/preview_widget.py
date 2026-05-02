@@ -168,6 +168,11 @@ class PreviewWidget(QGraphicsView):
         self.scale(1/1.25, 1/1.25)
         self.zoom_factor /= 1.25
 
+    def reset_zoom(self):
+        self.zoom_factor = 1.0
+        if self.current_pixmap_item:
+            self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
     def wheelEvent(self, event):
         if event.modifiers() == Qt.ControlModifier:
             if event.angleDelta().y() > 0:

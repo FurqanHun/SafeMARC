@@ -179,9 +179,14 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_zoom_out.clicked.connect(self.preview_widget.zoom_out)
         self.btn_zoom_out.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
         
+        self.btn_reset_zoom = QPushButton("🔄 Reset Zoom")
+        self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
+        self.btn_reset_zoom.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+
         draw_layout.addWidget(self.btn_draw_mode)
         draw_layout.addWidget(self.btn_zoom_in)
         draw_layout.addWidget(self.btn_zoom_out)
+        draw_layout.addWidget(self.btn_reset_zoom)
         preview_layout.addLayout(draw_layout)
         
         # Shortcuts
@@ -197,6 +202,9 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.shortcut_zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
         self.shortcut_zoom_out.activated.connect(self.preview_widget.zoom_out)
+
+        self.shortcut_zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.shortcut_zoom_reset.activated.connect(self.preview_widget.reset_zoom)
 
         # Action Buttons
         actions_layout = QHBoxLayout()

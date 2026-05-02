@@ -12,7 +12,7 @@ from src.core.types import SensitiveHit
 
 class VisionDetector(BaseDetector):
     def __init__(self, mode: str = "faces"):
-        self.mode = mode  # "faces" or "bodies"
+        self.mode = mode  # "faces", "bodies", or "text"
         
         if self.mode == "faces":
             # Use OpenCV's built-in Haar Cascade for robust frontal face detection
@@ -20,7 +20,7 @@ class VisionDetector(BaseDetector):
             self.face_cascade = cv2.CascadeClassifier(
                 cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
             )
-        else: # bodies
+        elif self.mode == "bodies":
             model_path = os.path.abspath("efficientdet_lite2.tflite")
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Missing body model: {model_path}")
@@ -38,6 +38,9 @@ class VisionDetector(BaseDetector):
             return []
 
         hits = []
+
+        if self.mode == "text":
+            return []
 
         if self.mode == "faces":
             # Detect faces using Haar Cascade

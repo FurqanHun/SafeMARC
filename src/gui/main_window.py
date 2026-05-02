@@ -114,6 +114,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.cmb_vision_mode = QComboBox()
         self.cmb_vision_mode.addItem("Faces Only", "faces")
         self.cmb_vision_mode.addItem("Full Body", "bodies")
+        self.cmb_vision_mode.addItem("Text Only", "text")
         self.cmb_vision_mode.currentIndexChanged.connect(self.on_vision_mode_changed)
         
         mode_layout = QHBoxLayout()

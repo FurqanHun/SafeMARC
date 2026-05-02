@@ -2,6 +2,7 @@
 
 ## Core Vision Features
 - [x] **Face Detection**: Fast & accurate face scanning via Mediapipe/TensorFlow Lite.
+- [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
 - [x] **Redact All**: Auto-redact all detected faces in a document.
 - [ ] **Whitelist Mode**: Redact all faces except those matching specific approved identities. (Planned)
 - [ ] **Blacklist Mode**: Specifically redact only matched sensitive identities. (Planned)
@@ -19,6 +20,8 @@
 - [x] **Manual Toggle**: Intersected regions/boxes can be untoggled before saving.
 - [x] **Manual Draw Tool**: Ability to toggle "Draw Box" mode (with a button or the `D` keyboard shortcut) to draw custom redaction rectangles.
 - [x] **Auto-Skip Clean Images**: Configurable feature to bypass images with no detected sensitive hits for a faster review.
+- [x] **Skip Review Mode**: Configurable checkbox toggle to run fully automated review and redaction across all items.
+- [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.
 - [x] **Queue Management**: Direct queue manipulation allowing users to remove any individual file before/during review.
 - [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
 

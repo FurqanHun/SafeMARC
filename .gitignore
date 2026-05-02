@@ -15,6 +15,7 @@ env/
 .zed/
 .DS_Store
 Thumbs.db
+.agents/
 
 # --- SAFE MARC SPECIFIC ---
 test_data/

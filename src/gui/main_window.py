@@ -231,9 +231,15 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_redact_next.clicked.connect(self.redact_current)
         self.btn_redact_next.setStyleSheet("padding: 10px; background-color: #b71c1c; border-radius: 4px; font-weight: bold;")
         
+        self.btn_stop_review = QPushButton("🛑 Stop Review")
+        self.btn_stop_review.hide()
+        self.btn_stop_review.clicked.connect(self.cancel_batch_mode)
+        self.btn_stop_review.setStyleSheet("padding: 10px; background-color: #333; color: white; border-radius: 4px; font-weight: bold;")
+
         actions_layout.addWidget(self.btn_previous)
         actions_layout.addWidget(self.btn_skip)
         actions_layout.addWidget(self.btn_redact_next)
+        actions_layout.addWidget(self.btn_stop_review)
         
         self.btn_start_review = QPushButton("🚀 Start Review Process")
         self.btn_start_review.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #388E3C; color: white; border-radius: 6px;")
@@ -276,6 +282,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_previous.hide()
         self.btn_skip.hide()
         self.btn_redact_next.hide()
+        self.btn_stop_review.hide()
         self.btn_start_review.show()
         self.preview_widget.scene.clear()
         self.current_hits = []
@@ -522,6 +529,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_skip.setEnabled(True)
         self.btn_redact_next.show()
         self.btn_redact_next.setEnabled(False)
+        self.btn_stop_review.show()
         
         self.load_next_batch_item()
 

@@ -1,5 +1,8 @@
 # SafeMARC - Sensitive Media Automatic Redaction and Concealment
 
+> [!WARNING]
+> **Pre-Alpha Stage Notice:** This project is currently in a pre-alpha stage, and is pretty barebones. No official release build is shipped yet. This project should only be used for development or testing purposes.
+
 SafeMARC is a privacy-focused desktop application designed to automatically detect and redact Sensitive Personal Identifiable Information (SPII) and faces from images, PDFs, and digital documents.
 
 The system will focus on reliably detecting structured sensitive data such as phone numbers, ID numbers, card numbers, and other pattern-based information, along with face detection in visual media.

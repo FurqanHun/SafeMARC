@@ -42,6 +42,8 @@ class PreviewWidget(QGraphicsView):
         
         self.setRenderHint(self.renderHints() | QPainter.RenderHint.SmoothPixmapTransform)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
         
         self.current_pixmap_item = None
         self.hit_items = []
@@ -51,6 +53,7 @@ class PreviewWidget(QGraphicsView):
         self.draw_start_point = None
         self.current_drawing_rect = None
         self.on_manual_hit_added = None
+        self.zoom_factor = 1.0
 
     def set_drawing_mode(self, enabled: bool):
         self.drawing_mode = enabled
@@ -66,6 +69,7 @@ class PreviewWidget(QGraphicsView):
         self.current_pixmap_item = None
         self.hit_items = []
         self.active_hits = []
+        self.zoom_factor = 1.0
         
         pixmap = QPixmap(file_path)
         if not pixmap.isNull():
@@ -97,7 +101,7 @@ class PreviewWidget(QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self.current_pixmap_item:
+        if self.current_pixmap_item and self.zoom_factor == 1.0:
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
     def mousePressEvent(self, event):
@@ -155,3 +159,21 @@ class PreviewWidget(QGraphicsView):
             event.accept()
         else:
             super().mouseReleaseEvent(event)
+
+    def zoom_in(self):
+        self.scale(1.25, 1.25)
+        self.zoom_factor *= 1.25
+
+    def zoom_out(self):
+        self.scale(1/1.25, 1/1.25)
+        self.zoom_factor /= 1.25
+
+    def wheelEvent(self, event):
+        if event.modifiers() == Qt.ControlModifier:
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)

@@ -278,6 +278,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_start_review.show()
         self.preview_widget.scene.clear()
         self.current_hits = []
+        self.file_list.setEnabled(True)
         
         # Reset draw mode
         if self.btn_draw_mode.isChecked():
@@ -511,6 +512,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = True
         self.batch_index = 0
         self.batch_success_count = 0
+        self.file_list.setEnabled(False)
         
         # Update UI state
         self.btn_start_review.hide()

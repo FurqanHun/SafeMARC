@@ -47,10 +47,10 @@ SafeMARC/
 │
 ├── src/
 │   ├── cli/               <-- Command Line Interface logic
+|   |   ├── cli.py
 │   ├── core/              <-- OCR, Redaction, and Scanning logic
 │   │   ├── detectors/     <-- Face & text detection algorithms
 │   │   ├── batch_processor.py
-│   │   ├── pdf_handler.py
 │   │   ├── redactor.py
 │   │   ├── scanner.py
 │   │   └── types.py
@@ -58,6 +58,7 @@ SafeMARC/
 │   │   ├── main_window.py <-- Main application window layout & workflows
 │   │   └── preview_widget.py <-- Interactive image preview, zoom & draw area
 │   └── utils/             <-- Helpers (file path normalizers, conversions)
+│       └── pdf_handler.py <-- PDF page extraction and rasterized rebuilding
 │
 ├── assets/                <-- Icons, logos, UI themes
 ├── tests/                 <-- Unit and integration tests

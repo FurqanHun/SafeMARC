@@ -24,7 +24,7 @@ from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
 
 from src.core.scanner import SafeScanner
 from src.core.batch_processor import BatchProcessor, SUPPORTED_EXTENSIONS
-from src.core.pdf_handler import PDFHandler
+from src.utils.pdf_handler import PDFHandler
 from src.gui.preview_widget import PreviewWidget
 
 

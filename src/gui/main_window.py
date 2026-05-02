@@ -130,6 +130,10 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_auto_skip.setChecked(False)
         settings_layout.addWidget(self.chk_auto_skip)
 
+        self.chk_skip_review = QCheckBox("Skip Review (Auto-Redact)")
+        self.chk_skip_review.setChecked(False)
+        settings_layout.addWidget(self.chk_skip_review)
+
         sidebar_layout.addWidget(settings_group)
         
         # Text Patterns Group
@@ -601,7 +605,21 @@ class SafeMARCMainWindow(QMainWindow):
                 try:
                     hits = self.scanner.scan(page_path)
                     self.current_hits = hits
-                    if not hits and self.chk_auto_skip.isChecked():
+                    if self.chk_skip_review.isChecked():
+                        import tempfile
+                        import os
+                        fd, temp_path = tempfile.mkstemp(suffix=".png")
+                        os.close(fd)
+                        success = self.scanner.redact(page_path, temp_path, hits)
+                        if success:
+                            self.active_pdf_outputs.append(temp_path)
+                        else:
+                            self.active_pdf_outputs.append(page_path)
+                        self.active_pdf_index += 1
+                        from PySide6.QtCore import QTimer
+                        QTimer.singleShot(0, self.load_next_batch_item)
+                        return
+                    elif not hits and self.chk_auto_skip.isChecked():
                         # Auto skip page
                         self.active_pdf_outputs.append(page_path)
                         self.active_pdf_index += 1
@@ -680,7 +698,22 @@ class SafeMARCMainWindow(QMainWindow):
             try:
                 hits = self.scanner.scan(file_path)
                 self.current_hits = hits
-                if not hits and self.chk_auto_skip.isChecked():
+                if self.chk_skip_review.isChecked():
+                    out_path = self.processor.get_output_path(
+                        file_path, 
+                        use_suffix=self.chk_suffix.isChecked()
+                    )
+                    success = self.scanner.redact(file_path, out_path, hits)
+                    if success:
+                        self.batch_success_count += 1
+                        self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
+                    else:
+                        self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
+                    self.batch_index += 1
+                    from PySide6.QtCore import QTimer
+                    QTimer.singleShot(0, self.load_next_batch_item)
+                    return
+                elif not hits and self.chk_auto_skip.isChecked():
                     # Auto skip if no hits found
                     self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
                     self.batch_index += 1

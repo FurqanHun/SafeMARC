@@ -1,9 +1,13 @@
 import sys
+import signal
 
 def run_gui():
     import qdarktheme
     from PySide6.QtWidgets import QApplication, QMessageBox
     from src.gui.main_window import SafeMARCMainWindow
+
+    # Allow Ctrl+C to terminate application
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarktheme.load_stylesheet())

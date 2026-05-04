@@ -995,6 +995,10 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.processor or self.file_list.count() == 0:
             QMessageBox.warning(self, "Warning", "Queue is empty.")
             return
+
+        for i in range(self.file_list.count()):
+            from PySide6.QtGui import QColor
+            self.file_list.item(i).setForeground(QColor("#E5E7EB"))
             
         has_pdf = any(self.file_list.item(i).data(Qt.UserRole).lower().endswith('.pdf') for i in range(self.file_list.count()))
         if has_pdf:

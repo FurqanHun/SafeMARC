@@ -8,6 +8,7 @@
 - [ ] **Blacklist Mode**: Specifically redact only matched sensitive identities. (Planned)
 
 ## Text Redaction
+- [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
 - [ ] **Predefined Patterns**: Pre-configured rules for Common entities (Phone Numbers, CNICs/IDs, Credit Cards). (Planned/Partial)
 - [x] **Custom Text & Regex Redaction**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines.
 

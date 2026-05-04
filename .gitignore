@@ -48,3 +48,6 @@ models/
 .env
 secrets.json
 config_local.py
+
+# --- AGENT SKILLS ---
+skills-lock.json

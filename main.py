@@ -10,7 +10,32 @@ def run_gui():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     app = QApplication(sys.argv)
-    app.setStyleSheet(qdarktheme.load_stylesheet())
+    custom_style = """
+    QMessageBox {
+        background-color: #0B0F19;
+    }
+    QMessageBox QLabel {
+        color: #F3F4F6;
+        font-size: 13px;
+        background: transparent;
+    }
+    QMessageBox QPushButton {
+        background-color: #1F2937;
+        color: #E5E7EB;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        min-width: 80px;
+    }
+    QMessageBox QPushButton:hover {
+        background-color: #374151;
+        border-color: #4B5563;
+        color: #FFFFFF;
+    }
+    """
+    app.setStyleSheet(qdarktheme.load_stylesheet() + custom_style)
     window = SafeMARCMainWindow()
     window.show()
 

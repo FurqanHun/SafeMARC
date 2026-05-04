@@ -26,63 +26,17 @@ class SettingsDialog(QDialog):
             QDialog {
                 background-color: #0B0F19;
             }
-        """)
-        
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
-        
-        # Header
-        header_widget = QWidget()
-        header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        
-        title_label = QLabel("APPLICATION SETTINGS")
-        title_label.setStyleSheet("""
-            font-size: 16px; 
-            font-weight: 800; 
-            color: #10B981; 
-            letter-spacing: 0.5px;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        """)
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        
-        layout.addWidget(header_widget)
-        
-        # Subtle separator
-        sep = QWidget()
-        sep.setFixedHeight(1)
-        sep.setStyleSheet("background-color: #374151;")
-        layout.addWidget(sep)
-        
-        # Content Card
-        card = QWidget()
-        card.setObjectName("settingsCard")
-        card.setStyleSheet("""
+            QLabel#headingLabel {
+                background: transparent;
+            }
             QWidget#settingsCard {
                 background-color: #111827;
                 border: 1px solid #374151;
                 border-radius: 10px;
             }
-        """)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        
-        msg = QLabel("Settings panel is currently empty for development.")
-        msg.setStyleSheet("color: #9CA3AF; font-size: 13px; font-weight: 500;")
-        card_layout.addWidget(msg)
-        
-        layout.addWidget(card)
-        layout.addStretch()
-        
-        # Bottom Buttons
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        
-        close_btn = QPushButton(" Close")
-        close_btn.setIcon(svg_to_icon(SVG_X))
-        close_btn.setStyleSheet("""
+            QWidget#settingsCard QLabel {
+                background: transparent;
+            }
             QPushButton {
                 background-color: #1F2937;
                 color: #E5E7EB;
@@ -98,6 +52,57 @@ class SettingsDialog(QDialog):
                 color: #FFFFFF;
             }
         """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+        
+        # Header
+        header_widget = QWidget()
+        header_widget.setStyleSheet("background: transparent;")
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        
+        title_label = QLabel("APPLICATION SETTINGS")
+        title_label.setObjectName("headingLabel")
+        title_label.setStyleSheet("""
+            font-size: 16px; 
+            font-weight: 800; 
+            color: #10B981; 
+            letter-spacing: 0.5px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: transparent;
+        """)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        layout.addWidget(header_widget)
+        
+        # Subtle separator
+        sep = QWidget()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet("background-color: #374151;")
+        layout.addWidget(sep)
+        
+        # Content Card
+        card = QWidget()
+        card.setObjectName("settingsCard")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        
+        msg = QLabel("Settings panel is currently empty for development.")
+        msg.setStyleSheet("color: #9CA3AF; font-size: 13px; font-weight: 500; background: transparent;")
+        card_layout.addWidget(msg)
+        
+        layout.addWidget(card)
+        layout.addStretch()
+        
+        # Bottom Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        close_btn = QPushButton(" Close")
+        close_btn.setIcon(svg_to_icon(SVG_X))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         

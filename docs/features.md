@@ -28,9 +28,8 @@
 
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.
-- [ ] **Premium UI/UX Polish**: High-fidelity UI styling and enhanced layouts (Planned).
-- [x] **Advanced Zoom Controls**: Interactive zoom in/out with shortcuts (`Ctrl+=`, `Ctrl+-`, `Ctrl+0`), zoom buttons, and `Ctrl+Scroll` support.
-- [ ] **Keyboard-Driven Workflow**: Expanded keyboard shortcuts for quick queue actions, jumping across redaction loops, and toggling Draw Mode (Planned/Partial).
+- [ ] **Premium UI/UX Polish**: High-fidelity dark-theme UI styling, Lucide-like SVG vector icons, clean cards, and responsive custom widgets. (Ongoing)
+- [ ] **Keyboard-Driven Workflow**: Expanded keyboard shortcuts for quick queue actions (`Ctrl+O`, `Ctrl+Shift+O`, `Delete`), navigating review loops (`Return`, `Backspace`), and toggling Draw Mode (`D`). (Ongoing)
 - [ ] **Rebindable Shortcuts Settings**: Settings panel to allow users to fully customize and rebind keys (Planned).
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.

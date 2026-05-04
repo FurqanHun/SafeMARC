@@ -26,6 +26,7 @@ from src.core.scanner import SafeScanner
 from src.core.batch_processor import BatchProcessor, SUPPORTED_EXTENSIONS
 from src.utils.pdf_handler import PDFHandler
 from src.gui.preview_widget import PreviewWidget
+from src.gui.settings_dialog import SettingsDialog
 
 
 class SafeMARCMainWindow(QMainWindow):
@@ -62,8 +63,14 @@ class SafeMARCMainWindow(QMainWindow):
         header_layout.addStretch()
 
         self.status_label = QLabel(engine_status)
-        self.status_label.setStyleSheet("font-size: 14px; color: #aaaaaa;")
+        self.status_label.setStyleSheet("font-size: 14px; color: #aaaaaa; margin-right: 10px;")
         header_layout.addWidget(self.status_label)
+        
+        self.btn_settings = QPushButton("⚙️ Settings")
+        self.btn_settings.setStyleSheet("padding: 6px 12px; font-weight: bold; background-color: #333; color: white; border-radius: 4px;")
+        self.btn_settings.clicked.connect(self.open_settings)
+        header_layout.addWidget(self.btn_settings)
+        
         main_layout.addLayout(header_layout)
 
         # Splitter for sidebar and preview
@@ -292,6 +299,10 @@ class SafeMARCMainWindow(QMainWindow):
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
             self.toggle_draw_mode(False)
+
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        dialog.exec()
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()

@@ -351,6 +351,12 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_skip_review.setStyleSheet(checkbox_style)
         settings_layout.addWidget(self.chk_skip_review)
 
+        self.chk_always_rasterize = QCheckBox("Always Rasterize PDFs")
+        self.chk_always_rasterize.setChecked(False)
+        self.chk_always_rasterize.setToolTip("If unchecked, non-redacted PDFs are copied directly without rasterizing.")
+        self.chk_always_rasterize.setStyleSheet(checkbox_style)
+        settings_layout.addWidget(self.chk_always_rasterize)
+
         sidebar_layout.addWidget(settings_card)
         
         # Text Patterns Card (Styled Card instead of native GroupBox)
@@ -968,6 +974,7 @@ class SafeMARCMainWindow(QMainWindow):
             os.close(fd)
             success = self.scanner.redact(self.current_file_path, temp_path, selected_hits)
             if success:
+                self.active_pdf_has_redactions = True
                 self.active_pdf_outputs.append(temp_path)
                 self.active_pdf_index += 1
                 self.load_next_batch_item()
@@ -1136,7 +1143,17 @@ class SafeMARCMainWindow(QMainWindow):
                     self.file_list.item(self.batch_index).data(Qt.UserRole),
                     use_suffix=self.chk_suffix.isChecked()
                 )
-                success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
+                if not self.active_pdf_has_redactions and not self.chk_always_rasterize.isChecked():
+                    import shutil
+                    try:
+                        shutil.copy2(self.file_list.item(self.batch_index).data(Qt.UserRole), out_path)
+                        success = True
+                    except Exception as e:
+                        print(f"Error copying original PDF: {e}")
+                        success = False
+                else:
+                    success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
+
                 if success:
                     self.batch_success_count += 1
                     self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
@@ -1171,6 +1188,7 @@ class SafeMARCMainWindow(QMainWindow):
                 self.active_pdf_pages = PDFHandler.extract_pages(file_path)
                 self.active_pdf_index = 0
                 self.active_pdf_outputs = []
+                self.active_pdf_has_redactions = False
                 from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
                 return

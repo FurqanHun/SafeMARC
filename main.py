@@ -34,6 +34,11 @@ def run_gui():
         border-color: #4B5563;
         color: #FFFFFF;
     }
+    QMessageBox QPushButton:focus {
+        background-color: #374151;
+        border-color: #10B981;
+        color: #FFFFFF;
+    }
     """
     app.setStyleSheet(qdarktheme.load_stylesheet() + custom_style)
     window = SafeMARCMainWindow()

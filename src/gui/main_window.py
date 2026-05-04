@@ -1041,6 +1041,7 @@ class SafeMARCMainWindow(QMainWindow):
                     font-size: 13px;
                 }
                 QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+                QPushButton:focus { background-color: #374151; border-color: #10B981; color: #FFFFFF; }
             """)
             msg_box.exec()
             

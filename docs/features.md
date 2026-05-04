@@ -25,6 +25,8 @@
 - [x] **Skip Review Mode**: Configurable checkbox toggle to run fully automated review and redaction across all items.
 - [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.
 - [x] **Queue Management**: Direct queue manipulation allowing users to remove any individual file before/during review.
+- [ ] **Drag and Drop**: Support dragging and dropping files or folders directly into the queue list widget. (Planned)
+- [ ] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item. (Planned)
 - [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
 
 ## System & Interface

@@ -1021,10 +1021,40 @@ class SafeMARCMainWindow(QMainWindow):
             return
             
         if self.active_pdf_pages:
-            self.active_pdf_outputs.append(self.current_file_path)
-            self.active_pdf_index += 1
-            self.load_next_batch_item()
-            return
+            from PySide6.QtWidgets import QMessageBox
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Skip Action")
+            msg_box.setText("Would you like to skip only the current page or the entire PDF?")
+            btn_page = msg_box.addButton("Current Page", QMessageBox.AcceptRole)
+            btn_pdf = msg_box.addButton("Entire PDF", QMessageBox.ActionRole)
+            btn_cancel = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+            msg_box.setStyleSheet("""
+                QMessageBox { background-color: #0B0F19; }
+                QMessageBox QLabel { color: #F3F4F6; font-size: 13px; background: transparent; }
+                QPushButton {
+                    background-color: #1F2937;
+                    color: #E5E7EB;
+                    border: 1px solid #374151;
+                    border-radius: 8px;
+                    padding: 6px 14px;
+                    font-weight: 600;
+                    font-size: 13px;
+                }
+                QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+            """)
+            msg_box.exec()
+            
+            if msg_box.clickedButton() == btn_page:
+                self.active_pdf_outputs.append(self.current_file_path)
+                self.active_pdf_index += 1
+                self.load_next_batch_item()
+                return
+            elif msg_box.clickedButton() == btn_pdf:
+                self.active_pdf_pages = []
+                self.active_pdf_outputs = []
+                self.active_pdf_index = 0
+            else:
+                return
             
         self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
         self.batch_index += 1

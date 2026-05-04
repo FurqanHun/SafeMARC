@@ -35,8 +35,13 @@ class RegexDetector(BaseDetector):
         if not self.custom_patterns:
             return []
             
-        img = Image.open(image_path)
-        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+        from PIL import ImageEnhance
+        # Pre-process image for highest character recognition accuracy
+        img = Image.open(image_path).convert('L')
+        img = ImageEnhance.Contrast(img).enhance(2.0)
+        
+        # Run Tesseract OCR with fully automatic page segmentation
+        data = pytesseract.image_to_data(img, config="--psm 3", output_type=pytesseract.Output.DICT)
 
         hits = []
         n_boxes = len(data["text"])

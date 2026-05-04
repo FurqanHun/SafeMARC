@@ -17,7 +17,7 @@ class PDFHandler:
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             # Increase resolution for better OCR and redaction accuracy
-            zoom = 2.0
+            zoom = 4.0
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)
             
@@ -33,7 +33,7 @@ class PDFHandler:
         if len(doc) > 0:
             temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
             page = doc.load_page(0)
-            zoom = 2.0
+            zoom = 4.0
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)
             out_path = os.path.join(temp_dir, "page_1.png")

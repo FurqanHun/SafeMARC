@@ -255,6 +255,47 @@ class SafeMARCMainWindow(QMainWindow):
         preview_layout.addLayout(actions_layout)
         preview_layout.addWidget(self.btn_start_review)
 
+        # Batch Navigation Shortcuts
+        from PySide6.QtGui import QShortcut
+        self.shortcut_start_redact = QShortcut(QKeySequence("Return"), self)
+        self.shortcut_start_redact.activated.connect(self.on_return_pressed)
+        
+        self.shortcut_start_redact_ent = QShortcut(QKeySequence("Enter"), self)
+        self.shortcut_start_redact_ent.activated.connect(self.on_return_pressed)
+
+        # Skip Shortcuts (Space or S)
+        self.shortcut_skip_space = QShortcut(QKeySequence("Space"), self)
+        self.shortcut_skip_space.activated.connect(self.btn_skip.click)
+
+        self.shortcut_skip_s = QShortcut(QKeySequence("S"), self)
+        self.shortcut_skip_s.activated.connect(self.btn_skip.click)
+
+        # Previous Shortcuts (Backspace or P)
+        self.shortcut_prev_bs = QShortcut(QKeySequence("Backspace"), self)
+        self.shortcut_prev_bs.activated.connect(self.btn_previous.click)
+
+        self.shortcut_prev_p = QShortcut(QKeySequence("P"), self)
+        self.shortcut_prev_p.activated.connect(self.btn_previous.click)
+
+        self.shortcut_escape = QShortcut(QKeySequence("Escape"), self)
+        self.shortcut_escape.activated.connect(self.on_escape_pressed)
+
+        # Global Application Shortcuts
+        self.shortcut_add_file = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.shortcut_add_file.activated.connect(self.add_files)
+
+        self.shortcut_add_folder = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
+        self.shortcut_add_folder.activated.connect(self.add_folder)
+
+        self.shortcut_remove_file = QShortcut(QKeySequence("Delete"), self)
+        self.shortcut_remove_file.activated.connect(self.remove_selected_file)
+
+        self.shortcut_settings = QShortcut(QKeySequence("Ctrl+,"), self)
+        self.shortcut_settings.activated.connect(self.open_settings)
+
+        self.shortcut_clear_queue = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        self.shortcut_clear_queue.activated.connect(self.clear_queue)
+
         self.splitter.addWidget(preview_container)
         self.splitter.setSizes([300, 700])
 
@@ -299,6 +340,16 @@ class SafeMARCMainWindow(QMainWindow):
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
             self.toggle_draw_mode(False)
+
+    def on_return_pressed(self):
+        if self.btn_start_review.isVisible():
+            self.btn_start_review.click()
+        elif self.btn_redact_next.isVisible() and self.btn_redact_next.isEnabled():
+            self.btn_redact_next.click()
+
+    def on_escape_pressed(self):
+        if self.btn_stop_review.isVisible():
+            self.btn_stop_review.click()
 
     def open_settings(self):
         dialog = SettingsDialog(self)

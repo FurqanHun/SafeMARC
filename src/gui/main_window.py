@@ -55,19 +55,22 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Header
         header_layout = QHBoxLayout()
-        self.title_label = QLabel("🛡️ SafeMARC")
+        self.title_label = QLabel("SafeMARC")
         self.title_label.setStyleSheet(
-            "font-size: 28px; font-weight: 800; color: #4CAF50; letter-spacing: 2px;"
+            "font-size: 26px; font-weight: 800; color: #4CAF50; letter-spacing: 1px;"
         )
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
 
         self.status_label = QLabel(engine_status)
-        self.status_label.setStyleSheet("font-size: 14px; color: #aaaaaa; margin-right: 10px;")
+        self.status_label.setStyleSheet("font-size: 13px; color: #888888; margin-right: 10px;")
         header_layout.addWidget(self.status_label)
         
-        self.btn_settings = QPushButton("⚙️ Settings")
-        self.btn_settings.setStyleSheet("padding: 6px 12px; font-weight: bold; background-color: #333; color: white; border-radius: 4px;")
+        self.btn_settings = QPushButton("Settings")
+        self.btn_settings.setStyleSheet(
+            "QPushButton { background-color: #2a2a2a; color: #e0e0e0; border: 1px solid #3d3d3d; border-radius: 6px; padding: 6px 14px; font-weight: bold; font-size: 13px; }"
+            "QPushButton:hover { background-color: #3d3d3d; border-color: #525252; color: #ffffff; }"
+        )
         self.btn_settings.clicked.connect(self.open_settings)
         header_layout.addWidget(self.btn_settings)
         
@@ -85,26 +88,34 @@ class SafeMARCMainWindow(QMainWindow):
         # File Queue
         self.file_list = QListWidget()
         self.file_list.setStyleSheet(
-            "QListWidget { background-color: #1e1e1e; border-radius: 8px; padding: 5px; font-size: 14px; }"
-            "QListWidget::item:selected { background-color: #2e7d32; border-radius: 4px; }"
+            "QListWidget { background-color: #121212; border: 1px solid #2d2d2d; border-radius: 6px; padding: 5px; font-size: 13px; color: #e0e0e0; }"
+            "QListWidget::item:selected { background-color: #2e7d32; border-radius: 4px; color: #ffffff; font-weight: 500; }"
         )
         self.file_list.itemClicked.connect(self.on_file_selected)
-        sidebar_layout.addWidget(QLabel("Queue:"))
+        
+        lbl_queue = QLabel("Queue")
+        lbl_queue.setStyleSheet("font-size: 14px; font-weight: bold; color: #cccccc; margin-top: 5px;")
+        sidebar_layout.addWidget(lbl_queue)
         sidebar_layout.addWidget(self.file_list, 1)
 
         # Queue Buttons
         queue_btns_layout = QHBoxLayout()
-        self.btn_add_file = QPushButton("📄 Add Files")
+        self.btn_add_file = QPushButton("Add Files")
         self.btn_add_file.clicked.connect(self.add_files)
-        self.btn_add_folder = QPushButton("📁 Add Folder")
+        self.btn_add_folder = QPushButton("Add Folder")
         self.btn_add_folder.clicked.connect(self.add_folder)
-        self.btn_remove = QPushButton("➖ Remove")
+        self.btn_remove = QPushButton("Remove")
         self.btn_remove.clicked.connect(self.remove_selected_file)
-        self.btn_clear = QPushButton("🗑️ Clear")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.clicked.connect(self.clear_queue)
         
+        btn_style = (
+            "QPushButton { background-color: #222222; color: #dcdcdc; border: 1px solid #333333; border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background-color: #333333; border-color: #484848; color: #ffffff; }"
+        )
+        
         for btn in (self.btn_add_file, self.btn_add_folder, self.btn_remove, self.btn_clear):
-            btn.setStyleSheet("padding: 8px; border-radius: 4px; background-color: #333;")
+            btn.setStyleSheet(btn_style)
         
         queue_btns_layout.addWidget(self.btn_add_file)
         queue_btns_layout.addWidget(self.btn_add_folder)
@@ -114,7 +125,7 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Settings Group
         settings_group = QGroupBox("Vision Settings")
-        settings_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 15px; margin-top: 10px; }")
+        settings_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 13px; color: #4CAF50; padding-top: 15px; margin-top: 10px; border: 1px solid #2d2d2d; border-radius: 6px; }")
         settings_layout = QVBoxLayout(settings_group)
         
         # Vision Mode Dropdown
@@ -125,7 +136,9 @@ class SafeMARCMainWindow(QMainWindow):
         self.cmb_vision_mode.currentIndexChanged.connect(self.on_vision_mode_changed)
         
         mode_layout = QHBoxLayout()
-        mode_layout.addWidget(QLabel("Vision Target:"))
+        lbl_vision_target = QLabel("Vision Target:")
+        lbl_vision_target.setStyleSheet("font-weight: bold; color: #b0b0b0;")
+        mode_layout.addWidget(lbl_vision_target)
         mode_layout.addWidget(self.cmb_vision_mode)
         settings_layout.addLayout(mode_layout)
         
@@ -146,16 +159,22 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Text Patterns Group
         text_group = QGroupBox("Text Redaction")
-        text_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 15px; margin-top: 10px; }")
+        text_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 13px; color: #4CAF50; padding-top: 15px; margin-top: 10px; border: 1px solid #2d2d2d; border-radius: 6px; }")
         text_layout = QVBoxLayout(text_group)
         
         self.text_patterns_layout = QVBoxLayout()
         text_layout.addLayout(self.text_patterns_layout)
         
-        btn_add_text = QPushButton("➕ Add Text")
+        btn_add_text = QPushButton("Add Text")
         btn_add_text.clicked.connect(lambda: self.add_pattern_row(is_regex=False))
-        btn_add_regex = QPushButton("➕ Add Regex")
+        btn_add_regex = QPushButton("Add Regex")
         btn_add_regex.clicked.connect(lambda: self.add_pattern_row(is_regex=True))
+        
+        for b in (btn_add_text, btn_add_regex):
+            b.setStyleSheet(
+                "QPushButton { background-color: #222222; color: #dcdcdc; border: 1px solid #333333; border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 12px; }"
+                "QPushButton:hover { background-color: #333333; border-color: #484848; color: #ffffff; }"
+            )
         
         text_btns = QHBoxLayout()
         text_btns.addWidget(btn_add_text)
@@ -172,28 +191,33 @@ class SafeMARCMainWindow(QMainWindow):
         preview_layout.setContentsMargins(0, 0, 0, 0)
         
         self.preview_widget = PreviewWidget()
-        self.preview_widget.setStyleSheet("border: 2px dashed #4CAF50; border-radius: 8px; background-color: #121212;")
+        self.preview_widget.setStyleSheet("border: 1px solid #2d2d2d; border-radius: 6px; background-color: #121212;")
         self.preview_widget.on_manual_hit_added = lambda: self.btn_redact_next.setEnabled(True)
         preview_layout.addWidget(self.preview_widget)
 
         # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
-        self.btn_draw_mode = QPushButton("✏️ Draw Box (D)")
+        self.btn_draw_mode = QPushButton("Draw Box (D)")
         self.btn_draw_mode.setCheckable(True)
         self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
-        self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
         
-        self.btn_zoom_in = QPushButton("➕ Zoom In")
+        self.btn_zoom_in = QPushButton("Zoom In")
         self.btn_zoom_in.clicked.connect(self.preview_widget.zoom_in)
-        self.btn_zoom_in.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
         
-        self.btn_zoom_out = QPushButton("➖ Zoom Out")
+        self.btn_zoom_out = QPushButton("Zoom Out")
         self.btn_zoom_out.clicked.connect(self.preview_widget.zoom_out)
-        self.btn_zoom_out.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
         
-        self.btn_reset_zoom = QPushButton("🔄 Reset Zoom")
+        self.btn_reset_zoom = QPushButton("Reset")
         self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
-        self.btn_reset_zoom.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; border-radius: 4px;")
+
+        tool_style = (
+            "QPushButton { background-color: #2a2a2a; color: #e0e0e0; border: 1px solid #3d3d3d; border-radius: 6px; padding: 6px 14px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background-color: #3d3d3d; border-color: #525252; color: #ffffff; }"
+            "QPushButton:checked { background-color: #1b5e20; border-color: #2e7d32; color: #ffffff; }"
+        )
+
+        for btn in (self.btn_draw_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom):
+            btn.setStyleSheet(tool_style)
 
         draw_layout.addWidget(self.btn_draw_mode)
         draw_layout.addWidget(self.btn_zoom_in)
@@ -221,35 +245,50 @@ class SafeMARCMainWindow(QMainWindow):
         # Action Buttons
         actions_layout = QHBoxLayout()
         
-        self.btn_previous = QPushButton("⬅️ Previous")
+        self.btn_previous = QPushButton("Previous")
         self.btn_previous.setEnabled(False)
         self.btn_previous.hide()
         self.btn_previous.clicked.connect(self.go_previous)
-        self.btn_previous.setStyleSheet("padding: 10px; background-color: #555; border-radius: 4px;")
+        self.btn_previous.setStyleSheet(
+            "QPushButton { background-color: #2a2a2a; color: #dcdcdc; border: 1px solid #3d3d3d; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 13px; }"
+            "QPushButton:hover { background-color: #3d3d3d; border-color: #525252; color: #ffffff; }"
+        )
         
-        self.btn_skip = QPushButton("⏭️ Skip")
+        self.btn_skip = QPushButton("Skip")
         self.btn_skip.hide()
         self.btn_skip.clicked.connect(self.skip_current)
-        self.btn_skip.setStyleSheet("padding: 10px; background-color: #555; border-radius: 4px;")
+        self.btn_skip.setStyleSheet(
+            "QPushButton { background-color: #2a2a2a; color: #dcdcdc; border: 1px solid #3d3d3d; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 13px; }"
+            "QPushButton:hover { background-color: #3d3d3d; border-color: #525252; color: #ffffff; }"
+        )
         
-        self.btn_redact_next = QPushButton("🛡️ Redact & Next")
+        self.btn_redact_next = QPushButton("Redact & Next")
         self.btn_redact_next.setEnabled(False)
         self.btn_redact_next.hide()
         self.btn_redact_next.clicked.connect(self.redact_current)
-        self.btn_redact_next.setStyleSheet("padding: 10px; background-color: #b71c1c; border-radius: 4px; font-weight: bold;")
+        self.btn_redact_next.setStyleSheet(
+            "QPushButton { background-color: #b71c1c; color: #ffffff; border: 1px solid #d32f2f; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 13px; }"
+            "QPushButton:hover { background-color: #d32f2f; border-color: #e57373; }"
+        )
         
-        self.btn_stop_review = QPushButton("🛑 Stop Review")
+        self.btn_stop_review = QPushButton("Stop Review")
         self.btn_stop_review.hide()
         self.btn_stop_review.clicked.connect(self.cancel_batch_mode)
-        self.btn_stop_review.setStyleSheet("padding: 10px; background-color: #333; color: white; border-radius: 4px; font-weight: bold;")
+        self.btn_stop_review.setStyleSheet(
+            "QPushButton { background-color: #333333; color: #e0e0e0; border: 1px solid #444444; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 13px; }"
+            "QPushButton:hover { background-color: #444444; border-color: #555555; color: #ffffff; }"
+        )
 
         actions_layout.addWidget(self.btn_previous)
         actions_layout.addWidget(self.btn_skip)
         actions_layout.addWidget(self.btn_redact_next)
         actions_layout.addWidget(self.btn_stop_review)
         
-        self.btn_start_review = QPushButton("🚀 Start Review Process")
-        self.btn_start_review.setStyleSheet("padding: 12px; font-size: 16px; font-weight: bold; background-color: #388E3C; color: white; border-radius: 6px;")
+        self.btn_start_review = QPushButton("Start Review Process")
+        self.btn_start_review.setStyleSheet(
+            "QPushButton { background-color: #2e7d32; color: #ffffff; border: 1px solid #388e3c; border-radius: 6px; padding: 12px; font-size: 15px; font-weight: bold; }"
+            "QPushButton:hover { background-color: #388e3c; border-color: #4caf50; }"
+        )
         self.btn_start_review.clicked.connect(self.start_batch)
 
         preview_layout.addLayout(actions_layout)

@@ -57,6 +57,14 @@ SVG_ARROW_RIGHT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="
 
 SVG_SQUARE = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>'''
 
+SVG_DRAW = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>'''
+
+SVG_ZOOM_IN = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'''
+
+SVG_ZOOM_OUT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'''
+
+SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'''
+
 
 class SafeMARCMainWindow(QMainWindow):
     def __init__(self):
@@ -69,11 +77,13 @@ class SafeMARCMainWindow(QMainWindow):
         try:
             self.scanner = SafeScanner()
             self.processor = BatchProcessor(self.scanner)
-            engine_status = "✅ AI Engine: Online"
+            engine_status = "AI Engine: Online"
+            is_online = True
         except Exception as e:
             self.scanner = None
             self.processor = None
-            engine_status = f"❌ AI Engine Error: {e}"
+            engine_status = "AI Engine Error"
+            is_online = False
 
         # Central Widget & Main Layout
         central_widget = QWidget()
@@ -92,7 +102,36 @@ class SafeMARCMainWindow(QMainWindow):
         header_layout.addStretch()
 
         self.status_label = QLabel(engine_status)
-        self.status_label.setStyleSheet("font-size: 13px; color: #9CA3AF; margin-right: 12px; font-weight: 500;")
+        if is_online:
+            self.status_label.setStyleSheet("""
+                QLabel {
+                    background-color: #064E3B;
+                    color: #34D399;
+                    border: 1px solid #047857;
+                    border-radius: 12px;
+                    padding: 4px 12px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-right: 8px;
+                }
+            """)
+        else:
+            self.status_label.setStyleSheet("""
+                QLabel {
+                    background-color: #451A03;
+                    color: #FBBF24;
+                    border: 1px solid #78350F;
+                    border-radius: 12px;
+                    padding: 4px 12px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-right: 8px;
+                }
+            """)
         header_layout.addWidget(self.status_label)
         
         self.btn_settings = QPushButton(" Settings")
@@ -210,23 +249,28 @@ class SafeMARCMainWindow(QMainWindow):
         queue_btns_layout.addWidget(self.btn_clear)
         sidebar_layout.addLayout(queue_btns_layout)
 
-        # Settings Group
-        settings_group = QGroupBox("Vision Settings")
-        settings_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: 700;
-                font-size: 13px;
-                color: #10B981;
-                padding-top: 28px;
-                margin-top: 15px;
+        # Settings Group (Styled Card instead of native GroupBox)
+        settings_card = QWidget()
+        settings_card.setObjectName("settingsCard")
+        settings_card.setStyleSheet("""
+            QWidget#settingsCard {
+                background-color: #111827;
                 border: 1px solid #374151;
                 border-radius: 10px;
-                background-color: #111827;
+                margin-top: 10px;
+            }
+            QWidget#settingsCard QLabel, QWidget#settingsCard QCheckBox {
+                background: transparent;
             }
         """)
-        settings_layout = QVBoxLayout(settings_group)
+        settings_layout = QVBoxLayout(settings_card)
+        settings_layout.setContentsMargins(14, 14, 14, 14)
         settings_layout.setSpacing(10)
         
+        lbl_settings_title = QLabel("VISION SETTINGS")
+        lbl_settings_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
+        settings_layout.addWidget(lbl_settings_title)
+
         # Vision Mode Dropdown
         self.cmb_vision_mode = QComboBox()
         self.cmb_vision_mode.addItem("Faces Only", "faces")
@@ -307,24 +351,29 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_skip_review.setStyleSheet(checkbox_style)
         settings_layout.addWidget(self.chk_skip_review)
 
-        sidebar_layout.addWidget(settings_group)
+        sidebar_layout.addWidget(settings_card)
         
-        # Text Patterns Group
-        text_group = QGroupBox("Text Redaction")
-        text_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: 700;
-                font-size: 13px;
-                color: #10B981;
-                padding-top: 28px;
-                margin-top: 15px;
+        # Text Patterns Card (Styled Card instead of native GroupBox)
+        text_card = QWidget()
+        text_card.setObjectName("textCard")
+        text_card.setStyleSheet("""
+            QWidget#textCard {
+                background-color: #111827;
                 border: 1px solid #374151;
                 border-radius: 10px;
-                background-color: #111827;
+                margin-top: 10px;
+            }
+            QWidget#textCard QLabel {
+                background: transparent;
             }
         """)
-        text_layout = QVBoxLayout(text_group)
+        text_layout = QVBoxLayout(text_card)
+        text_layout.setContentsMargins(14, 14, 14, 14)
         text_layout.setSpacing(10)
+        
+        lbl_text_title = QLabel("TEXT REDACTION")
+        lbl_text_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
+        text_layout.addWidget(lbl_text_title)
         
         self.text_patterns_layout = QVBoxLayout()
         text_layout.addLayout(self.text_patterns_layout)
@@ -361,7 +410,7 @@ class SafeMARCMainWindow(QMainWindow):
         text_btns.addWidget(btn_add_regex)
         text_layout.addLayout(text_btns)
         
-        sidebar_layout.addWidget(text_group)
+        sidebar_layout.addWidget(text_card)
 
         self.splitter.addWidget(sidebar_widget)
 
@@ -381,17 +430,21 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
-        self.btn_draw_mode = QPushButton("Draw Box (D)")
+        self.btn_draw_mode = QPushButton(" Draw Box (D)")
+        self.btn_draw_mode.setIcon(svg_to_icon(SVG_DRAW))
         self.btn_draw_mode.setCheckable(True)
         self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
         
-        self.btn_zoom_in = QPushButton("Zoom In")
+        self.btn_zoom_in = QPushButton(" Zoom In")
+        self.btn_zoom_in.setIcon(svg_to_icon(SVG_ZOOM_IN))
         self.btn_zoom_in.clicked.connect(self.preview_widget.zoom_in)
         
-        self.btn_zoom_out = QPushButton("Zoom Out")
+        self.btn_zoom_out = QPushButton(" Zoom Out")
+        self.btn_zoom_out.setIcon(svg_to_icon(SVG_ZOOM_OUT))
         self.btn_zoom_out.clicked.connect(self.preview_widget.zoom_out)
         
-        self.btn_reset_zoom = QPushButton("Reset")
+        self.btn_reset_zoom = QPushButton(" Reset")
+        self.btn_reset_zoom.setIcon(svg_to_icon(SVG_REFRESH))
         self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
 
         tool_style = """
@@ -668,20 +721,48 @@ class SafeMARCMainWindow(QMainWindow):
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()
+        row_widget.setStyleSheet("background: transparent;")
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(6)
         
         label = QLabel("Regex:" if is_regex else "Text:")
-        label.setStyleSheet("color: #aaa;")
+        label.setStyleSheet("color: #9CA3AF; font-weight: 600; font-size: 12px; background: transparent;")
         
         input_field = QLineEdit()
         input_field.setPlaceholderText("e.g. \\b\\d{4}\\b" if is_regex else "e.g. CONFIDENTIAL")
         input_field.setProperty("is_regex", is_regex)
+        input_field.setStyleSheet("""
+            QLineEdit {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border-color: #10B981;
+            }
+        """)
         # Use editingFinished so it doesn't trigger Tesseract on every keystroke
         input_field.editingFinished.connect(self.update_text_patterns)
         
-        btn_remove = QPushButton("❌")
-        btn_remove.setFixedWidth(30)
+        btn_remove = QPushButton()
+        btn_remove.setIcon(svg_to_icon(SVG_X_CIRCLE))
+        btn_remove.setFixedWidth(28)
+        btn_remove.setFixedHeight(28)
+        btn_remove.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #E11D48;
+                border-color: #BE123C;
+            }
+        """)
         btn_remove.clicked.connect(lambda checked=False, rw=row_widget: self.remove_pattern_row(rw))
         
         row_layout.addWidget(label)
@@ -691,6 +772,28 @@ class SafeMARCMainWindow(QMainWindow):
             chk_whole = QCheckBox("Whole Word")
             chk_whole.setChecked(True)
             chk_whole.setObjectName("chk_whole")
+            chk_whole.setStyleSheet("""
+                QCheckBox {
+                    spacing: 6px;
+                    color: #E5E7EB;
+                    font-size: 12px;
+                    background: transparent;
+                }
+                QCheckBox::indicator {
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 4px;
+                    border: 1px solid #374151;
+                    background-color: #1F2937;
+                }
+                QCheckBox::indicator:hover {
+                    border-color: #4B5563;
+                }
+                QCheckBox::indicator:checked {
+                    background-color: #10B981;
+                    border-color: #10B981;
+                }
+            """)
             chk_whole.stateChanged.connect(self.update_text_patterns)
             row_layout.addWidget(chk_whole)
             

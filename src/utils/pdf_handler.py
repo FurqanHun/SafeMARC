@@ -5,14 +5,15 @@ from PIL import Image
 
 class PDFHandler:
     @staticmethod
-    def extract_pages(pdf_path: str) -> list[str]:
+    def extract_pages(pdf_path: str) -> list[dict]:
         """
         Extracts all pages of a PDF to a temporary directory as high-quality PNGs.
-        Returns a list of file paths to the extracted images.
+        Returns a list of dicts with file paths and word bounding boxes:
+        [{"image_path": str, "words": list}]
         """
         doc = fitz.open(pdf_path)
         temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
-        page_paths = []
+        pages_data = []
         
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
@@ -23,9 +24,21 @@ class PDFHandler:
             
             out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
             pix.save(out_path)
-            page_paths.append(out_path)
             
-        return page_paths
+            # Extract word level bounding boxes directly from PDF using PyMuPDF
+            # page.get_text("words") returns list of tuples:
+            # (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+            words = []
+            for w in page.get_text("words"):
+                x0, y0, x1, y1, text, block_no, line_no, word_no = w
+                words.append((x0 * zoom, y0 * zoom, x1 * zoom, y1 * zoom, text, block_no, line_no, word_no))
+                
+            pages_data.append({
+                "image_path": out_path,
+                "words": words
+            })
+            
+        return pages_data
 
     @staticmethod
     def extract_first_page(pdf_path: str) -> str:

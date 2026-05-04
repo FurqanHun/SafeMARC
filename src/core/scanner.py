@@ -33,14 +33,17 @@ class SafeScanner:
                     is_whole_word=p.get("whole_word", False)
                 )
 
-    def scan(self, file_path: str) -> List[SensitiveHit]:
+    def scan(self, file_path: str, pdf_words: list = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""
         all_hits = []
         print(f"Scanning: {file_path}")
 
         for detector in self.detectors:
             try:
-                hits = detector.detect(file_path)
+                if isinstance(detector, RegexDetector):
+                    hits = detector.detect(file_path, pdf_words=pdf_words)
+                else:
+                    hits = detector.detect(file_path)
                 all_hits.extend(hits)
             except Exception as e:
                 print(f"Detector failed: {e}")

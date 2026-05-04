@@ -31,17 +31,59 @@ class RegexDetector(BaseDetector):
     def clear_custom_patterns(self):
         self.custom_patterns.clear()
 
-    def detect(self, image_path: str) -> List[SensitiveHit]:
+    def detect(self, image_path: str, pdf_words: list = None) -> List[SensitiveHit]:
         if not self.custom_patterns:
             return []
             
-        from PIL import ImageEnhance
-        # Pre-process image for highest character recognition accuracy
-        img = Image.open(image_path).convert('L')
-        img = ImageEnhance.Contrast(img).enhance(2.0)
-        
-        # Run Tesseract OCR with fully automatic page segmentation
-        data = pytesseract.image_to_data(img, config="--psm 3", output_type=pytesseract.Output.DICT)
+        if pdf_words:
+            # Reconstruct Tesseract-like 'data' dictionary directly from native PDF words
+            data = {
+                "text": [],
+                "level": [],
+                "block_num": [],
+                "par_num": [],
+                "line_num": [],
+                "left": [],
+                "top": [],
+                "width": [],
+                "height": [],
+                "conf": []
+            }
+            for w in pdf_words:
+                x0, y0, x1, y1, word_text, block_no, line_no, word_no = w
+                data["text"].append(word_text)
+                data["level"].append(5) # 5 means word level
+                data["block_num"].append(block_no)
+                data["par_num"].append(0)
+                data["line_num"].append(line_no)
+                data["left"].append(int(x0))
+                data["top"].append(int(y0))
+                data["width"].append(int(x1 - x0))
+                data["height"].append(int(y1 - y0))
+                data["conf"].append(100.0) # Native text has 100% confidence
+
+            scale = 1.0
+        else:
+            import cv2
+            import numpy as np
+            from PIL import Image
+
+            # Pre-process image via OpenCV for highest character recognition accuracy
+            cv_img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            if cv_img is None:
+                return []
+                
+            scale = 2.0
+            # Upscale 2x to help Tesseract detect small text and handwriting
+            cv_img = cv2.resize(cv_img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+            
+            # Apply Otsu's thresholding to get high-contrast black-and-white
+            _, thresh = cv2.threshold(cv_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
+            img = Image.fromarray(thresh)
+            
+            # Run Tesseract OCR with fully automatic page segmentation
+            data = pytesseract.image_to_data(img, config="--psm 3", output_type=pytesseract.Output.DICT)
 
         hits = []
         n_boxes = len(data["text"])
@@ -106,10 +148,10 @@ class RegexDetector(BaseDetector):
                             in_range = True
                             
                         if in_range:
-                            x = data['left'][w_idx]
-                            y = data['top'][w_idx]
-                            w = data['width'][w_idx]
-                            h = data['height'][w_idx]
+                            x = int(data['left'][w_idx] / scale)
+                            y = int(data['top'][w_idx] / scale)
+                            w = int(data['width'][w_idx] / scale)
+                            h = int(data['height'][w_idx] / scale)
                             x_coords.append(x)
                             y_coords.append(y)
                             x2_coords.append(x + w)

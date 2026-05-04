@@ -612,15 +612,16 @@ class SafeMARCMainWindow(QMainWindow):
         # PDF Sub-loop
         if self.active_pdf_pages:
             if self.active_pdf_index < len(self.active_pdf_pages):
-                # Load next page of the active PDF
-                page_path = self.active_pdf_pages[self.active_pdf_index]
+                page_data = self.active_pdf_pages[self.active_pdf_index]
+                page_path = page_data["image_path"] if isinstance(page_data, dict) else page_data
+                pdf_words = page_data.get("words", None) if isinstance(page_data, dict) else None
                 self.current_file_path = page_path
                 self.current_hits = []
                 self.title_label.setText(f"🛡️ SafeMARC - Page {self.active_pdf_index + 1}/{len(self.active_pdf_pages)}")
                 
                 self.preview_widget.load_image(page_path)
                 try:
-                    hits = self.scanner.scan(page_path)
+                    hits = self.scanner.scan(page_path, pdf_words=pdf_words)
                     self.current_hits = hits
                     if self.chk_skip_review.isChecked():
                         import tempfile

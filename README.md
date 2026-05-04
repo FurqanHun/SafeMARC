@@ -67,5 +67,10 @@ SafeMARC/
 ├── tests/                 <-- Unit and integration tests
 └── docs/                  <-- Project and developer documentation
     ├── features.md        <-- Project feature roadmap & status
-    └── shortcuts.md       <-- Keyboard and mouse shortcut guide
+    ├── shortcuts.md       <-- Keyboard and mouse shortcut guide
+    ├── ui_guidelines.md   <-- Theme, colors, and layout guidelines
+    └── architecture/      <-- UML, use cases, and workflow diagrams
+        ├── uml_classes.md
+        ├── use_cases.md
+        └── workflows.md
 ```

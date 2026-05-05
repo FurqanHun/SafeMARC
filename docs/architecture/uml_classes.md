@@ -15,7 +15,10 @@ classDiagram
     
     class VisionDetector {
         +str mode
+        +IdentityManager identity_manager
+        +CascadeClassifier face_cascade
         +detect(image_path: str) List~SensitiveHit~
+        +cleanup() void
     }
     
     class RegexDetector {
@@ -26,13 +29,18 @@ classDiagram
     }
     
     class SafeScanner {
+        +IdentityManager identity_manager
         +VisionDetector vision_detector
         +RegexDetector text_detector
         +Redactor redactor
+        +str face_redaction_mode
+        +List target_identities
         +set_vision_mode(mode: str) void
+        +set_face_redaction_mode(mode: str) void
         +set_text_patterns(patterns_list: List) void
         +scan(file_path: str, pdf_words: list) List~SensitiveHit~
         +redact(file_path: str, output_path: str, hits: List~SensitiveHit~) bool
+        +cleanup() void
     }
 
     class Redactor {
@@ -48,6 +56,20 @@ classDiagram
         +str label
         +float confidence
         +str text_content
+        +str identity
+    }
+
+    class IdentityManager {
+        +str identities_dir
+        +FaceRecognizerSF sface_recognizer
+        +bool use_sface
+        +Dict identity_map
+        +Dict sface_embeddings
+        +bool is_trained
+        +reload_identities() void
+        +match_face(face_image: ndarray) Optional~str~
+        +add_identity(name: str, image_paths: List~str~) void
+        +add_session_identity(name: str, image_path: str) void
     }
 
     BaseDetector <|-- VisionDetector
@@ -55,6 +77,8 @@ classDiagram
     SafeScanner *-- VisionDetector
     SafeScanner *-- RegexDetector
     SafeScanner *-- Redactor
+    SafeScanner *-- IdentityManager
+    VisionDetector --> IdentityManager : uses for face matching
     SafeScanner ..> SensitiveHit : produces
 ```
 
@@ -93,28 +117,50 @@ classDiagram
         +BatchProcessor processor
         +PreviewWidget preview_widget
         +QListWidget file_list
-        +QCheckBox chk_always_rasterize
-        +QCheckBox chk_skip_review
+        +QComboBox cmb_face_mode
+        +QLabel lbl_count
         +start_batch() void
         +redact_current() void
         +skip_current() void
         +go_previous() void
         +load_next_batch_item() void
+        +add_files() void
+        +add_folder() void
+        +add_dropped_paths(paths: List) void
+        -_update_face_mode(text: str) void
+        -_show_people_selector() void
+        -_toggle_target_identity(name: str, checked: bool) void
+        -_rescan_current() void
+        +on_quick_add_identity(hit: SensitiveHit) void
     }
 
     class PreviewWidget {
+        +Signal identityRequested
         +display_hits(hits: List~SensitiveHit~) void
         +get_selected_hits() List~SensitiveHit~
         +toggle_draw_mode() void
         +zoom_in() void
         +zoom_out() void
         +reset_zoom() void
+        +on_add_identity_requested(hit: SensitiveHit) void
+    }
+
+    class SelectableHitItem {
+        +SensitiveHit hit
+        +bool is_selected
+        +QGraphicsTextItem text_item
+        +update_style() void
+        +contextMenuEvent(event) void
     }
 
     class SettingsDialog {
+        +SafeScanner scanner
+        +IdentityManager identity_manager
         +accept() void
     }
 
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow ..> SettingsDialog : opens
+    PreviewWidget *-- SelectableHitItem
+    PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
 ```

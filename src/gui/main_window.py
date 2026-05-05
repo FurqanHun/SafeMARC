@@ -64,6 +64,7 @@ SVG_ZOOM_IN = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
 SVG_ZOOM_OUT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'''
 
 SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'''
+SVG_CLIPBOARD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'''
 
 
 class SafeMARCMainWindow(QMainWindow):
@@ -228,6 +229,11 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_clear.setIcon(svg_to_icon(SVG_TRASH))
         self.btn_clear.clicked.connect(self.clear_queue)
         
+        self.btn_paste = QPushButton(" Paste")
+        self.btn_paste.setIcon(svg_to_icon(SVG_CLIPBOARD))
+        self.btn_paste.clicked.connect(self.on_paste)
+        self.btn_paste.setToolTip("Paste image from clipboard (Ctrl+V)")
+        
         btn_style = """
             QPushButton {
                 background-color: #1F2937;
@@ -248,11 +254,12 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """
         
-        for btn in (self.btn_add_file, self.btn_add_folder, self.btn_remove, self.btn_clear):
+        for btn in (self.btn_add_file, self.btn_add_folder, self.btn_paste, self.btn_remove, self.btn_clear):
             btn.setStyleSheet(btn_style)
         
         queue_btns_layout.addWidget(self.btn_add_file)
         queue_btns_layout.addWidget(self.btn_add_folder)
+        queue_btns_layout.addWidget(self.btn_paste)
         queue_btns_layout.addWidget(self.btn_remove)
         queue_btns_layout.addWidget(self.btn_clear)
         sidebar_layout.addLayout(queue_btns_layout)
@@ -704,6 +711,9 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_clear_queue = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
         self.shortcut_clear_queue.activated.connect(self.clear_queue)
 
+        self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
+        self.shortcut_paste.activated.connect(self.on_paste)
+
         self.splitter.addWidget(preview_container)
         self.splitter.setSizes([300, 700])
 
@@ -1097,6 +1107,44 @@ class SafeMARCMainWindow(QMainWindow):
         # Reset batch mode if active
         if self.is_batch_mode:
             self.cancel_batch_mode()
+
+    def on_paste(self):
+        clipboard = QApplication.clipboard()
+        mime_data = clipboard.mimeData()
+        
+        if mime_data.hasImage():
+            image = clipboard.image()
+            if image.isNull():
+                return
+            
+            # Use system temp directory
+            import tempfile
+            temp_dir = os.path.join(tempfile.gettempdir(), "safemarc_clipboard")
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Create unique filename
+            import time
+            timestamp = int(time.time() * 1000)
+            temp_path = os.path.join(temp_dir, f"paste_{timestamp}.png")
+            
+            if image.save(temp_path, "PNG"):
+                print(f"Pasted image from clipboard to: {temp_path}")
+                self.add_dropped_paths([temp_path])
+                
+                # Optional: select the new item and load it
+                for i in range(self.file_list.count()):
+                    item = self.file_list.item(i)
+                    if item.data(Qt.UserRole) == temp_path:
+                        self.file_list.setCurrentItem(item)
+                        self.on_file_selected(item)
+                        break
+            else:
+                QMessageBox.warning(self, "Error", "Failed to save image from clipboard.")
+        elif mime_data.hasUrls():
+            paths = [url.toLocalFile() for url in mime_data.urls()]
+            self.add_dropped_paths(paths)
+        else:
+            QMessageBox.information(self, "Clipboard", "No image or file found in clipboard.")
 
 
     def on_file_selected(self, item):

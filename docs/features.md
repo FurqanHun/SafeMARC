@@ -1,11 +1,12 @@
 # SafeMARC Features
 
 ## Core Vision Features
-- [x] **Face Detection**: Fast & accurate face scanning via Mediapipe/TensorFlow Lite.
+- [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
+- [x] **Face Recognition**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback.
 - [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
 - [x] **Redact All**: Auto-redact all detected faces in a document.
-- [ ] **Whitelist Mode**: Redact all faces except those matching specific approved identities. (Planned)
-- [ ] **Blacklist Mode**: Specifically redact only matched sensitive identities. (Planned)
+- [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.
+- [x] **Blacklist Mode**: Specifically redact only matched sensitive identities.
 
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
@@ -25,7 +26,7 @@
 - [x] **Skip Review Mode**: Configurable checkbox toggle to run fully automated review and redaction across all items.
 - [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.
 - [x] **Queue Management**: Direct queue manipulation allowing users to remove any individual file before/during review.
-- [ ] **Drag and Drop**: Support dragging and dropping files or folders directly into the queue list widget. (Planned)
+- [x] **Drag and Drop**: Support dragging and dropping files or folders directly into the queue list widget.
 - [ ] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item. (Planned)
 - [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
 

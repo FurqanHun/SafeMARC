@@ -1,6 +1,6 @@
 from typing import List, Callable
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsPixmapItem
-from PySide6.QtGui import QPixmap, QPen, QColor, QBrush
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem
+from PySide6.QtGui import QPixmap, QPen, QColor, QBrush, QFont
 from PySide6.QtCore import Qt, QRectF
 
 from src.core.types import SensitiveHit
@@ -13,15 +13,28 @@ class SelectableHitItem(QGraphicsRectItem):
         self.is_selected = True
         
         self.setAcceptHoverEvents(True)
+        
+        # Identity Label
+        self.text_item = None
+        if hit.identity:
+            self.text_item = QGraphicsTextItem(hit.identity, self)
+            self.text_item.setPos(hit.x, hit.y - 20)
+            self.text_item.setDefaultTextColor(QColor("#10B981"))
+            font = QFont("Segoe UI", 10, QFont.Bold)
+            self.text_item.setFont(font)
+
         self.update_style()
 
     def update_style(self):
         if self.is_selected:
-            self.setPen(QPen(QColor(255, 0, 0, 200), 3))
-            self.setBrush(QBrush(QColor(255, 0, 0, 50)))
+            color = QColor(16, 185, 129, 200) if self.hit.identity else QColor(255, 0, 0, 200)
+            self.setPen(QPen(color, 3))
+            self.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), 50)))
+            if self.text_item: self.text_item.setVisible(True)
         else:
             self.setPen(QPen(QColor(100, 100, 100, 200), 2, Qt.DashLine))
             self.setBrush(QBrush(QColor(0, 0, 0, 0)))
+            if self.text_item: self.text_item.setVisible(False)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -32,9 +45,26 @@ class SelectableHitItem(QGraphicsRectItem):
         else:
             super().mousePressEvent(event)
 
+    def contextMenuEvent(self, event):
+        if self.hit.label == "FACE":
+            from PySide6.QtWidgets import QMenu
+            menu = QMenu()
+            add_action = menu.addAction("Add as Known Identity...")
+            
+            action = menu.exec(event.screenPos())
+            if action == add_action:
+                # We need to notify the parent to handle cropping and naming
+                self.scene().views()[0].on_add_identity_requested(self.hit)
+        
+        event.accept()
+
 from PySide6.QtGui import QPainter
 
+from PySide6.QtCore import Qt, QRectF, Signal
+
 class PreviewWidget(QGraphicsView):
+    identityRequested = Signal(object) # Passes the SensitiveHit
+    
     def __init__(self):
         super().__init__()
         self.scene = QGraphicsScene(self)
@@ -56,6 +86,9 @@ class PreviewWidget(QGraphicsView):
         self.current_drawing_rect = None
         self.on_manual_hit_added = None
         self.zoom_factor = 1.0
+
+    def on_add_identity_requested(self, hit: SensitiveHit):
+        self.identityRequested.emit(hit)
 
     def set_drawing_mode(self, enabled: bool):
         self.drawing_mode = enabled

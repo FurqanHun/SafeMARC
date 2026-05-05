@@ -9,7 +9,14 @@ graph TD
     User([User / Reviewer]) --> UC1[Queue Files or Folder]
     User --> UC2[Review & Redact Queue]
     User --> UC3[Configure Redaction Options]
+    User --> UC4[Manage Identities]
     
+    subgraph Queue Management
+        UC1 --> UC1_A[Add Files via Dialog]
+        UC1 --> UC1_B[Add Folder via Dialog]
+        UC1 --> UC1_C[Drag & Drop Files/Folders]
+    end
+
     subgraph Review Flow
         UC2 --> UC2_A[Toggle Sensitive Region Boxes]
         UC2 --> UC2_B[Draw Custom Boxes]
@@ -20,9 +27,18 @@ graph TD
     subgraph Settings & Config
         UC3 --> UC3_A[Set Vision Model Mode]
         UC3 --> UC3_B[Set Custom Text Patterns]
-        UC3 --> UC3_C[Toggle Auto-Skip Clean Images]
-        UC3 --> UC3_D[Toggle Skip Review / Auto-Redact]
-        UC3 --> UC3_E[Toggle Always Rasterize PDFs]
+        UC3 --> UC3_C[Set Face Redaction Mode]
+        UC3 --> UC3_D[Select Target Identities]
+        UC3 --> UC3_E[Toggle Auto-Skip Clean Images]
+        UC3 --> UC3_F[Toggle Skip Review / Auto-Redact]
+        UC3 --> UC3_G[Toggle Always Rasterize PDFs]
+    end
+
+    subgraph Identity Management
+        UC4 --> UC4_A[Add Identity from Reference Images]
+        UC4 --> UC4_B[Quick-Add Identity via Right-Click]
+        UC4 --> UC4_C[Remove Identity]
+        UC4 --> UC4_D[Session-Only Identity]
     end
 ```
 
@@ -33,10 +49,11 @@ graph TD
 ### UC1: Manage & Append File Queue
 - **Actors**: User
 - **Preconditions**: Application is open.
-- **Trigger**: User clicks "Add Files" or "Add Folder" buttons.
+- **Trigger**: User clicks "Add Files", "Add Folder", or drags files onto the queue.
 - **Main Workflow**:
   1. User selects valid supported file types (`.png`, `.jpg`, `.jpeg`, `.pdf`, `.webp`, `.bmp`, `.tiff`).
-  2. Queue validates file paths and displays them cleanly.
+  2. Folders are recursively scanned for supported files.
+  3. Queue validates file paths, deduplicates, and displays them cleanly.
 
 ### UC2: Manual and Automated Review
 - **Actors**: User
@@ -45,8 +62,30 @@ graph TD
 - **Main Workflow**:
   1. The application parses the current queue item.
   2. If it's a PDF, pages are extracted as temporary high-fidelity images.
-  3. The scanning engine uses computer vision (MediaPipe) and text patterns to map sensitive hits.
-  4. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).
-  5. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
-  6. On skipping, the user can choose to skip the active PDF page or skip the entire PDF file.
-  7. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
+  3. The scanning engine uses computer vision (Haar Cascade for faces, MediaPipe for bodies) and text patterns to map sensitive hits.
+  4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition.
+  5. Hits are filtered based on the active face redaction mode and selected target identities.
+  6. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).
+  7. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
+  8. On skipping, the user can choose to skip the active PDF page or skip the entire PDF file.
+  9. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
+
+### UC3: Configure Face Redaction Mode
+- **Actors**: User
+- **Preconditions**: Application is open with scanner initialized.
+- **Trigger**: User selects a mode from the Face Mode dropdown.
+- **Modes**:
+  - **All**: Redact every detected face (default).
+  - **Blacklist**: Only redact faces that match selected target identities.
+  - **Whitelist**: Redact all faces *except* those matching selected target identities.
+- **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
+
+### UC4: Manage Identities
+- **Actors**: User
+- **Preconditions**: Application is open.
+- **Trigger**: User opens Settings > Identity Manager tab, or right-clicks a detected face.
+- **Main Workflow**:
+  1. User can add a new identity by providing a name and reference face images.
+  2. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
+  3. Session-only identities are automatically deleted on next app launch.
+  4. The recognition model retrains immediately after any identity change.

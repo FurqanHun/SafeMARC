@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QLineEdit,
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
 
 from src.core.scanner import SafeScanner
@@ -72,6 +72,7 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.setWindowTitle("SafeMARC - v0.1 (DEV)")
         self.setGeometry(100, 100, 1000, 700)
+        self.setAcceptDrops(True)
 
         # Core Engines
         try:
@@ -197,9 +198,16 @@ class SafeMARCMainWindow(QMainWindow):
         """)
         self.file_list.itemClicked.connect(self.on_file_selected)
         
+        queue_header = QHBoxLayout()
         lbl_queue = QLabel("Queue")
         lbl_queue.setStyleSheet("font-size: 13px; font-weight: 700; color: #9CA3AF; margin-top: 5px; margin-left: 2px; text-transform: uppercase; letter-spacing: 0.5px;")
-        sidebar_layout.addWidget(lbl_queue)
+        self.lbl_count = QLabel("Files: 0")
+        self.lbl_count.setStyleSheet("font-size: 11px; color: #6B7280; margin-top: 8px; margin-right: 5px;")
+        queue_header.addWidget(lbl_queue)
+        queue_header.addStretch()
+        queue_header.addWidget(self.lbl_count)
+        
+        sidebar_layout.addLayout(queue_header)
         sidebar_layout.addWidget(self.file_list, 1)
 
          # Queue Buttons
@@ -310,6 +318,35 @@ class SafeMARCMainWindow(QMainWindow):
         mode_layout.addWidget(lbl_vision_target)
         mode_layout.addWidget(self.cmb_vision_mode)
         settings_layout.addLayout(mode_layout)
+
+        self.cmb_face_mode = QComboBox()
+        self.cmb_face_mode.addItems(["All", "Blacklist", "Whitelist"])
+        self.cmb_face_mode.setStyleSheet(combo_style)
+        self.cmb_face_mode.currentTextChanged.connect(self._update_face_mode)
+        
+        face_mode_layout = QHBoxLayout()
+        lbl_face_mode = QLabel("Face Mode:")
+        lbl_face_mode.setStyleSheet("font-weight: bold; color: #9CA3AF;")
+        face_mode_layout.addWidget(lbl_face_mode)
+        face_mode_layout.addWidget(self.cmb_face_mode)
+        
+        self.btn_select_people = QPushButton("People")
+        self.btn_select_people.setFixedWidth(60)
+        self.btn_select_people.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 11px;
+            }
+            QPushButton:hover { background-color: #374151; }
+        """)
+        self.btn_select_people.clicked.connect(self._show_people_selector)
+        face_mode_layout.addWidget(self.btn_select_people)
+        
+        settings_layout.addLayout(face_mode_layout)
         
         checkbox_style = """
             QCheckBox {
@@ -432,6 +469,7 @@ class SafeMARCMainWindow(QMainWindow):
             background-color: #0B0F19;
         """)
         self.preview_widget.on_manual_hit_added = lambda: self.btn_redact_next.setEnabled(True)
+        self.preview_widget.identityRequested.connect(self.on_quick_add_identity)
         preview_layout.addWidget(self.preview_widget)
 
         # Draw and Zoom Tools
@@ -722,7 +760,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.btn_stop_review.click()
 
     def open_settings(self):
-        dialog = SettingsDialog(self)
+        dialog = SettingsDialog(self.scanner, self)
         dialog.exec()
 
     def add_pattern_row(self, is_regex=False):
@@ -861,43 +899,171 @@ class SafeMARCMainWindow(QMainWindow):
             self.scanner.set_vision_mode(mode)
             if self.is_batch_mode and self.current_file_path:
                 self.btn_redact_next.setEnabled(False)
-                self.preview_widget.load_image(self.current_file_path)
-                self.current_hits = []
-                hits = self.scanner.scan(self.current_file_path)
-                if hits:
-                    self.current_hits = hits
-                    self.preview_widget.display_hits(hits)
-                    self.btn_redact_next.setEnabled(True)
-                else:
-                    QMessageBox.information(self, "Result", f"No {mode} found in this image.")
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self.load_next_batch_item)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load {mode} model: {e}")
+            print(f"Error switching vision mode: {e}")
+
+    def _update_face_mode(self, text):
+        if not self.scanner:
+            return
+        
+        mode_map = {
+            "All": "ALL",
+            "Blacklist": "BLACKLIST",
+            "Whitelist": "WHITELIST"
+        }
+        internal_mode = mode_map.get(text, "ALL")
+        self.scanner.set_face_redaction_mode(internal_mode)
+        print(f"Face redaction mode set to: {internal_mode}")
+        self._rescan_current()
+
+    def on_quick_add_identity(self, hit):
+        if not self.current_file_path or not self.scanner:
+            return
+            
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+        name, ok = QInputDialog.getText(self, "Add Identity", f"Enter name for this face:")
+        if ok and name.strip():
+            # Ask if Permanent or Session Only
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Save Type")
+            msg.setText(f"How do you want to save '{name}'?")
+            btn_perm = msg.addButton("Permanently", QMessageBox.ActionRole)
+            btn_session = msg.addButton("This Session Only", QMessageBox.ActionRole)
+            msg.addButton("Cancel", QMessageBox.RejectRole)
+            msg.exec()
+            
+            is_session = msg.clickedButton() == btn_session
+            if msg.clickedButton() not in [btn_perm, btn_session]:
+                return
+
+            import cv2
+            img = cv2.imread(self.current_file_path)
+            if img is not None:
+                face_crop = img[hit.y:hit.y+hit.h, hit.x:hit.x+hit.w]
+                
+                # Use a temp file for the add_identity/add_session_identity calls
+                temp_path = os.path.join(self.scanner.identity_manager.identities_dir, "temp_quick_add.jpg")
+                cv2.imwrite(temp_path, face_crop)
+                
+                if is_session:
+                    self.scanner.identity_manager.add_session_identity(name.strip(), temp_path)
+                    QMessageBox.information(self, "Success", f"Added '{name}' (Session Only).")
+                else:
+                    self.scanner.identity_manager.add_identity(name.strip(), [temp_path])
+                    QMessageBox.information(self, "Success", f"Added '{name}' permanently.")
+                
+                os.remove(temp_path)
+                self.load_next_batch_item() # Trigger rescan
+
+    def _show_people_selector(self):
+        if not self.scanner: return
+        
+        from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 5px; }
+            QMenu::item:selected { background-color: #374151; }
+        """)
+        
+        # Get all identities (perm + session)
+        all_names = sorted(self.scanner.identity_manager.identity_map.values())
+        
+        if not all_names:
+            menu.addAction("No identities found").setEnabled(False)
+        else:
+            # Header
+            header = menu.addAction("Target Selection")
+            header.setEnabled(False)
+            menu.addSeparator()
+            
+            for name in all_names:
+                action = menu.addAction(name)
+                action.setCheckable(True)
+                action.setChecked(name in self.scanner.target_identities)
+                action.triggered.connect(lambda checked, n=name: self._toggle_target_identity(n, checked))
+                
+            menu.addSeparator()
+            clear_action = menu.addAction("Clear Selection")
+            clear_action.triggered.connect(self._clear_target_identities)
+
+        menu.exec(self.btn_select_people.mapToGlobal(self.btn_select_people.rect().bottomLeft()))
+
+    def _toggle_target_identity(self, name, checked):
+        if checked:
+            if name not in self.scanner.target_identities:
+                self.scanner.target_identities.append(name)
+        else:
+            if name in self.scanner.target_identities:
+                self.scanner.target_identities.remove(name)
+        print(f"Target identities: {self.scanner.target_identities}")
+        self._rescan_current()
+
+    def _clear_target_identities(self):
+        self.scanner.target_identities = []
+        self._rescan_current()
+
+    def _rescan_current(self):
+        """Re-scan the currently loaded image with current settings."""
+        if not self.current_file_path:
+            return
+        try:
+            hits = self.scanner.scan(self.current_file_path)
+            self.current_hits = hits
+            self.preview_widget.display_hits(hits)
+            self.btn_redact_next.setEnabled(bool(hits))
+        except Exception as e:
+            print(f"Re-scan failed: {e}")
 
     def add_files(self):
         exts = " ".join([f"*{ext}" for ext in SUPPORTED_EXTENSIONS])
         files, _ = QFileDialog.getOpenFileNames(self, "Select Files", "", f"Supported ({exts})")
         if files:
-            for f in files:
-                self.add_to_queue(f)
+            self.add_dropped_paths(files)
 
     def add_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Directory")
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
-            for root, _, filenames in os.walk(folder):
-                for filename in filenames:
-                    if filename.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
-                        self.add_to_queue(os.path.join(root, filename))
+            self.add_dropped_paths([folder])
 
-    def add_to_queue(self, file_path):
-        # Prevent duplicates
-        for i in range(self.file_list.count()):
-            if self.file_list.item(i).data(Qt.UserRole) == file_path:
-                return
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        self.add_dropped_paths(paths)
+
+    def add_dropped_paths(self, paths):
+        for path in paths:
+            if os.path.isdir(path):
+                # Recursively add all supported files in directory
+                for root, _, files in os.walk(path):
+                    for f in files:
+                        if f.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
+                            full_p = os.path.join(root, f)
+                            if not self.is_path_in_list(full_p):
+                                item = QListWidgetItem(os.path.basename(full_p))
+                                item.setData(Qt.UserRole, full_p)
+                                item.setToolTip(full_p)
+                                self.file_list.addItem(item)
+            else:
+                if path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
+                    if not self.is_path_in_list(path):
+                        item = QListWidgetItem(os.path.basename(path))
+                        item.setData(Qt.UserRole, path)
+                        item.setToolTip(path)
+                        self.file_list.addItem(item)
         
-        item = QListWidgetItem(os.path.basename(file_path))
-        item.setData(Qt.UserRole, file_path)
-        item.setToolTip(file_path)
-        self.file_list.addItem(item)
+        self.update_stats()
+
+    def is_path_in_list(self, path):
+        for i in range(self.file_list.count()):
+            if self.file_list.item(i).data(Qt.UserRole) == path:
+                return True
+        return False
+
 
     def remove_selected_file(self):
         selected_items = self.file_list.selectedItems()
@@ -1143,7 +1309,6 @@ class SafeMARCMainWindow(QMainWindow):
                     self.current_hits = hits
                     if self.chk_skip_review.isChecked():
                         import tempfile
-                        import os
                         fd, temp_path = tempfile.mkstemp(suffix=".png")
                         os.close(fd)
                         success = self.scanner.redact(page_path, temp_path, hits)
@@ -1152,14 +1317,11 @@ class SafeMARCMainWindow(QMainWindow):
                         else:
                             self.active_pdf_outputs.append(page_path)
                         self.active_pdf_index += 1
-                        from PySide6.QtCore import QTimer
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
                     elif not hits and self.chk_auto_skip.isChecked():
-                        # Auto skip page
                         self.active_pdf_outputs.append(page_path)
                         self.active_pdf_index += 1
-                        from PySide6.QtCore import QTimer
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
                     else:
@@ -1169,7 +1331,6 @@ class SafeMARCMainWindow(QMainWindow):
                     print(f"Error processing page: {e}")
                     self.active_pdf_outputs.append(page_path)
                     self.active_pdf_index += 1
-                    from PySide6.QtCore import QTimer
                     QTimer.singleShot(0, self.load_next_batch_item)
                 return
             else:
@@ -1200,7 +1361,6 @@ class SafeMARCMainWindow(QMainWindow):
                 self.active_pdf_outputs = []
                 self.batch_index += 1
                 self.title_label.setText("🛡️ SafeMARC")
-                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
                 return
 
@@ -1224,14 +1384,12 @@ class SafeMARCMainWindow(QMainWindow):
                 self.active_pdf_index = 0
                 self.active_pdf_outputs = []
                 self.active_pdf_has_redactions = False
-                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
                 return
             except Exception as e:
                 item.setForeground(QColor("#d32f2f"))
                 print(f"Error extracting PDF: {e}")
                 self.batch_index += 1
-                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
                 return
         
@@ -1257,15 +1415,11 @@ class SafeMARCMainWindow(QMainWindow):
                     else:
                         self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
                     self.batch_index += 1
-                    from PySide6.QtCore import QTimer
                     QTimer.singleShot(0, self.load_next_batch_item)
                     return
                 elif not hits and self.chk_auto_skip.isChecked():
-                    # Auto skip if no hits found
                     self.file_list.item(self.batch_index).setForeground(QColor("#888888"))
                     self.batch_index += 1
-                    # Use QTimer to prevent recursion depth issues on huge empty queues
-                    from PySide6.QtCore import QTimer
                     QTimer.singleShot(0, self.load_next_batch_item)
                     return
                 else:
@@ -1275,10 +1429,13 @@ class SafeMARCMainWindow(QMainWindow):
                 item.setForeground(QColor("#d32f2f"))
                 print(f"Error processing {file_path}: {e}")
                 self.batch_index += 1
-                from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
         else:
             # Skip unhandled file types for now
             self.batch_index += 1
-            from PySide6.QtCore import QTimer
             QTimer.singleShot(0, self.load_next_batch_item)
+
+    def update_stats(self):
+        count = self.file_list.count()
+        self.lbl_count.setText(f"Files: {count}")
+

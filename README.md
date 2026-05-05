@@ -35,8 +35,21 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
   python main.py
   ```
 
-Download the following model in root as `efficientdet_lite2.tflite`
-https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite
+## Required Models
+
+### Body Detection (Full Body mode)
+Download into `assets/` directory as `efficientdet_lite2.tflite`:
+```bash
+curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
+```
+
+### Face Recognition (Blacklist/Whitelist identity matching)
+Download OpenCV's SFace deep learning model (~37MB) into `assets/`:
+```bash
+curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+```
+> [!NOTE]
+> Without the SFace model, face identity matching falls back to LBPH (less accurate). The model is gitignored and must be downloaded separately.
 
 ## Structure
 
@@ -54,16 +67,19 @@ SafeMARC/
 │   ├── core/              <-- OCR, Redaction, and Scanning logic
 │   │   ├── detectors/     <-- Face & text detection algorithms
 │   │   ├── batch_processor.py
+│   │   ├── identity_manager.py <-- Face identity recognition (SFace/LBPH)
 │   │   ├── redactor.py
 │   │   ├── scanner.py
 │   │   └── types.py
 │   ├── gui/               <-- PySide6-based Graphical User Interface
 │   │   ├── main_window.py <-- Main application window layout & workflows
-│   │   └── preview_widget.py <-- Interactive image preview, zoom & draw area
+│   │   ├── preview_widget.py <-- Interactive image preview, zoom & draw area
+│   │   └── settings_dialog.py <-- Settings & Identity Manager UI
 │   └── utils/             <-- Helpers (file path normalizers, conversions)
 │       └── pdf_handler.py <-- PDF page extraction and rasterized rebuilding
 │
-├── assets/                <-- Icons, logos, UI themes
+├── assets/                <-- Icons, logos, UI themes, AI models
+│   └── identities/        <-- Reference face images per person
 ├── tests/                 <-- Unit and integration tests
 └── docs/                  <-- Project and developer documentation
     ├── features.md        <-- Project feature roadmap & status

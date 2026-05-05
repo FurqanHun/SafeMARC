@@ -80,6 +80,7 @@ SafeMARC/
 │
 ├── assets/                <-- Icons, logos, UI themes, AI models
 │   └── identities/        <-- Reference face images per person
+├── test_data/             <-- Sample images and PDFs for testing
 ├── tests/                 <-- Unit and integration tests
 └── docs/                  <-- Project and developer documentation
     ├── features.md        <-- Project feature roadmap & status

@@ -14,8 +14,8 @@ except ImportError as e:
 
 def main():
     # 2. Setup paths
-    input_image = "test.jpg"  # Make sure this file exists!
-    output_image = "test_redacted.jpg"
+    input_image = "test_data/test.jpg"  # Make sure this file exists!
+    output_image = "test_data/test_redacted.jpg"
 
     if not os.path.exists(input_image):
         print(f"❌ ERROR: I can't find '{input_image}'")

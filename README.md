@@ -38,9 +38,9 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 ## Required Models
 
 ### Body Detection (Full Body mode)
-Download into root directory as `efficientdet_lite2.tflite`:
+Download into `assets/` directory as `efficientdet_lite2.tflite`:
 ```bash
-curl -L -o efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
+curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
 ```
 
 ### Face Recognition (Blacklist/Whitelist identity matching)

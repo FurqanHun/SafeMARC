@@ -21,7 +21,7 @@ class VisionDetector(BaseDetector):
                 cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
             )
         elif self.mode == "bodies":
-            model_path = os.path.abspath("efficientdet_lite2.tflite")
+            model_path = os.path.abspath("assets/efficientdet_lite2.tflite")
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Missing body model: {model_path}")
                 

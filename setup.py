@@ -7,8 +7,9 @@ setup(
     package_dir={"": "src"},
     install_requires=[
         "PySide6",
+        "pyqtdarktheme",
         "pymupdf",
-        "opencv-python",
+        "opencv-contrib-python",
         "mediapipe",
         "pytesseract",
         "numpy",

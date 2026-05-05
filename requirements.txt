@@ -4,7 +4,7 @@ pyqtdarktheme
 
 pymupdf
 
-opencv-python
+opencv-contrib-python
 numpy
 Pillow
 

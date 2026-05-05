@@ -13,3 +13,4 @@ class SensitiveHit:
     label: str  # e.g., "Phone", "CNIC", "Face"
     confidence: float
     text_content: str = ""  # Only for text hits
+    identity: str = ""      # e.g., "John Doe" (if matched)

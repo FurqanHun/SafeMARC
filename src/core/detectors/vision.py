@@ -11,12 +11,12 @@ from src.core.types import SensitiveHit
 
 
 class VisionDetector(BaseDetector):
-    def __init__(self, mode: str = "faces"):
+    def __init__(self, mode: str = "faces", identity_manager=None):
         self.mode = mode  # "faces", "bodies", or "text"
+        self.identity_manager = identity_manager
         
         if self.mode == "faces":
             # Use OpenCV's built-in Haar Cascade for robust frontal face detection
-            # This works much better than MediaPipe short-range model for CNICs and group photos.
             self.face_cascade = cv2.CascadeClassifier(
                 cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
             )
@@ -46,24 +46,44 @@ class VisionDetector(BaseDetector):
             # Detect faces using Haar Cascade
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             
-            # Use standard parameters that are good for varying sizes
-            # scaleFactor=1.1, minNeighbors=4 is a standard balance between 
-            # false positives and missed detections.
-            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+            # minNeighbors=8 reduces false positives (clothing/textures)
+            # minSize=(40,40) ignores tiny detections that are unlikely to be faces
+            h_img, w_img = gray.shape[:2]
+            min_face = max(40, min(h_img, w_img) // 30)
+            faces = self.face_cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=8, minSize=(min_face, min_face)
+            )
             
             for (x, y, w, h) in faces:
+                identity = None
+                if self.identity_manager:
+                    # Crop face for recognition
+                    face_crop = cv_image[y:y+h, x:x+w]
+                    identity = self.identity_manager.match_face(face_crop)
+
+                label = f"FACE: {identity}" if identity else "FACE"
+                
                 hits.append(
                     SensitiveHit(
                         x=int(x),
                         y=int(y),
                         w=int(w),
                         h=int(h),
-                        label="FACE",
-                        confidence=0.99, # Haar doesn't return confidence by default easily
+                        label=label,
+                        confidence=0.99,
+                        identity=identity or ""
                     )
                 )
+                
+                # Keep the UI responsive during long scans
+                try:
+                    from PySide6.QtWidgets import QApplication
+                    if QApplication.instance():
+                        QApplication.processEvents()
+                except ImportError:
+                    pass
 
-        else:
+        elif self.mode == "bodies":
             # Detect bodies using MediaPipe EfficientDet
             scale = 1
             # Linear contrast stretch helps with some detections
@@ -90,3 +110,10 @@ class VisionDetector(BaseDetector):
                             )
                         )
         return hits
+
+    def cleanup(self):
+        if hasattr(self, "detector") and self.detector:
+            try:
+                self.detector.close()
+            except:
+                pass

@@ -2,6 +2,7 @@ import os
 from typing import List
 
 import cv2
+import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
@@ -49,12 +50,12 @@ class VisionDetector(BaseDetector):
             return []
 
         if self.mode == "faces":
-            # Detect faces using a multi-cascade ensemble (Frontal, Alt Frontal, and Side Profile)
+            # Detect faces using a multi-cascade ensemble with rotational searching and contrast equalization
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             h_img, w_img = gray.shape[:2]
             min_face = max(40, min(h_img, w_img) // 30)
             
-            # 1. Alternative Frontal Cascade (Highly robust to tilted heads and slight occlusions)
+            # 1. Standard raw grayscale for all core detections (restores perfect default detections and matching accuracy)
             faces_alt = self.face_cascade_alt.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
@@ -72,6 +73,14 @@ class VisionDetector(BaseDetector):
                 flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             
+            # 5. Supplementary Contrast Pass: Run a robust alternative frontal pass on a separate CLAHE grayscale
+            # to capture faces in tricky lighting without distorting the raw gray used by other core cascades.
+            clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+            clahe_gray = clahe.apply(gray)
+            faces_alt_clahe = self.face_cascade_alt.detectMultiScale(
+                clahe_gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_face, min_face)
+            )
+            
             # Consolidate all raw detection coordinates
             raw_boxes = []
             for (x, y, w, h) in faces_alt:
@@ -84,6 +93,34 @@ class VisionDetector(BaseDetector):
                 # Map flipped coordinate back to original image space
                 orig_x = w_img - x - w
                 raw_boxes.append([int(orig_x), int(y), int(w), int(h)])
+            for (x, y, w, h) in faces_alt_clahe:
+                raw_boxes.append([int(x), int(y), int(w), int(h)])
+                
+            # 6. Rotational Search Trick: For severely tilted posing (e.g. 30+ degree head tilts)
+            # we rotate the image by -30 and +30 degrees, run the robust alternative frontal cascade,
+            # and map coordinates back using inverse affine transformation matrices.
+            center = (w_img / 2.0, h_img / 2.0)
+            for angle in [-30, 30]:
+                M = cv2.getRotationMatrix2D(center, angle, 1.0)
+                rotated_gray = cv2.warpAffine(gray, M, (w_img, h_img))
+                
+                faces_rot = self.face_cascade_alt.detectMultiScale(
+                    rotated_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
+                )
+                
+                for (x, y, w, h) in faces_rot:
+                    # Map the center of the rotated box back using inverse matrix
+                    cx = x + w / 2.0
+                    cy = y + h / 2.0
+                    
+                    M_inv = cv2.getRotationMatrix2D(center, -angle, 1.0)
+                    pts = np.array([[[cx, cy]]], dtype=np.float32)
+                    orig_pts = cv2.transform(pts, M_inv)
+                    orig_cx, orig_cy = orig_pts[0][0]
+                    
+                    orig_x = int(orig_cx - w / 2.0)
+                    orig_y = int(orig_cy - h / 2.0)
+                    raw_boxes.append([orig_x, orig_y, int(w), int(h)])
                 
             # --- Union-Based Bounding Box Merging (Union-NMS) ---
             # Partially covered faces or multi-classifier hits produce several overlapping boxes.

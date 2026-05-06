@@ -59,8 +59,89 @@ class SelectableHitItem(QGraphicsRectItem):
         event.accept()
 
 from PySide6.QtGui import QPainter
+from PySide6.QtCore import Qt, QRectF, Signal, QTimer
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
-from PySide6.QtCore import Qt, QRectF, Signal
+class LoadingOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.angle = 0
+        self.dots = 0
+        self.setAttribute(Qt.WA_OpaquePaintEvent, False)
+        
+        self.setStyleSheet("""
+            QWidget {
+                background: transparent;
+            }
+            QLabel {
+                color: #10B981;
+                font-weight: 600;
+                font-size: 14px;
+                font-family: 'Inter', 'Segoe UI', sans-serif;
+                background: transparent;
+            }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(15)
+        
+        # Spacer for the custom drawn spinner (60px height)
+        self.spinner_spacer = QWidget()
+        self.spinner_spacer.setFixedSize(60, 60)
+        self.spinner_spacer.setStyleSheet("background: transparent;")
+        
+        self.lbl_text = QLabel("Scanning document...")
+        self.lbl_text.setAlignment(Qt.AlignCenter)
+        
+        layout.addWidget(self.spinner_spacer, 0, Qt.AlignCenter)
+        layout.addWidget(self.lbl_text)
+        
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.animate)
+        self.timer.start(16) # ~60 FPS smooth rotation
+        
+        self.pulse_timer = QTimer(self)
+        self.pulse_timer.timeout.connect(self.update_dots)
+        self.pulse_timer.start(400)
+        
+    def update_dots(self):
+        self.dots = (self.dots + 1) % 4
+        base_text = self.lbl_text.text().rstrip(".")
+        if "Scanning" in base_text:
+            self.lbl_text.setText("Scanning" + "." * self.dots)
+        elif "Processing" in base_text:
+            self.lbl_text.setText("Processing" + "." * self.dots)
+
+    def animate(self):
+        self.angle = (self.angle + 6) % 360
+        self.update() # Repaint
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Draw translucent dark glassmorphism background
+        painter.fillRect(self.rect(), QColor(11, 15, 25, 210))
+        
+        # Draw premium spinning loading circle in the center of self.spinner_spacer
+        spacer_pos = self.spinner_spacer.mapTo(self, self.spinner_spacer.rect().topLeft())
+        cx = spacer_pos.x() + 30
+        cy = spacer_pos.y() + 30
+        
+        # Draw spinning track (light gray translucent)
+        pen_track = QPen(QColor(55, 65, 81, 100), 4)
+        painter.setPen(pen_track)
+        painter.drawEllipse(cx - 20, cy - 20, 40, 40)
+        
+        # Draw spinning arc (vibrant Emerald Green)
+        pen_arc = QPen(QColor(16, 185, 129), 4)
+        pen_arc.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen_arc)
+        
+        # Draw 270-degree spinning arc with rotation angle
+        painter.drawArc(cx - 20, cy - 20, 40, 40, -self.angle * 16, 270 * 16)
+
 
 class PreviewWidget(QGraphicsView):
     identityRequested = Signal(object) # Passes the SensitiveHit
@@ -86,6 +167,7 @@ class PreviewWidget(QGraphicsView):
         self.current_drawing_rect = None
         self.on_manual_hit_added = None
         self.zoom_factor = 1.0
+        self.overlay = None
 
     def on_add_identity_requested(self, hit: SensitiveHit):
         self.identityRequested.emit(hit)
@@ -136,8 +218,21 @@ class PreviewWidget(QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if self.overlay is not None:
+            self.overlay.resize(self.size())
         if self.current_pixmap_item and self.zoom_factor == 1.0:
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
+    def show_loading(self, text: str = "Scanning document..."):
+        if self.overlay is None:
+            self.overlay = LoadingOverlay(self)
+        self.overlay.lbl_text.setText(text)
+        self.overlay.resize(self.size())
+        self.overlay.show()
+
+    def hide_loading(self):
+        if self.overlay is not None:
+            self.overlay.hide()
 
     def mousePressEvent(self, event):
         if self.drawing_mode and event.button() == Qt.LeftButton:

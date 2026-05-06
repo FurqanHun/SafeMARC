@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QLineEdit,
 )
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
 
 from src.core.scanner import SafeScanner
@@ -83,6 +83,25 @@ class PatternLineEdit(QLineEdit):
                 self.clearFocus()
                 return
         super().keyPressEvent(event)
+
+
+class ScanWorker(QThread):
+    finished = Signal()
+    error = Signal(Exception)
+
+    def __init__(self, scanner, file_path, pdf_words=None):
+        super().__init__()
+        self.scanner = scanner
+        self.file_path = file_path
+        self.pdf_words = pdf_words
+        self.hits = []
+
+    def run(self):
+        try:
+            self.hits = self.scanner.scan(self.file_path, pdf_words=self.pdf_words)
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(e)
 
 
 class SafeMARCMainWindow(QMainWindow):
@@ -926,7 +945,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.preview_widget.load_image(self.current_file_path)
             self.current_hits = []
             try:
-                hits = self.scanner.scan(self.current_file_path)
+                hits = self.run_scan_with_overlay(self.current_file_path)
                 self.current_hits = hits
                 if hits:
                     self.preview_widget.display_hits(hits)
@@ -1053,7 +1072,7 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.current_file_path:
             return
         try:
-            hits = self.scanner.scan(self.current_file_path)
+            hits = self.run_scan_with_overlay(self.current_file_path)
             self.current_hits = hits
             self.preview_widget.display_hits(hits)
             self.btn_redact_next.setEnabled(bool(hits))
@@ -1231,6 +1250,21 @@ class SafeMARCMainWindow(QMainWindow):
                 input_path,
                 use_suffix=self.chk_suffix.isChecked()
             )
+
+    def run_scan_with_overlay(self, path, pdf_words=None):
+        self.preview_widget.show_loading("Scanning document for sensitive data...")
+        from PySide6.QtCore import QEventLoop
+        loop = QEventLoop()
+        
+        worker = ScanWorker(self.scanner, path, pdf_words)
+        worker.finished.connect(loop.quit)
+        worker.error.connect(loop.quit)
+        
+        worker.start()
+        loop.exec()
+        
+        self.preview_widget.hide_loading()
+        return worker.hits
 
     def redact_current(self):
         if not self.scanner or not self.current_file_path:
@@ -1415,7 +1449,7 @@ class SafeMARCMainWindow(QMainWindow):
                 
                 self.preview_widget.load_image(page_path)
                 try:
-                    hits = self.scanner.scan(page_path, pdf_words=pdf_words)
+                    hits = self.run_scan_with_overlay(page_path, pdf_words=pdf_words)
                     self.current_hits = hits
                     if self.chk_skip_review.isChecked():
                         import tempfile
@@ -1510,7 +1544,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.preview_widget.load_image(file_path)
             
             try:
-                hits = self.scanner.scan(file_path)
+                hits = self.run_scan_with_overlay(file_path)
                 self.current_hits = hits
                 if self.chk_skip_review.isChecked():
                     out_path = self.get_redacted_output_path(file_path)

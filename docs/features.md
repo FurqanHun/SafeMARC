@@ -37,12 +37,13 @@
 
 ## Biometric Identity Editor
 - [x] **Interactive 1:1 Aspect-Ratio Crop Editor**: Crop uploaded reference faces with a locked 1:1 aspect ratio, interactive resize handles, transparent helper labels, and automatic face detection fallback.
+- [x] **Real-Time Training Feedback**: Fully tactile status updates (e.g. `"Loading & detecting face..."`, `"Retraining face recognition model..."`) paired with busy override cursors and temporary interface lockouts to provide perfect, seamless transition feedback during batch cropping.
 - [x] **Individual Reference Image Removal**: Delete specific reference images via interactive red corner corner close markers on thumbnails, triggering immediate `.npy` cache cleanups.
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
 
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.
-- [ ] **Premium UI/UX Polish**: Premium unified deep-dark `#0B0F19` canvas, custom `NewIdentityDialog` with matching aesthetics, global transparent labels, and tactile `PointingHandCursor` feedback on all interactive components (buttons, checkboxes, comboboxes, menus, and list items). This is an ongoing process.
+- [x] **Premium UI/UX Polish**: Premium unified deep-dark `#0B0F19` canvas, custom `NewIdentityDialog` with matching aesthetics (including Enter-key Save/Default support), global transparent labels, and tactile `PointingHandCursor` feedback on all interactive components (buttons, checkboxes, comboboxes, menus, and list items).
 - [ ] **Keyboard-Driven Workflow**: Expanded keyboard shortcuts for quick queue actions (`Ctrl+O`, `Ctrl+Shift+O`, `Delete`), navigating review loops (`Return`, `Backspace`), and toggling Draw Mode (`D`). (Ongoing)
 - [ ] **Rebindable Shortcuts Settings**: Settings panel to allow users to fully customize and rebind keys (Planned).
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.

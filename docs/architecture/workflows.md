@@ -165,3 +165,36 @@ sequenceDiagram
     IM->>IM: reload_identities() → retrain SFace embeddings
     MW->>MW: Rescan current image with updated identities
 ```
+
+---
+
+## Reference Photo Cropping & Biometric Training Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Reviewer
+    participant SD as SettingsDialog
+    participant CD as FaceCropDialog
+    participant IM as IdentityManager
+
+    User->>SD: Click "Add Image"
+    SD->>User: Select raw reference photos
+    loop For each selected file
+        SD->>SD: Show "Loading & detecting face..." status
+        SD->>CD: Open FaceCropDialog
+        CD->>CD: Run robust ensemble to pre-focus crop box
+        User->>CD: Adjust crop selection and click Save
+        CD-->>SD: cropped_image
+    end
+    SD->>SD: Enable Wait Cursor & Disable Window
+    SD->>SD: Show "Retraining face recognition model..." status
+    alt Permanent Identity
+        SD->>IM: add_identity(name, crops)
+    else Session-Only Identity
+        SD->>IM: add_session_identity(name, crops)
+    end
+    IM->>IM: reload_identities() → generate SFace .npy files
+    SD->>SD: Restore normal cursor & Enable Window
+    SD->>SD: Clear status label and refresh thumbnails
+```

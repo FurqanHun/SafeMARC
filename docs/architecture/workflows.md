@@ -97,10 +97,12 @@ sequenceDiagram
         Ph-->>UI: List of temp page paths
         loop For each page in PDF
             UI->>Sc: scan(page_path)
-            Sc->>VD: detect(page_path)
-            loop For each detected face
-                VD->>IM: match_face(face_crop)
-                IM-->>VD: identity or None
+            Sc->>VD: detect(page_path, match_identities)
+            alt If match_identities is True
+                loop For each detected face
+                    VD->>IM: match_face(face_crop)
+                    IM-->>VD: identity or None
+                end
             end
             VD-->>Sc: List of hits with identities
             Sc->>Sc: Filter by face_redaction_mode
@@ -114,10 +116,12 @@ sequenceDiagram
         Ph-->>UI: Final sanitized PDF
     else Is Image File
         UI->>Sc: scan(file_path)
-        Sc->>VD: detect(file_path)
-        loop For each detected face
-            VD->>IM: match_face(face_crop)
-            IM-->>VD: identity or None
+        Sc->>VD: detect(file_path, match_identities)
+        alt If match_identities is True
+            loop For each detected face
+                VD->>IM: match_face(face_crop)
+                IM-->>VD: identity or None
+            end
         end
         VD-->>Sc: List of hits with identities
         Sc->>Sc: Filter by face_redaction_mode

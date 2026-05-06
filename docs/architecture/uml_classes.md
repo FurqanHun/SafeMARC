@@ -17,7 +17,7 @@ classDiagram
         +str mode
         +IdentityManager identity_manager
         +CascadeClassifier face_cascade
-        +detect(image_path: str) List~SensitiveHit~
+        +detect(image_path: str, match_identities: bool) List~SensitiveHit~
         +cleanup() void
     }
     

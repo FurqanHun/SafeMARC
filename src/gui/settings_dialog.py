@@ -26,8 +26,10 @@ class SettingsDialog(QDialog):
         self.setMinimumSize(600, 450)
         
         self.setStyleSheet("""
-            QDialog { background-color: #0B0F19; }
+            QDialog { background-color: #0B0F19; font-family: 'Segoe UI', Arial, sans-serif; }
+            QTabWidget { background-color: #0B0F19; }
             QTabWidget::pane { border: 1px solid #374151; background: #111827; border-radius: 8px; }
+            QTabBar { background-color: #0B0F19; }
             QTabBar::tab {
                 background: #1F2937;
                 color: #9CA3AF;
@@ -35,25 +37,33 @@ class SettingsDialog(QDialog):
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
                 margin-right: 2px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                border: 1px solid #374151;
+                border-bottom: none;
             }
             QTabBar::tab:selected { background: #111827; color: #10B981; font-weight: bold; border: 1px solid #374151; border-bottom: none; }
-            QListWidget { background-color: #1F2937; border: 1px solid #374151; color: #E5E7EB; border-radius: 6px; outline: 0; }
+            QListWidget { background-color: #1F2937; border: 1px solid #374151; color: #E5E7EB; border-radius: 8px; outline: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
             QListWidget::item { padding: 8px; border-bottom: 1px solid #374151; }
-            QListWidget::item:selected { background-color: #10B981; color: #FFFFFF; }
+            QListWidget::item:selected { background-color: #10B981; color: #FFFFFF; font-weight: bold; }
             QPushButton {
                 background-color: #1F2937;
                 color: #E5E7EB;
                 border: 1px solid #374151;
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 8px 14px;
                 font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
             }
-            QPushButton:hover { background-color: #374151; border-color: #4B5563; }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
             QPushButton:disabled { background-color: #1F2937; color: #4B5563; border-color: #1F2937; }
             QCheckBox {
                 spacing: 8px;
                 color: #E5E7EB;
                 font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
             QCheckBox::indicator {
                 width: 16px;
@@ -73,9 +83,10 @@ class SettingsDialog(QDialog):
                 background-color: #1F2937;
                 color: #F3F4F6;
                 border: 1px solid #374151;
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 8px 12px;
                 font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
             QLineEdit:focus {
                 border-color: #10B981;
@@ -98,6 +109,7 @@ class SettingsDialog(QDialog):
             self.settings.setValue("global_output_dir", default_out)
 
         self.tab_general = QWidget()
+        self.tab_general.setStyleSheet("background-color: #111827; border: none;")
         gen_layout = QVBoxLayout(self.tab_general)
         gen_layout.setContentsMargins(20, 20, 20, 20)
         gen_layout.setSpacing(15)
@@ -121,8 +133,46 @@ class SettingsDialog(QDialog):
         self.txt_output_dir = QLineEdit()
         self.txt_output_dir.setReadOnly(True)
         self.txt_output_dir.setText(default_out)
+        self.txt_output_dir.setStyleSheet("""
+            QLineEdit {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QLineEdit:read-only {
+                background-color: #111827;
+                color: #9CA3AF;
+                border: 1px solid #1F2937;
+            }
+        """)
 
         self.btn_browse_dir = QPushButton("Browse...")
+        self.btn_browse_dir.setCursor(Qt.PointingHandCursor)
+        self.btn_browse_dir.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #10B981;
+                color: #FFFFFF;
+            }
+            QPushButton:pressed {
+                background-color: #111827;
+                border-color: #059669;
+            }
+        """)
         self.btn_browse_dir.clicked.connect(self._browse_global_dir)
 
         path_layout.addWidget(self.txt_output_dir, 1)
@@ -139,21 +189,64 @@ class SettingsDialog(QDialog):
         
         # Tab 2: Identities
         self.tab_identities = QWidget()
+        self.tab_identities.setStyleSheet("background-color: #111827; border: none;")
         id_layout = QHBoxLayout(self.tab_identities)
         
         # Left: People List
         left_panel = QVBoxLayout()
         self.list_people = QListWidget()
         self.list_people.currentRowChanged.connect(self._on_person_selected)
-        left_panel.addWidget(QLabel("People / Identities"))
+        lbl_people = QLabel("People / Identities")
+        lbl_people.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
+        left_panel.addWidget(lbl_people)
         left_panel.addWidget(self.list_people)
         
         btn_people_layout = QHBoxLayout()
         self.btn_add_person = QPushButton("+")
         self.btn_add_person.setToolTip("Add Person")
+        self.btn_add_person.setCursor(Qt.PointingHandCursor)
+        self.btn_add_person.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #10B981;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: #10B981;
+                color: white;
+                border-color: #10B981;
+            }
+            QPushButton:pressed {
+                background-color: #059669;
+            }
+        """)
         self.btn_add_person.clicked.connect(self._add_person)
         self.btn_del_person = QPushButton("-")
         self.btn_del_person.setToolTip("Delete Person")
+        self.btn_del_person.setCursor(Qt.PointingHandCursor)
+        self.btn_del_person.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E11D48;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: #E11D48;
+                color: white;
+                border-color: #E11D48;
+            }
+            QPushButton:pressed {
+                background-color: #BE123C;
+            }
+        """)
         self.btn_del_person.clicked.connect(self._del_person)
         btn_people_layout.addWidget(self.btn_add_person)
         btn_people_layout.addWidget(self.btn_del_person)
@@ -163,16 +256,62 @@ class SettingsDialog(QDialog):
         
         # Right: Thumbnails
         right_panel = QVBoxLayout()
-        right_panel.addWidget(QLabel("Reference Images"))
+        lbl_ref = QLabel("Reference Images")
+        lbl_ref.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
+        right_panel.addWidget(lbl_ref)
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea { border: 1px solid #374151; border-radius: 8px; background-color: #111827; }
+            QScrollBar:vertical {
+                background: #111827;
+                width: 8px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #374151;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #4B5563;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
         self.scroll_content = QWidget()
+        self.scroll_content.setStyleSheet("background-color: #111827;")
         self.grid_layout = QGridLayout(self.scroll_content)
         self.scroll_area.setWidget(self.scroll_content)
         right_panel.addWidget(self.scroll_area)
         
         self.btn_add_img = QPushButton("Add Image")
+        self.btn_add_img.setCursor(Qt.PointingHandCursor)
+        self.btn_add_img.setStyleSheet("""
+            QPushButton {
+                background-color: #10B981;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 14px;
+                font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #059669;
+            }
+            QPushButton:pressed {
+                background-color: #047857;
+            }
+            QPushButton:disabled {
+                background-color: #1F2937;
+                color: #4B5563;
+                border: 1px solid #374151;
+            }
+        """)
         self.btn_add_img.clicked.connect(self._add_image)
         self.btn_add_img.setEnabled(False)
         right_panel.addWidget(self.btn_add_img)
@@ -282,15 +421,16 @@ class SettingsDialog(QDialog):
             self.grid_layout.addWidget(container, i // 3, i % 3)
 
     def _add_person(self):
-        name, ok = QInputDialog.getText(self, "New Identity", "Enter person name:")
-        if ok and name.strip():
-            person_dir = os.path.join(self.identity_manager.identities_dir, name.strip())
-            os.makedirs(person_dir, exist_ok=True)
-            self._refresh_people_list()
-            # Select the new person
-            items = self.list_people.findItems(name.strip(), Qt.MatchExactly)
-            if items:
-                self.list_people.setCurrentItem(items[0])
+        dialog = NewIdentityDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            name = dialog.get_name()
+            if name:
+                person_dir = os.path.join(self.identity_manager.identities_dir, name)
+                os.makedirs(person_dir, exist_ok=True)
+                self._refresh_people_list()
+                items = self.list_people.findItems(name, Qt.MatchExactly)
+                if items:
+                    self.list_people.setCurrentItem(items[0])
 
     def _del_person(self):
         item = self.list_people.currentItem()
@@ -529,23 +669,37 @@ class FaceCropDialog(QDialog):
         self.setMinimumSize(540, 600)
         self.setStyleSheet("""
             QDialog { background-color: #0B0F19; }
-            QLabel#titleLabel { font-size: 14px; font-weight: bold; color: #10B981; }
-            QLabel#subtitleLabel { color: #9CA3AF; font-size: 11px; }
+            QLabel { background: transparent; background-color: transparent; }
+            QLabel#titleLabel { font-size: 16px; font-weight: 800; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; letter-spacing: 0.5px; }
+            QLabel#subtitleLabel { color: #9CA3AF; font-size: 12px; font-family: 'Segoe UI', Arial, sans-serif; }
             QPushButton {
                 background-color: #1F2937;
                 color: #E5E7EB;
                 border: 1px solid #374151;
-                border-radius: 6px;
-                padding: 8px 14px;
+                border-radius: 8px;
+                padding: 8px 16px;
                 font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
-            QPushButton:hover { background-color: #374151; border-color: #4B5563; }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
             QPushButton#btnConfirm {
                 background-color: #10B981;
-                color: white;
-                border: none;
+                color: #FFFFFF;
+                border: 1px solid #059669;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 700;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
-            QPushButton#btnConfirm:hover { background-color: #059669; }
+            QPushButton#btnConfirm:hover {
+                background-color: #059669;
+                border-color: #047857;
+            }
+            QPushButton#btnConfirm:pressed {
+                background-color: #047857;
+            }
         """)
         
         layout = QVBoxLayout(self)
@@ -561,10 +715,25 @@ class FaceCropDialog(QDialog):
         lbl_sub.setWordWrap(True)
         layout.addWidget(lbl_sub)
         
+        self.workspace_card = QWidget()
+        self.workspace_card.setObjectName("workspaceCard")
+        self.workspace_card.setStyleSheet("""
+            QWidget#workspaceCard {
+                background-color: #111827;
+                border: 1px solid #374151;
+                border-radius: 10px;
+            }
+        """)
+        workspace_layout = QHBoxLayout(self.workspace_card)
+        workspace_layout.setContentsMargins(15, 15, 15, 15)
+        workspace_layout.setAlignment(Qt.AlignCenter)
+        
         self.crop_label = InteractiveCropLabel()
         self.crop_label.setAlignment(Qt.AlignCenter)
-        self.crop_label.setStyleSheet("border: 1px solid #374151; border-radius: 8px; background-color: #111827;")
-        layout.addWidget(self.crop_label, 1)
+        self.crop_label.setStyleSheet("border: none; background-color: transparent;")
+        workspace_layout.addWidget(self.crop_label)
+        
+        layout.addWidget(self.workspace_card, 1)
         
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -653,4 +822,73 @@ class FaceCropDialog(QDialog):
         
         self.cropped_image = self.raw_img[ry:ry+rh, rx:rx+rw]
         self.accept()
+
+
+class NewIdentityDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("New Identity")
+        self.setFixedSize(360, 180)
+        self.setStyleSheet("""
+            QDialog { background-color: #0B0F19; }
+            QLabel { color: #E5E7EB; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
+            QLineEdit {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QLineEdit:focus { border-color: #10B981; }
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+            }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+            QPushButton#btnSave { background-color: #10B981; color: white; border: none; }
+            QPushButton#btnSave:hover { background-color: #059669; }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        
+        lbl = QLabel("Enter person name:")
+        self.txt_name = QLineEdit()
+        self.txt_name.setPlaceholderText("e.g. John Doe")
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(self.reject)
+        
+        self.btn_save = QPushButton("Save")
+        self.btn_save.setObjectName("btnSave")
+        self.btn_save.clicked.connect(self._on_save)
+        
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_save)
+        
+        layout.addWidget(lbl)
+        layout.addWidget(self.txt_name)
+        layout.addLayout(btn_layout)
+        
+    def _on_save(self):
+        name = self.txt_name.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Invalid Name", "Please enter a valid person name.")
+            return
+        self.accept()
+        
+    def get_name(self):
+        return self.txt_name.text().strip()
 

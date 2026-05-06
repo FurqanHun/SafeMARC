@@ -29,3 +29,9 @@ Keep this guide handy to navigate and redact your files with high efficiency usi
 | **Skip Item** | `Space` or `S` | Skips the current file and loads the next item. |
 | **Previous Item** | `Backspace` or `P` | Returns to the previous file/page in the queue. |
 | **Stop Review** | `Escape` | Cancels the active batch review without clearing the queue. |
+
+## Pattern Input Fields (Text & Regex)
+| Action | Shortcut | Description |
+|---|---|---|
+| **Save & Exit Input** | `Enter` or `Return` | Saves the typed pattern and unfocuses (exits) the text box, preventing accidental advancement of the batch review. |
+| **Add New Input Row** | `Shift` + `Enter` | Creates a new text or regex pattern input field of the same type and automatically focuses it. |

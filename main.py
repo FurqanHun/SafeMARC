@@ -3,8 +3,19 @@ import signal
 
 def run_gui():
     import qdarktheme
-    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QCheckBox, QComboBox, QTabBar, QMenu
+    from PySide6.QtCore import Qt
     from src.gui.main_window import SafeMARCMainWindow
+
+    # Monkey patch clickable widgets to default to PointingHandCursor globally
+    for widget_class in [QPushButton, QCheckBox, QComboBox, QTabBar, QMenu]:
+        original_init = widget_class.__init__
+        def make_new_init(orig_init):
+            def new_init(self, *args, **kwargs):
+                orig_init(self, *args, **kwargs)
+                self.setCursor(Qt.PointingHandCursor)
+            return new_init
+        widget_class.__init__ = make_new_init(original_init)
 
     # Allow Ctrl+C to terminate application
     signal.signal(signal.SIGINT, signal.SIG_DFL)

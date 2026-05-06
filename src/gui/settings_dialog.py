@@ -46,6 +46,7 @@ class SettingsDialog(QDialog):
             QTabBar::tab:selected { background: #111827; color: #10B981; font-weight: bold; border: 1px solid #374151; border-bottom: none; }
             QListWidget { background-color: #1F2937; border: 1px solid #374151; color: #E5E7EB; border-radius: 8px; outline: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
             QListWidget::item { padding: 8px; border-bottom: 1px solid #374151; }
+            QListWidget::item:hover { background-color: #374151; color: #FFFFFF; }
             QListWidget::item:selected { background-color: #10B981; color: #FFFFFF; font-weight: bold; }
             QPushButton {
                 background-color: #1F2937;
@@ -195,6 +196,7 @@ class SettingsDialog(QDialog):
         # Left: People List
         left_panel = QVBoxLayout()
         self.list_people = QListWidget()
+        self.list_people.setCursor(Qt.PointingHandCursor)
         self.list_people.currentRowChanged.connect(self._on_person_selected)
         lbl_people = QLabel("People / Identities")
         lbl_people.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")

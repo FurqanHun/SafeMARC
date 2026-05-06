@@ -19,9 +19,15 @@ class IdentityManager:
         self.identity_map = {}  # int id -> str Name
         self.is_trained = False
         
-        # Face cascade for auto-cropping reference images
+        # Face cascades for robust ensemble auto-cropping of reference images
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        )
+        self.face_cascade_alt = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+        )
+        self.profile_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_profileface.xml'
         )
         
         # Try to use SFace (deep learning) — vastly superior to LBPH
@@ -49,12 +55,40 @@ class IdentityManager:
         self.reload_identities()
 
     def _extract_face_crop(self, img):
-        """Extract the largest face crop from an image. Returns BGR crop."""
+        """Extract the largest face crop from an image using a robust high-recall multi-cascade ensemble. Returns BGR crop."""
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-        if len(faces) > 0:
-            x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-            return img[y:y+h, x:x+w]
+        h_img, w_img = gray.shape[:2]
+        
+        # Run detections with standard 1.1, 4 parameters and no strict minSize to match previous high recall
+        faces_default = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        faces_alt = self.face_cascade_alt.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        faces_profile = self.profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        
+        flipped_gray = cv2.flip(gray, 1)
+        faces_profile_flipped = self.profile_cascade.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=4)
+        
+        # Consolidate all detections
+        all_faces = []
+        for (x, y, w, h) in faces_default:
+            all_faces.append((int(x), int(y), int(w), int(h)))
+        for (x, y, w, h) in faces_alt:
+            all_faces.append((int(x), int(y), int(w), int(h)))
+        for (x, y, w, h) in faces_profile:
+            all_faces.append((int(x), int(y), int(w), int(h)))
+        for (x, y, w, h) in faces_profile_flipped:
+            orig_x = w_img - x - w
+            all_faces.append((int(orig_x), int(y), int(w), int(h)))
+            
+        if len(all_faces) > 0:
+            # Safely select the largest face crop based on area
+            x, y, w, h = max(all_faces, key=lambda f: f[2] * f[3])
+            # Clip crop coordinates to prevent out-of-bounds slicing crashes
+            clip_y = max(0, y)
+            clip_h = min(h_img - clip_y, h)
+            clip_x = max(0, x)
+            clip_w = min(w_img - clip_x, w)
+            return img[clip_y:clip_y+clip_h, clip_x:clip_x+clip_w]
+            
         return img  # Fallback: assume entire image is a face crop
 
     def reload_identities(self):

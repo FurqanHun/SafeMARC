@@ -4,7 +4,18 @@ from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor
 from src.core.identity_manager import IdentityManager
 import os
 
-# ... (svg_to_icon and SVG_X remain same)
+def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
+    from PySide6.QtSvg import QSvgRenderer
+    renderer = QSvgRenderer(svg_str.encode('utf-8'))
+    image = QImage(size, size, QImage.Format_ARGB32)
+    image.fill(0)
+    painter = QPainter(image)
+    renderer.render(painter)
+    painter.end()
+    return QIcon(QPixmap.fromImage(image))
+
+
+SVG_CLOSE = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'''
 
 class SettingsDialog(QDialog):
     def __init__(self, scanner, parent=None):
@@ -235,11 +246,40 @@ class SettingsDialog(QDialog):
             path = os.path.join(person_dir, img_name)
             pixmap = QPixmap(path).scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             
+            container = QWidget()
+            container.setFixedSize(100, 100)
+            layout = QGridLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            
             lbl = QLabel()
             lbl.setPixmap(pixmap)
+            lbl.setAlignment(Qt.AlignCenter)
             lbl.setFixedSize(100, 100)
-            lbl.setStyleSheet("border: 1px solid #374151; border-radius: 4px;")
-            self.grid_layout.addWidget(lbl, i // 3, i % 3)
+            lbl.setStyleSheet("border: 1px solid #374151; border-radius: 6px; background-color: #1F2937;")
+            
+            del_btn = QPushButton()
+            del_btn.setIcon(svg_to_icon(SVG_CLOSE, 10))
+            del_btn.setIconSize(QSize(10, 10))
+            del_btn.setCursor(Qt.PointingHandCursor)
+            del_btn.setToolTip("Delete Reference Image")
+            del_btn.setFixedSize(18, 18)
+            del_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(225, 29, 72, 220);
+                    border: none;
+                    border-radius: 9px;
+                    margin-top: 4px;
+                    margin-right: 4px;
+                }
+                QPushButton:hover { background-color: #E11D48; }
+            """)
+            del_btn.clicked.connect(lambda _, p=path: self._delete_individual_image(p, name, is_session))
+            
+            layout.addWidget(lbl, 0, 0)
+            layout.addWidget(del_btn, 0, 0, Qt.AlignTop | Qt.AlignRight)
+            
+            self.grid_layout.addWidget(container, i // 3, i % 3)
 
     def _add_person(self):
         name, ok = QInputDialog.getText(self, "New Identity", "Enter person name:")
@@ -296,4 +336,25 @@ class SettingsDialog(QDialog):
             if self.parent():
                 if hasattr(self.parent(), "update_global_output_settings"):
                     self.parent().update_global_output_settings()
+
+    def _delete_individual_image(self, img_path, person_name, is_session):
+        res = QMessageBox.question(self, "Delete Reference Image", "Are you sure you want to delete this reference image?")
+        if res == QMessageBox.Yes:
+            try:
+                if os.path.exists(img_path):
+                    os.remove(img_path)
+                
+                npy_path = img_path + ".sface.npy"
+                if os.path.exists(npy_path):
+                    os.remove(npy_path)
+                
+                lbph_path = img_path + ".lbph.png"
+                if os.path.exists(lbph_path):
+                    os.remove(lbph_path)
+                
+                self._load_person_images(person_name, is_session)
+                if self.identity_manager:
+                    self.identity_manager.reload_identities()
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to delete image: {str(e)}")
 

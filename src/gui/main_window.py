@@ -1111,11 +1111,10 @@ class SafeMARCMainWindow(QMainWindow):
     def _show_people_selector(self):
         if not self.scanner: return
         
-        from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout
+        from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel
         menu = QMenu(self)
         menu.setStyleSheet("""
-            QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 5px; }
-            QMenu::item:selected { background-color: #374151; }
+            QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 10px; border-radius: 8px; }
         """)
         
         # Get all identities (perm + session)
@@ -1124,20 +1123,98 @@ class SafeMARCMainWindow(QMainWindow):
         if not all_names:
             menu.addAction("No identities found").setEnabled(False)
         else:
-            # Header
-            header = menu.addAction("Target Selection")
-            header.setEnabled(False)
-            menu.addSeparator()
+            container = QWidget()
+            container.setStyleSheet("background: transparent;")
+            layout = QVBoxLayout(container)
+            layout.setContentsMargins(5, 5, 5, 5)
+            layout.setSpacing(8)
             
+            # Header Label
+            lbl_header = QLabel("Target Selection")
+            lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
+            layout.addWidget(lbl_header)
+            
+            # Checkboxes
+            checkboxes = []
             for name in all_names:
-                action = menu.addAction(name)
-                action.setCheckable(True)
-                action.setChecked(name in self.scanner.target_identities)
-                action.triggered.connect(lambda checked, n=name: self._toggle_target_identity(n, checked))
+                chk = QCheckBox(name)
+                chk.setCursor(Qt.PointingHandCursor)
+                chk.setChecked(name in self.scanner.target_identities)
+                chk.setStyleSheet("""
+                    QCheckBox { spacing: 8px; color: #E5E7EB; font-size: 13px; font-family: 'Segoe UI', Arial, sans-serif; }
+                    QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #374151; background-color: #1F2937; }
+                    QCheckBox::indicator:hover { border-color: #4B5563; }
+                    QCheckBox::indicator:checked { background-color: #10B981; border-color: #10B981; }
+                """)
                 
-            menu.addSeparator()
-            clear_action = menu.addAction("Clear Selection")
-            clear_action.triggered.connect(self._clear_target_identities)
+                def make_toggle_cb(n, cb_widget):
+                    return lambda checked: self._toggle_target_identity(n, checked)
+                chk.toggled.connect(make_toggle_cb(name, chk))
+                layout.addWidget(chk)
+                checkboxes.append(chk)
+                
+            # Quick Actions Layout (Select All / Clear)
+            layout.addSpacing(4)
+            btn_layout = QHBoxLayout()
+            btn_layout.setSpacing(8)
+            
+            btn_all = QPushButton("Select All")
+            btn_all.setCursor(Qt.PointingHandCursor)
+            btn_all.setStyleSheet("""
+                QPushButton {
+                    background-color: #1F2937;
+                    color: #10B981;
+                    border: 1px solid #374151;
+                    border-radius: 6px;
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+                QPushButton:hover { background-color: #10B981; color: white; border-color: #10B981; }
+                QPushButton:pressed { background-color: #059669; }
+            """)
+            
+            def on_select_all():
+                self.scanner.target_identities = list(all_names)
+                for cb in checkboxes:
+                    cb.blockSignals(True)
+                    cb.setChecked(True)
+                    cb.blockSignals(False)
+                self._rescan_current()
+            btn_all.clicked.connect(on_select_all)
+            
+            btn_clear = QPushButton("Clear")
+            btn_clear.setCursor(Qt.PointingHandCursor)
+            btn_clear.setStyleSheet("""
+                QPushButton {
+                    background-color: #1F2937;
+                    color: #E11D48;
+                    border: 1px solid #374151;
+                    border-radius: 6px;
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+                QPushButton:hover { background-color: #E11D48; color: white; border-color: #E11D48; }
+                QPushButton:pressed { background-color: #BE123C; }
+            """)
+            
+            def on_clear_all():
+                self.scanner.target_identities = []
+                for cb in checkboxes:
+                    cb.blockSignals(True)
+                    cb.setChecked(False)
+                    cb.blockSignals(False)
+                self._rescan_current()
+            btn_clear.clicked.connect(on_clear_all)
+            
+            btn_layout.addWidget(btn_all)
+            btn_layout.addWidget(btn_clear)
+            layout.addLayout(btn_layout)
+            
+            wa = QWidgetAction(menu)
+            wa.setDefaultWidget(container)
+            menu.addAction(wa)
 
         menu.exec(self.btn_select_people.mapToGlobal(self.btn_select_people.rect().bottomLeft()))
 

@@ -30,14 +30,16 @@ class BatchProcessor:
         file_name = os.path.basename(input_path)
         name, ext = os.path.splitext(file_name)
 
+        out_name = f"{name}_safemarc_redacted{ext}" if use_suffix else file_name
+
         if output_dir:
-            return os.path.join(output_dir, file_name)
+            return os.path.join(output_dir, out_name)
         elif use_suffix:
-            return os.path.join(base_dir, f"{name}_safemarc_redacted{ext}")
+            return os.path.join(base_dir, out_name)
         else:
             # Default behavior: dump in a folder named 'safemarc_redacted_output' alongside original
             new_dir = os.path.join(base_dir, "safemarc_redacted_output")
-            return os.path.join(new_dir, file_name)
+            return os.path.join(new_dir, out_name)
 
     def process(self, input_path: str, output_dir: str = None, use_suffix: bool = False) -> Generator[Tuple[str, bool, str], None, None]:
         """

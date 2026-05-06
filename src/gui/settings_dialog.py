@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit
+from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor
 from src.core.identity_manager import IdentityManager
 import os
@@ -38,6 +38,37 @@ class SettingsDialog(QDialog):
                 font-weight: 600;
             }
             QPushButton:hover { background-color: #374151; border-color: #4B5563; }
+            QPushButton:disabled { background-color: #1F2937; color: #4B5563; border-color: #1F2937; }
+            QCheckBox {
+                spacing: 8px;
+                color: #E5E7EB;
+                font-size: 13px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border: 1px solid #374151;
+                background-color: #1F2937;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #4B5563;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #10B981;
+                border-color: #10B981;
+            }
+            QLineEdit {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border-color: #10B981;
+            }
         """)
 
         layout = QVBoxLayout(self)
@@ -46,9 +77,53 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.tabs)
         
         # Tab 1: General (Current settings)
+        self.settings = QSettings("SafeMARC", "SafeMARC")
+        default_out = self.settings.value("global_output_dir", "")
+        if not default_out:
+            pictures_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
+            if not pictures_dir:
+                pictures_dir = os.path.expanduser("~/Pictures")
+            default_out = os.path.join(pictures_dir, "SafeMARC_Output")
+            self.settings.setValue("global_output_dir", default_out)
+
         self.tab_general = QWidget()
         gen_layout = QVBoxLayout(self.tab_general)
-        gen_layout.addWidget(QLabel("General settings will appear here."))
+        gen_layout.setContentsMargins(20, 20, 20, 20)
+        gen_layout.setSpacing(15)
+
+        lbl_title = QLabel("Global Redaction Output Configuration")
+        lbl_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #10B981;")
+        gen_layout.addWidget(lbl_title)
+
+        lbl_desc = QLabel("Configure where redacted files are saved. By default, SafeMARC creates output files in the same directory as the input files.")
+        lbl_desc.setWordWrap(True)
+        lbl_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 10px;")
+        gen_layout.addWidget(lbl_desc)
+
+        self.chk_global_output = QCheckBox("Always save redacted files to the global output folder")
+        always_use_global = self.settings.value("always_use_global_output", "false") == "true" or self.settings.value("always_use_global_output", False) is True
+        self.chk_global_output.setChecked(always_use_global)
+        self.chk_global_output.toggled.connect(self._on_global_output_toggled)
+        gen_layout.addWidget(self.chk_global_output)
+
+        path_layout = QHBoxLayout()
+        self.txt_output_dir = QLineEdit()
+        self.txt_output_dir.setReadOnly(True)
+        self.txt_output_dir.setText(default_out)
+
+        self.btn_browse_dir = QPushButton("Browse...")
+        self.btn_browse_dir.clicked.connect(self._browse_global_dir)
+
+        path_layout.addWidget(self.txt_output_dir, 1)
+        path_layout.addWidget(self.btn_browse_dir)
+        gen_layout.addLayout(path_layout)
+
+        lbl_clip_note = QLabel("Note: Images pasted directly from your clipboard will always be saved to the global output folder to prevent them from being lost in system temporary files.")
+        lbl_clip_note.setWordWrap(True)
+        lbl_clip_note.setStyleSheet("color: #10B981; font-size: 11px; font-style: italic; margin-top: 10px;")
+        gen_layout.addWidget(lbl_clip_note)
+
+        gen_layout.addStretch()
         self.tabs.addTab(self.tab_general, "General")
         
         # Tab 2: Identities
@@ -203,3 +278,22 @@ class SettingsDialog(QDialog):
             else:
                 self.identity_manager.add_identity(data["name"], files)
             self._load_person_images(data["name"], data["is_session"])
+
+    def _on_global_output_toggled(self, checked):
+        self.settings.setValue("always_use_global_output", checked)
+        if self.parent():
+            if hasattr(self.parent(), "update_global_output_settings"):
+                self.parent().update_global_output_settings()
+
+    def _browse_global_dir(self):
+        curr_dir = self.txt_output_dir.text()
+        folder = QFileDialog.getExistingDirectory(self, "Select Global Output Folder", curr_dir)
+        if folder:
+            self.txt_output_dir.setText(folder)
+            self.settings.setValue("global_output_dir", folder)
+            # Create the directory if it doesn't exist
+            os.makedirs(folder, exist_ok=True)
+            if self.parent():
+                if hasattr(self.parent(), "update_global_output_settings"):
+                    self.parent().update_global_output_settings()
+

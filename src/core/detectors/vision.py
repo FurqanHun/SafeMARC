@@ -31,7 +31,7 @@ class VisionDetector(BaseDetector):
             )
             self.detector = vision.ObjectDetector.create_from_options(options)
 
-    def detect(self, image_path: str) -> List[SensitiveHit]:
+    def detect(self, image_path: str, match_identities: bool = True) -> List[SensitiveHit]:
         abs_path = os.path.abspath(image_path)
         cv_image = cv2.imread(abs_path)
         if cv_image is None:
@@ -56,7 +56,7 @@ class VisionDetector(BaseDetector):
             
             for (x, y, w, h) in faces:
                 identity = None
-                if self.identity_manager:
+                if self.identity_manager and match_identities:
                     # Crop face for recognition
                     face_crop = cv_image[y:y+h, x:x+w]
                     identity = self.identity_manager.match_face(face_crop)

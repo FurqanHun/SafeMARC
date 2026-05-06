@@ -1263,6 +1263,8 @@ class SafeMARCMainWindow(QMainWindow):
         worker.start()
         loop.exec()
         
+        worker.wait()
+        
         self.preview_widget.hide_loading()
         return worker.hits
 

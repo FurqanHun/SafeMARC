@@ -40,10 +40,15 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
 
+        # Face matching is only needed if in Blacklist or Whitelist mode and we have selected target identities
+        match_faces = bool(self.face_redaction_mode in ("BLACKLIST", "WHITELIST") and self.target_identities)
+
         for detector in self.detectors:
             try:
                 if isinstance(detector, RegexDetector):
                     hits = detector.detect(file_path, pdf_words=pdf_words)
+                elif isinstance(detector, VisionDetector):
+                    hits = detector.detect(file_path, match_identities=match_faces)
                 else:
                     hits = detector.detect(file_path)
                 all_hits.extend(hits)

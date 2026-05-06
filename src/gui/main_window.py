@@ -979,6 +979,7 @@ class SafeMARCMainWindow(QMainWindow):
         
         self.text_patterns_layout.addWidget(row_widget)
         self.update_text_patterns()
+        input_field.setFocus()
         
     def remove_pattern_row(self, row_widget):
         row_widget.hide()  # Hide immediately so it gets filtered out
@@ -988,14 +989,15 @@ class SafeMARCMainWindow(QMainWindow):
 
     def focus_last_pattern_field(self):
         count = self.text_patterns_layout.count()
-        if count > 0:
-            item = self.text_patterns_layout.itemAt(count - 1)
+        for i in range(count - 1, -1, -1):
+            item = self.text_patterns_layout.itemAt(i)
             if item:
                 row_widget = item.widget()
                 if row_widget:
                     input_field = row_widget.findChild(QLineEdit)
                     if input_field:
                         input_field.setFocus()
+                        break
         
     def update_text_patterns(self):
         if not self.scanner:

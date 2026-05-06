@@ -26,6 +26,7 @@ outputs/
 *.jpg
 *.jpeg
 *.docx
+*.npy
 
 # --- BUILD ARTIFACTS ---
 build/

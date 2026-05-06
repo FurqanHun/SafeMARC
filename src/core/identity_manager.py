@@ -81,7 +81,39 @@ class IdentityManager:
                 person_has_images = False
                     
                 for img_name in os.listdir(person_path):
+                    if img_name.endswith(".npy") or ".lbph.png" in img_name:
+                        continue
+                    
                     img_path = os.path.join(person_path, img_name)
+                    
+                    # 1. Try to load cached SFace embedding
+                    if self.use_sface:
+                        npy_path = img_path + ".sface.npy"
+                        if os.path.exists(npy_path):
+                            try:
+                                embedding = np.load(npy_path)
+                                if person_name not in self.sface_embeddings:
+                                    self.sface_embeddings[person_name] = []
+                                self.sface_embeddings[person_name].append(embedding)
+                                person_has_images = True
+                                continue
+                            except Exception as e:
+                                print(f"[IdentityManager] Failed to load cached SFace embedding: {e}")
+                    else:
+                        # 2. Try to load cached LBPH grayscale face crop
+                        crop_path = img_path + ".lbph.png"
+                        if os.path.exists(crop_path):
+                            try:
+                                gray_crop = cv2.imread(crop_path, cv2.IMREAD_GRAYSCALE)
+                                if gray_crop is not None:
+                                    faces_lbph.append(gray_crop)
+                                    labels_lbph.append(current_id)
+                                    person_has_images = True
+                                    continue
+                            except Exception as e:
+                                print(f"[IdentityManager] Failed to load cached LBPH crop: {e}")
+
+                    # 3. Cache Miss: Read raw image and extract/compute
                     img = cv2.imread(img_path)
                     if img is None:
                         continue
@@ -93,6 +125,12 @@ class IdentityManager:
                         aligned = cv2.resize(face_crop, (112, 112))
                         embedding = self.sface_recognizer.feature(aligned)
                         
+                        try:
+                            npy_path = img_path + ".sface.npy"
+                            np.save(npy_path, embedding)
+                        except Exception as e:
+                            print(f"[IdentityManager] Failed to save cached embedding: {e}")
+                        
                         if person_name not in self.sface_embeddings:
                             self.sface_embeddings[person_name] = []
                         self.sface_embeddings[person_name].append(embedding)
@@ -101,6 +139,13 @@ class IdentityManager:
                         gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
                         gray_crop = cv2.resize(gray_crop, (150, 150))
                         gray_crop = cv2.equalizeHist(gray_crop)
+                        
+                        try:
+                            crop_path = img_path + ".lbph.png"
+                            cv2.imwrite(crop_path, gray_crop)
+                        except Exception as e:
+                            print(f"[IdentityManager] Failed to save cached LBPH crop: {e}")
+                        
                         faces_lbph.append(gray_crop)
                         labels_lbph.append(current_id)
                     

@@ -1167,6 +1167,37 @@ class SafeMARCMainWindow(QMainWindow):
         elif file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
 
+    def get_redacted_output_path(self, input_path: str) -> str:
+        from PySide6.QtCore import QSettings, QStandardPaths
+        settings = QSettings("SafeMARC", "SafeMARC")
+        
+        always_global = settings.value("always_use_global_output", "false") == "true" or settings.value("always_use_global_output", False) is True
+        
+        global_dir = settings.value("global_output_dir", "")
+        if not global_dir:
+            pictures_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
+            if not pictures_dir:
+                pictures_dir = os.path.expanduser("~/Pictures")
+            global_dir = os.path.join(pictures_dir, "SafeMARC_Output")
+            settings.setValue("global_output_dir", global_dir)
+            
+        os.makedirs(global_dir, exist_ok=True)
+        
+        import tempfile
+        is_temp = input_path.startswith(tempfile.gettempdir())
+        
+        if always_global or is_temp:
+            return self.processor.get_output_path(
+                input_path,
+                output_dir=global_dir,
+                use_suffix=self.chk_suffix.isChecked()
+            )
+        else:
+            return self.processor.get_output_path(
+                input_path,
+                use_suffix=self.chk_suffix.isChecked()
+            )
+
     def redact_current(self):
         if not self.scanner or not self.current_file_path:
             return
@@ -1176,10 +1207,7 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "No hits selected for redaction.")
             return
 
-        out_path = self.processor.get_output_path(
-            self.current_file_path, 
-            use_suffix=self.chk_suffix.isChecked()
-        )
+        out_path = self.get_redacted_output_path(self.current_file_path)
         
         # Handle PDF sub-loop
         if self.active_pdf_pages:
@@ -1383,9 +1411,8 @@ class SafeMARCMainWindow(QMainWindow):
                 return
             else:
                 # Finished PDF, rebuild
-                out_path = self.processor.get_output_path(
-                    self.file_list.item(self.batch_index).data(Qt.UserRole),
-                    use_suffix=self.chk_suffix.isChecked()
+                out_path = self.get_redacted_output_path(
+                    self.file_list.item(self.batch_index).data(Qt.UserRole)
                 )
                 if not self.active_pdf_has_redactions and not self.chk_always_rasterize.isChecked():
                     import shutil
@@ -1452,10 +1479,7 @@ class SafeMARCMainWindow(QMainWindow):
                 hits = self.scanner.scan(file_path)
                 self.current_hits = hits
                 if self.chk_skip_review.isChecked():
-                    out_path = self.processor.get_output_path(
-                        file_path, 
-                        use_suffix=self.chk_suffix.isChecked()
-                    )
+                    out_path = self.get_redacted_output_path(file_path)
                     success = self.scanner.redact(file_path, out_path, hits)
                     if success:
                         self.batch_success_count += 1

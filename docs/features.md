@@ -27,7 +27,8 @@
 - [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.
 - [x] **Queue Management**: Direct queue manipulation allowing users to remove any individual file before/during review.
 - [x] **Drag and Drop**: Support dragging and dropping files or folders directly into the queue list widget.
-- [x] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item. (Planned)
+- [x] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item.
+- [x] **Global Output Folder & Clipboard Safety**: Configuration to specify a custom global folder for all redactions. Clipboard-pasted files automatically redirect here to prevent loss in system temporary directories.
 - [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
 
 ## System & Interface

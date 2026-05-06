@@ -1,8 +1,8 @@
 # SafeMARC Features
 
 ## Core Vision Features
-- [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
-- [x] **Face Recognition**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback.
+- [x] **Pose-Robust & Occlusion-Resistant Face Detection**: Fast & accurate face scanning using a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces (e.g. by hands or hair).
+- [x] **Ensemble Face Recognition & Auto-Cropping**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback, powered by an matching high-recall ensemble face cropper for reference images to guarantee high-precision biometric registration even for tilted or posed photos.
 - [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
 - [x] **Redact All**: Auto-redact all detected faces in a document.
 - [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.

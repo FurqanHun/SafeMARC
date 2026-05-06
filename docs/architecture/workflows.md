@@ -47,33 +47,35 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Face detected by Haar Cascade] --> B{SFace model available?}
+    A[Run Ensemble Cascades: Frontal + Alt Frontal + Profile + Flipped Profile] --> B[Union-NMS Bounding Box Merging]
+    B --> C[Crop Face with Safe Slicing]
+    C --> D{SFace model available?}
     
-    B -- Yes --> C[Resize crop to 112×112]
-    C --> D[Compute 128-dim SFace embedding]
-    D --> E[Compare against all reference embeddings]
-    E --> F{Cosine similarity > 0.363?}
+    D -- Yes --> E[Resize crop to 112×112]
+    E --> F[Compute 128-dim SFace embedding]
+    F --> G[Compare against all reference embeddings]
+    G --> H{Cosine similarity > 0.363?}
     
-    F -- Yes --> G["Label: FACE: {name}"]
-    F -- No --> H["Label: FACE (unknown)"]
+    H -- Yes --> I["Label: FACE: {name}"]
+    H -- No --> J["Label: FACE (unknown)"]
     
-    B -- No --> I[LBPH fallback]
-    I --> J{Distance < 115?}
-    J -- Yes --> G
-    J -- No --> H
+    D -- No --> K[LBPH fallback]
+    K --> L{Distance < 115?}
+    L -- Yes --> I
+    L -- No --> J
     
-    G --> K{Redaction Mode}
-    H --> K
+    I --> RM{Redaction Mode}
+    J --> RM
     
-    K -- All --> L[Always redacted]
-    K -- Blacklist --> M{Identity in target list?}
-    K -- Whitelist --> N{Identity in target list?}
+    RM -- All --> RED[Always redacted]
+    RM -- Blacklist --> BL{Identity in target list?}
+    RM -- Whitelist --> WL{Identity in target list?}
     
-    M -- Yes --> O[Redacted ✓]
-    M -- No --> P[Skipped ✗]
+    BL -- Yes --> RED1[Redacted ✓]
+    BL -- No --> SKP1[Skipped ✗]
     
-    N -- Yes --> Q[Protected ✗]
-    N -- No --> R[Redacted ✓]
+    WL -- Yes --> PRT[Protected ✗]
+    WL -- No --> RED2[Redacted ✓]
 ```
 
 ---

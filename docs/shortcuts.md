@@ -36,3 +36,9 @@ Keep this guide handy to navigate and redact your files with high efficiency usi
 |---|---|---|
 | **Save & Exit Input** | `Enter` or `Return` | Saves the typed pattern and unfocuses (exits) the text box, preventing accidental advancement of the batch review. |
 | **Add New Input Row** | `Shift` + `Enter` | Creates a new text or regex pattern input field of the same type and automatically focuses it. |
+
+## Biometric Identity Editor
+| Action | Shortcut | Description |
+|---|---|---|
+| **Multi-Select** | `Ctrl` + Mouse Click / `Shift` + Mouse Click | Selects multiple identities inside the left pane. |
+| **Select All** | `Ctrl` + `A` | Selects all identities inside the left pane. |

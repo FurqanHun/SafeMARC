@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView
 from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
 from src.core.identity_manager import IdentityManager
@@ -196,8 +196,9 @@ class SettingsDialog(QDialog):
         # Left: People List
         left_panel = QVBoxLayout()
         self.list_people = QListWidget()
+        self.list_people.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.list_people.setCursor(Qt.PointingHandCursor)
-        self.list_people.currentRowChanged.connect(self._on_person_selected)
+        self.list_people.itemSelectionChanged.connect(self._on_selection_changed)
         lbl_people = QLabel("People / Identities")
         lbl_people.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
         left_panel.addWidget(lbl_people)
@@ -248,7 +249,13 @@ class SettingsDialog(QDialog):
             QPushButton:pressed {
                 background-color: #BE123C;
             }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border: 1px solid #1F2937;
+            }
         """)
+        self.btn_del_person.setEnabled(False)
         self.btn_del_person.clicked.connect(self._del_person)
         btn_people_layout.addWidget(self.btn_add_person)
         btn_people_layout.addWidget(self.btn_del_person)
@@ -334,6 +341,9 @@ class SettingsDialog(QDialog):
 
     def _refresh_people_list(self):
         self.list_people.clear()
+        self.btn_del_person.setEnabled(False)
+        self.btn_add_img.setEnabled(False)
+        self._clear_grid()
         if not self.identity_manager: return
         
         # Permanent identities
@@ -358,16 +368,25 @@ class SettingsDialog(QDialog):
                     item.setForeground(QColor("#10B981"))
                     self.list_people.addItem(item)
 
-    def _on_person_selected(self, row):
-        if row < 0:
+    def _on_selection_changed(self):
+        selected_items = self.list_people.selectedItems()
+        num_selected = len(selected_items)
+        
+        self.btn_del_person.setEnabled(num_selected > 0)
+        
+        if num_selected == 1:
+            item = selected_items[0]
+            data = item.data(Qt.UserRole)
+            self.btn_add_img.setEnabled(True)
+            self._load_person_images(data["name"], data["is_session"])
+        else:
             self.btn_add_img.setEnabled(False)
             self._clear_grid()
-            return
-            
-        item = self.list_people.item(row)
-        data = item.data(Qt.UserRole)
-        self.btn_add_img.setEnabled(True)
-        self._load_person_images(data["name"], data["is_session"])
+            if num_selected > 1:
+                lbl_feedback = QLabel("Multiple identities selected. Click '-' to delete them.")
+                lbl_feedback.setStyleSheet("color: #9CA3AF; font-size: 13px; font-family: 'Segoe UI', Arial, sans-serif;")
+                lbl_feedback.setAlignment(Qt.AlignCenter)
+                self.grid_layout.addWidget(lbl_feedback, 0, 0)
 
     def _clear_grid(self):
         while self.grid_layout.count():
@@ -435,23 +454,33 @@ class SettingsDialog(QDialog):
                     self.list_people.setCurrentItem(items[0])
 
     def _del_person(self):
-        item = self.list_people.currentItem()
-        if not item: return
+        selected_items = self.list_people.selectedItems()
+        if not selected_items: return
         
-        data = item.data(Qt.UserRole)
-        res = QMessageBox.question(self, "Confirm Delete", f"Are you sure you want to delete identity '{data['name']}'?")
+        num_selected = len(selected_items)
+        if num_selected == 1:
+            data = selected_items[0].data(Qt.UserRole)
+            prompt = f"Are you sure you want to delete identity '{data['name']}'?"
+        else:
+            prompt = f"Are you sure you want to delete {num_selected} selected identities?"
+            
+        res = QMessageBox.question(self, "Confirm Delete", prompt)
         if res == QMessageBox.Yes:
             import shutil
-            base = os.path.join(self.identity_manager.identities_dir, "session_temp") if data["is_session"] else self.identity_manager.identities_dir
-            shutil.rmtree(os.path.join(base, data["name"]))
+            for item in selected_items:
+                data = item.data(Qt.UserRole)
+                base = os.path.join(self.identity_manager.identities_dir, "session_temp") if data["is_session"] else self.identity_manager.identities_dir
+                person_dir = os.path.join(base, data["name"])
+                if os.path.exists(person_dir):
+                    shutil.rmtree(person_dir)
             self._refresh_people_list()
             self.identity_manager.reload_identities()
 
     def _add_image(self):
-        item = self.list_people.currentItem()
-        if not item: return
+        selected_items = self.list_people.selectedItems()
+        if len(selected_items) != 1: return
         
-        data = item.data(Qt.UserRole)
+        data = selected_items[0].data(Qt.UserRole)
         files, _ = QFileDialog.getOpenFileNames(self, "Select Reference Images", "", "Images (*.png *.jpg *.jpeg)")
         if files:
             import tempfile

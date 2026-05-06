@@ -83,9 +83,12 @@ graph TD
 ### UC4: Manage Identities
 - **Actors**: User
 - **Preconditions**: Application is open.
-- **Trigger**: User opens Settings > Identity Manager tab, or right-clicks a detected face.
+- **Trigger**: User opens Settings > Identities tab, or right-clicks a detected face.
 - **Main Workflow**:
-  1. User can add a new identity by providing a name and reference face images.
-  2. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
-  3. Session-only identities are automatically deleted on next app launch.
-  4. The recognition model retrains immediately after any identity change.
+  1. User can add a new identity by providing a name and uploading reference images.
+  2. If the added image contains a face, the AI automatically detects and focuses on it. If not, or to refine it, the user can adjust a 1:1 aspect-ratio-locked interactive crop bounding box.
+  3. User can view all reference image thumbnails on the right panel. Clicking the "X" on the top corner of any thumbnail deletes that specific image and immediately sweeps its biometric `.npy` cache embeddings.
+  4. User can multi-select several identities on the left pane (Ctrl+Click, Shift+Click, or Drag) and delete them in a single batch click.
+  5. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
+  6. Session-only identities are automatically deleted on next app launch.
+  7. The recognition model retrains immediately after any identity change.

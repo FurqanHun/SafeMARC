@@ -1026,8 +1026,19 @@ class SafeMARCMainWindow(QMainWindow):
             self.btn_redact_next.setEnabled(False)
             self.preview_widget.load_image(self.current_file_path)
             self.current_hits = []
+            
+            pdf_words = None
+            if hasattr(self, "active_pdf_pages") and self.active_pdf_pages and self.active_pdf_index < len(self.active_pdf_pages):
+                page_data = self.active_pdf_pages[self.active_pdf_index]
+                if isinstance(page_data, dict):
+                    pdf_words = page_data.get("words", None)
+                    
+            show_anim = True
+            if hasattr(self.scanner, "text_detector") and self.scanner.text_detector.cached_image_path == self.current_file_path:
+                show_anim = False
+                
             try:
-                hits = self.run_scan_with_overlay(self.current_file_path)
+                hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
                 self.current_hits = hits
                 if hits:
                     self.preview_widget.display_hits(hits)
@@ -1237,8 +1248,19 @@ class SafeMARCMainWindow(QMainWindow):
         """Re-scan the currently loaded image with current settings."""
         if not self.current_file_path:
             return
+        
+        pdf_words = None
+        if hasattr(self, "active_pdf_pages") and self.active_pdf_pages and self.active_pdf_index < len(self.active_pdf_pages):
+            page_data = self.active_pdf_pages[self.active_pdf_index]
+            if isinstance(page_data, dict):
+                pdf_words = page_data.get("words", None)
+                
+        show_anim = True
+        if hasattr(self.scanner, "text_detector") and self.scanner.text_detector.cached_image_path == self.current_file_path:
+            show_anim = False
+            
         try:
-            hits = self.run_scan_with_overlay(self.current_file_path)
+            hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
             self.current_hits = hits
             self.preview_widget.display_hits(hits)
             self.btn_redact_next.setEnabled(bool(hits))
@@ -1417,8 +1439,9 @@ class SafeMARCMainWindow(QMainWindow):
                 use_suffix=self.chk_suffix.isChecked()
             )
 
-    def run_scan_with_overlay(self, path, pdf_words=None):
-        self.preview_widget.show_loading("Scanning document for sensitive data...")
+    def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True):
+        if show_animation:
+            self.preview_widget.show_loading("Scanning document for sensitive data...")
         from PySide6.QtCore import QEventLoop
         loop = QEventLoop()
         
@@ -1431,7 +1454,8 @@ class SafeMARCMainWindow(QMainWindow):
         
         worker.wait()
         
-        self.preview_widget.hide_loading()
+        if show_animation:
+            self.preview_widget.hide_loading()
         return worker.hits
 
     def redact_current(self):

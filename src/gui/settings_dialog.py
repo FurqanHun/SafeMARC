@@ -296,6 +296,11 @@ class SettingsDialog(QDialog):
         self.scroll_area.setWidget(self.scroll_content)
         right_panel.addWidget(self.scroll_area)
         
+        self.lbl_status = QLabel("")
+        self.lbl_status.setStyleSheet("color: #10B981; font-size: 12px; font-style: italic; margin-top: 4px; margin-bottom: 4px;")
+        self.lbl_status.setAlignment(Qt.AlignCenter)
+        right_panel.addWidget(self.lbl_status)
+        
         self.btn_add_img = QPushButton("Add Image")
         self.btn_add_img.setCursor(Qt.PointingHandCursor)
         self.btn_add_img.setStyleSheet("""
@@ -466,15 +471,25 @@ class SettingsDialog(QDialog):
             
         res = QMessageBox.question(self, "Confirm Delete", prompt)
         if res == QMessageBox.Yes:
-            import shutil
-            for item in selected_items:
-                data = item.data(Qt.UserRole)
-                base = os.path.join(self.identity_manager.identities_dir, "session_temp") if data["is_session"] else self.identity_manager.identities_dir
-                person_dir = os.path.join(base, data["name"])
-                if os.path.exists(person_dir):
-                    shutil.rmtree(person_dir)
-            self._refresh_people_list()
-            self.identity_manager.reload_identities()
+            from PySide6.QtWidgets import QApplication
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            self.setEnabled(False)
+            self.lbl_status.setText("Deleting identity & re-indexing...")
+            QApplication.processEvents()
+            try:
+                import shutil
+                for item in selected_items:
+                    data = item.data(Qt.UserRole)
+                    base = os.path.join(self.identity_manager.identities_dir, "session_temp") if data["is_session"] else self.identity_manager.identities_dir
+                    person_dir = os.path.join(base, data["name"])
+                    if os.path.exists(person_dir):
+                        shutil.rmtree(person_dir)
+                self._refresh_people_list()
+                self.identity_manager.reload_identities()
+            finally:
+                self.lbl_status.setText("")
+                self.setEnabled(True)
+                QApplication.restoreOverrideCursor()
 
     def _add_image(self):
         selected_items = self.list_people.selectedItems()
@@ -485,9 +500,13 @@ class SettingsDialog(QDialog):
         if files:
             import tempfile
             import cv2
+            from PySide6.QtWidgets import QApplication
             
             cropped_paths = []
-            for f in files:
+            for idx, f in enumerate(files):
+                self.lbl_status.setText(f"Loading & detecting face in image {idx+1} of {len(files)}...")
+                QApplication.processEvents()
+                
                 dialog = FaceCropDialog(f, self)
                 if dialog.exec() == QDialog.Accepted:
                     cropped_bgr = dialog.cropped_image
@@ -498,20 +517,29 @@ class SettingsDialog(QDialog):
                         cropped_paths.append(temp_file_path)
                         
             if cropped_paths:
-                if data["is_session"]:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                self.setEnabled(False)
+                self.lbl_status.setText("Retraining face recognition model...")
+                QApplication.processEvents()
+                try:
+                    if data["is_session"]:
+                        for cp in cropped_paths:
+                            self.identity_manager.add_session_identity(data["name"], cp)
+                    else:
+                        self.identity_manager.add_identity(data["name"], cropped_paths)
+                    
                     for cp in cropped_paths:
-                        self.identity_manager.add_session_identity(data["name"], cp)
-                else:
-                    self.identity_manager.add_identity(data["name"], cropped_paths)
-                
-                for cp in cropped_paths:
-                    try:
-                        if os.path.exists(cp):
-                            os.remove(cp)
-                    except Exception:
-                        pass
-                
-                self._load_person_images(data["name"], data["is_session"])
+                        try:
+                            if os.path.exists(cp):
+                                os.remove(cp)
+                        except Exception:
+                            pass
+                    
+                    self._load_person_images(data["name"], data["is_session"])
+                finally:
+                    self.lbl_status.setText("")
+                    self.setEnabled(True)
+                    QApplication.restoreOverrideCursor()
 
     def _on_global_output_toggled(self, checked):
         self.settings.setValue("always_use_global_output", checked)
@@ -534,6 +562,11 @@ class SettingsDialog(QDialog):
     def _delete_individual_image(self, img_path, person_name, is_session):
         res = QMessageBox.question(self, "Delete Reference Image", "Are you sure you want to delete this reference image?")
         if res == QMessageBox.Yes:
+            from PySide6.QtWidgets import QApplication
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            self.setEnabled(False)
+            self.lbl_status.setText("Retraining face recognition model...")
+            QApplication.processEvents()
             try:
                 if os.path.exists(img_path):
                     os.remove(img_path)
@@ -551,6 +584,10 @@ class SettingsDialog(QDialog):
                     self.identity_manager.reload_identities()
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to delete image: {str(e)}")
+            finally:
+                self.lbl_status.setText("")
+                self.setEnabled(True)
+                QApplication.restoreOverrideCursor()
 
 
 class InteractiveCropLabel(QLabel):
@@ -895,6 +932,7 @@ class NewIdentityDialog(QDialog):
         lbl = QLabel("Enter person name:")
         self.txt_name = QLineEdit()
         self.txt_name.setPlaceholderText("e.g. John Doe")
+        self.txt_name.returnPressed.connect(self._on_save)
         
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -904,6 +942,7 @@ class NewIdentityDialog(QDialog):
         
         self.btn_save = QPushButton("Save")
         self.btn_save.setObjectName("btnSave")
+        self.btn_save.setDefault(True)
         self.btn_save.clicked.connect(self._on_save)
         
         btn_layout.addWidget(self.btn_cancel)

@@ -67,6 +67,24 @@ SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
 SVG_CLIPBOARD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'''
 
 
+class PatternLineEdit(QLineEdit):
+    def __init__(self, is_regex, parent_window, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_regex = is_regex
+        self.parent_window = parent_window
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            if event.modifiers() & Qt.ShiftModifier:
+                self.parent_window.add_pattern_row(is_regex=self.is_regex)
+                QTimer.singleShot(50, self.parent_window.focus_last_pattern_field)
+                return
+            else:
+                self.clearFocus()
+                return
+        super().keyPressEvent(event)
+
+
 class SafeMARCMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -760,6 +778,11 @@ class SafeMARCMainWindow(QMainWindow):
             self.toggle_draw_mode(False)
 
     def on_return_pressed(self):
+        focused_widget = QApplication.focusWidget()
+        if isinstance(focused_widget, QLineEdit):
+            focused_widget.clearFocus()
+            return
+
         if self.btn_start_review.isVisible():
             self.btn_start_review.click()
         elif self.btn_redact_next.isVisible() and self.btn_redact_next.isEnabled():
@@ -783,7 +806,7 @@ class SafeMARCMainWindow(QMainWindow):
         label = QLabel("Regex:" if is_regex else "Text:")
         label.setStyleSheet("color: #9CA3AF; font-weight: 600; font-size: 12px; background: transparent;")
         
-        input_field = QLineEdit()
+        input_field = PatternLineEdit(is_regex, self)
         input_field.setPlaceholderText("e.g. \\b\\d{4}\\b" if is_regex else "e.g. CONFIDENTIAL")
         input_field.setProperty("is_regex", is_regex)
         input_field.setStyleSheet("""
@@ -861,6 +884,17 @@ class SafeMARCMainWindow(QMainWindow):
         self.text_patterns_layout.removeWidget(row_widget)
         row_widget.deleteLater()
         self.update_text_patterns()
+
+    def focus_last_pattern_field(self):
+        count = self.text_patterns_layout.count()
+        if count > 0:
+            item = self.text_patterns_layout.itemAt(count - 1)
+            if item:
+                row_widget = item.widget()
+                if row_widget:
+                    input_field = row_widget.findChild(QLineEdit)
+                    if input_field:
+                        input_field.setFocus()
         
     def update_text_patterns(self):
         if not self.scanner:

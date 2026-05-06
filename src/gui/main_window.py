@@ -133,6 +133,7 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Central Widget & Main Layout
         central_widget = QWidget()
+        central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)

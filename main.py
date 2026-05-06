@@ -22,6 +22,16 @@ def run_gui():
 
     app = QApplication(sys.argv)
     custom_style = """
+    QMainWindow, QWidget#centralWidget, QSplitter, QSplitter > QWidget {
+        background-color: #0B0F19;
+    }
+    QLabel {
+        background: transparent;
+        background-color: transparent;
+    }
+    QDialog {
+        background-color: #0B0F19;
+    }
     QMessageBox {
         background-color: #0B0F19;
     }

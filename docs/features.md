@@ -1,8 +1,12 @@
 # SafeMARC Features
 
 ## Core Vision Features
-- [x] **Pose-Robust & Occlusion-Resistant Face Detection**: Fast & accurate face scanning using a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces (e.g. by hands or hair).
-- [x] **Ensemble Face Recognition & Auto-Cropping**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback, powered by an matching high-recall ensemble face cropper for reference images to guarantee high-precision biometric registration even for tilted or posed photos.
+- [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
+  - *Pose & Occlusion Robustness*: Employs a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces.
+- [x] **Face Recognition**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback.
+  - *Ensemble Auto-Cropping*: Reference images are auto-cropped using the high-recall ensemble face detector to guarantee high-precision biometric registration even for tilted or posed reference photos.
+- [x] **Body Detection**: Robust human body and silhouette detection.
+  - *EfficientDet-Lite2 (TFLite)*: Leverages MediaPipe Object Detector with a lightweight, high-performance `efficientdet_lite2.tflite` model to detect full bodies and silhouettes with low latency.
 - [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
 - [x] **Redact All**: Auto-redact all detected faces in a document.
 - [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.

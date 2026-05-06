@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QProgressDialog,
     QComboBox,
     QLineEdit,
+    QScrollArea,
 )
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
@@ -65,6 +66,7 @@ SVG_ZOOM_OUT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
 
 SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'''
 SVG_CLIPBOARD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'''
+SVG_FACE = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'''
 
 
 class PatternLineEdit(QLineEdit):
@@ -109,7 +111,12 @@ class SafeMARCMainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("SafeMARC - v0.1 (DEV)")
-        self.setGeometry(100, 100, 1000, 700)
+        avail = QApplication.primaryScreen().availableGeometry()
+        w = min(int(avail.width() * 0.85), 1400)
+        h = min(int(avail.height() * 0.85), 800)
+        x = avail.x() + (avail.width() - w) // 2
+        y = avail.y() + (avail.height() - h) // 2
+        self.setGeometry(x, y, w, h)
         self.setAcceptDrops(True)
 
         # Core Engines
@@ -248,8 +255,7 @@ class SafeMARCMainWindow(QMainWindow):
         sidebar_layout.addLayout(queue_header)
         sidebar_layout.addWidget(self.file_list, 1)
 
-         # Queue Buttons
-        queue_btns_layout = QHBoxLayout()
+        # Queue Buttons
         self.btn_add_file = QPushButton(" Add Files")
         self.btn_add_file.setIcon(svg_to_icon(SVG_FILE_PLUS))
         self.btn_add_file.clicked.connect(self.add_files)
@@ -276,8 +282,8 @@ class SafeMARCMainWindow(QMainWindow):
                 background-color: #1F2937;
                 color: #E5E7EB;
                 border: 1px solid #374151;
-                border-radius: 8px;
-                padding: 8px 10px;
+                border-radius: 6px;
+                padding: 6px 8px;
                 font-weight: 600;
                 font-size: 11px;
             }
@@ -294,12 +300,25 @@ class SafeMARCMainWindow(QMainWindow):
         for btn in (self.btn_add_file, self.btn_add_folder, self.btn_paste, self.btn_remove, self.btn_clear):
             btn.setStyleSheet(btn_style)
         
-        queue_btns_layout.addWidget(self.btn_add_file)
-        queue_btns_layout.addWidget(self.btn_add_folder)
-        queue_btns_layout.addWidget(self.btn_paste)
-        queue_btns_layout.addWidget(self.btn_remove)
-        queue_btns_layout.addWidget(self.btn_clear)
-        sidebar_layout.addLayout(queue_btns_layout)
+        queue_btns_container = QVBoxLayout()
+        queue_btns_container.setSpacing(6)
+        
+        row1_layout = QHBoxLayout()
+        row1_layout.setSpacing(6)
+        row1_layout.setContentsMargins(0, 0, 0, 0)
+        row1_layout.addWidget(self.btn_add_file)
+        row1_layout.addWidget(self.btn_add_folder)
+        
+        row2_layout = QHBoxLayout()
+        row2_layout.setSpacing(6)
+        row2_layout.setContentsMargins(0, 0, 0, 0)
+        row2_layout.addWidget(self.btn_paste)
+        row2_layout.addWidget(self.btn_remove)
+        row2_layout.addWidget(self.btn_clear)
+        
+        queue_btns_container.addLayout(row1_layout)
+        queue_btns_container.addLayout(row2_layout)
+        sidebar_layout.addLayout(queue_btns_container)
 
         # Settings Group (Styled Card instead of native GroupBox)
         settings_card = QWidget()
@@ -373,24 +392,25 @@ class SafeMARCMainWindow(QMainWindow):
         lbl_face_mode.setStyleSheet("font-weight: bold; color: #9CA3AF;")
         face_mode_layout.addWidget(lbl_face_mode)
         face_mode_layout.addWidget(self.cmb_face_mode)
+        settings_layout.addLayout(face_mode_layout)
         
-        self.btn_select_people = QPushButton("People")
-        self.btn_select_people.setFixedWidth(60)
+        self.btn_select_people = QPushButton(" Select People")
+        self.btn_select_people.setIcon(svg_to_icon(SVG_FACE))
         self.btn_select_people.setStyleSheet("""
             QPushButton {
                 background-color: #1F2937;
                 color: #E5E7EB;
                 border: 1px solid #374151;
-                border-radius: 4px;
-                padding: 4px;
+                border-radius: 6px;
+                padding: 6px 10px;
                 font-size: 11px;
+                font-weight: 600;
             }
-            QPushButton:hover { background-color: #374151; }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; }
         """)
         self.btn_select_people.clicked.connect(self._show_people_selector)
-        face_mode_layout.addWidget(self.btn_select_people)
-        
-        settings_layout.addLayout(face_mode_layout)
+        self.btn_select_people.hide()
+        settings_layout.addWidget(self.btn_select_people)
         
         checkbox_style = """
             QCheckBox {
@@ -438,8 +458,12 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_always_rasterize.setStyleSheet(checkbox_style)
         settings_layout.addWidget(self.chk_always_rasterize)
 
-        sidebar_layout.addWidget(settings_card)
-        
+        # === Right Panel (Settings & Redaction Rules) ===
+        right_panel_widget = QWidget()
+        right_panel_layout = QVBoxLayout(right_panel_widget)
+        right_panel_layout.setContentsMargins(0, 0, 0, 0)
+        right_panel_layout.setSpacing(0)
+
         # Text Patterns Card (Styled Card instead of native GroupBox)
         text_card = QWidget()
         text_card.setObjectName("textCard")
@@ -462,8 +486,42 @@ class SafeMARCMainWindow(QMainWindow):
         lbl_text_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
         text_layout.addWidget(lbl_text_title)
         
-        self.text_patterns_layout = QVBoxLayout()
-        text_layout.addLayout(self.text_patterns_layout)
+        # Scroll Area for Text Patterns
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #111827;
+                width: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #374151;
+                min-height: 20px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #10B981;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+            }
+        """)
+        
+        scroll_widget = QWidget()
+        scroll_widget.setStyleSheet("background: transparent;")
+        self.text_patterns_layout = QVBoxLayout(scroll_widget)
+        self.text_patterns_layout.setContentsMargins(0, 0, 0, 0)
+        self.text_patterns_layout.setSpacing(8)
+        self.text_patterns_layout.setAlignment(Qt.AlignTop)
+        
+        scroll_area.setWidget(scroll_widget)
+        text_layout.addWidget(scroll_area, 1)
         
         SVG_PLUS = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'''
 
@@ -497,7 +555,8 @@ class SafeMARCMainWindow(QMainWindow):
         text_btns.addWidget(btn_add_regex)
         text_layout.addLayout(text_btns)
         
-        sidebar_layout.addWidget(text_card)
+        right_panel_layout.addWidget(settings_card)
+        right_panel_layout.addWidget(text_card, 1)
 
         self.splitter.addWidget(sidebar_widget)
 
@@ -751,8 +810,20 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
         self.shortcut_paste.activated.connect(self.on_paste)
 
+        sidebar_widget.setMinimumWidth(200)
+        preview_container.setMinimumWidth(300)
+        right_panel_widget.setMinimumWidth(310)
+
+        self.splitter.setChildrenCollapsible(False)
         self.splitter.addWidget(preview_container)
-        self.splitter.setSizes([300, 700])
+        self.splitter.addWidget(right_panel_widget)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 4)
+        self.splitter.setStretchFactor(2, 1)
+        QTimer.singleShot(50, self._apply_default_splitter_sizes)
+
+        self.shortcut_reset_layout = QShortcut(QKeySequence("Ctrl+Alt+R"), self)
+        self.shortcut_reset_layout.activated.connect(self._apply_default_splitter_sizes)
 
         self.current_file_path = None
         self.current_hits = []
@@ -766,6 +837,16 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_pages = []
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
+
+    def _apply_default_splitter_sizes(self):
+        """Compute splitter sizes from actual width so nothing clips."""
+        total = self.splitter.width()
+        handles = self.splitter.handleWidth() * 2  # 2 handles between 3 panes
+        usable = total - handles
+        left = 260
+        right = 310
+        middle = max(300, usable - left - right)
+        self.splitter.setSizes([left, middle, right])
 
     def toggle_draw_mode(self, checked):
         self.preview_widget.set_drawing_mode(checked)
@@ -979,6 +1060,13 @@ class SafeMARCMainWindow(QMainWindow):
         internal_mode = mode_map.get(text, "ALL")
         self.scanner.set_face_redaction_mode(internal_mode)
         print(f"Face redaction mode set to: {internal_mode}")
+        
+        # Show/hide Select People button based on mode
+        if text in ("Blacklist", "Whitelist"):
+            self.btn_select_people.show()
+        else:
+            self.btn_select_people.hide()
+        
         self._rescan_current()
 
     def on_quick_add_identity(self, hit):

@@ -11,6 +11,7 @@ Keep this guide handy to navigate and redact your files with high efficiency usi
 | **Remove Selected File** | `Delete` | Remove the currently selected file from the queue. |
 | **Clear Queue** | `Ctrl` + `Shift` + `C` | Clears all files in the queue. |
 | **Settings** | `Ctrl` + `,` | Opens the settings panel. |
+| **Reset Layout** | `Ctrl` + `Alt` + `R` | Resets the three-pane window divider splitters back to their default balanced sizes. |
 
 ## Zoom & Pan Shortcuts
 | Action | Shortcut | Description |

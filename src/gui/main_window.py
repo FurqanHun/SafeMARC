@@ -1824,6 +1824,7 @@ class PersistentRangeDialog(QDialog):
                 font-family: 'Segoe UI', Arial, sans-serif;
                 font-size: 13px;
                 padding: 4px;
+                background: transparent;
             }
             QRadioButton:hover { color: #FFFFFF; }
             QRadioButton::indicator {
@@ -1841,10 +1842,12 @@ class PersistentRangeDialog(QDialog):
                 color: #E5E7EB;
                 border: 1px solid #374151;
                 border-radius: 8px;
-                padding: 8px 16px;
+                padding: 4px 12px;
                 font-weight: 600;
                 font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 13px;
+                font-size: 12px;
+                min-width: 80px;
+                min-height: 28px;
             }
             QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
             QPushButton#btnSave { background-color: #10B981; color: white; border: none; }
@@ -1878,6 +1881,7 @@ class PersistentRangeDialog(QDialog):
             self.options = [("image_upcoming", self.opt1), ("all_upcoming", self.opt2)]
             
         for val, radio in self.options:
+            radio.setFocusPolicy(Qt.TabFocus)
             self.radio_group.addButton(radio)
             layout.addWidget(radio)
             
@@ -1885,16 +1889,27 @@ class PersistentRangeDialog(QDialog):
         btn_layout.addStretch()
         
         self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.setFocusPolicy(Qt.TabFocus)
         self.btn_cancel.clicked.connect(self.reject)
         
         self.btn_save = QPushButton("Apply")
         self.btn_save.setObjectName("btnSave")
+        self.btn_save.setFocusPolicy(Qt.TabFocus)
         self.btn_save.setDefault(True)
         self.btn_save.clicked.connect(self.accept)
         
         btn_layout.addWidget(self.btn_cancel)
         btn_layout.addWidget(self.btn_save)
         layout.addLayout(btn_layout)
+        
+        # Configure tab order explicitly
+        prev_radio = None
+        for val, radio in self.options:
+            if prev_radio:
+                self.setTabOrder(prev_radio, radio)
+            prev_radio = radio
+        self.setTabOrder(prev_radio, self.btn_cancel)
+        self.setTabOrder(self.btn_cancel, self.btn_save)
         
     def get_selected_scope(self) -> str:
         for val, radio in self.options:

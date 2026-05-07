@@ -197,4 +197,34 @@ sequenceDiagram
     IM->>IM: reload_identities() → generate SFace .npy files
     SD->>SD: Restore normal cursor & Enable Window
     SD->>SD: Clear status label and refresh thumbnails
+
+
+---
+
+## Persistent Custom Bounding Box Smart Range Scope Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Reviewer
+    participant UI as PreviewWidget
+    participant MW as MainWindow
+    participant PD as PersistentRangeDialog
+
+    User->>MW: Click "Persistent Boxes" (pin tool)
+    MW->>PD: Open dialog (is_pdf context)
+    User->>PD: Select Scope (e.g., current_pdf_only, all_upcoming) and click Apply
+    PD-->>MW: selected_scope
+    MW->>UI: set_persistent_mode(True, scope, pdf_source)
+    UI->>UI: Capture currently visible manual boxes into persistent cache
+
+    loop For each subsequent page / file loaded
+        MW->>UI: load_image(file_path)
+        MW->>UI: display_hits(hits, is_pdf, pdf_source)
+        alt Selected Scope Matches Context
+            UI->>UI: Inject cached persistent coordinates onto active hits
+        end
+        UI-->>User: Render merged auto-detected + persistent manual redactions
+    end
+```
 ```

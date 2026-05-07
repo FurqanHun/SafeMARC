@@ -591,7 +591,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_persistent_mode = QPushButton(" Persist")
         self.btn_persistent_mode.setIcon(svg_to_icon(SVG_PIN))
         self.btn_persistent_mode.setCheckable(True)
-        self.btn_persistent_mode.setToolTip("Persist manual custom boxes across pages / files")
+        self.btn_persistent_mode.setToolTip("Persist manual custom boxes across pages / files (Shift+D)")
         self.btn_persistent_mode.clicked.connect(self.toggle_persistent_mode)
         
         self.btn_zoom_in = QPushButton(" Zoom In")
@@ -642,6 +642,9 @@ class SafeMARCMainWindow(QMainWindow):
         from PySide6.QtGui import QShortcut
         self.shortcut_draw = QShortcut(QKeySequence("D"), self)
         self.shortcut_draw.activated.connect(self.btn_draw_mode.click)
+
+        self.shortcut_persistent = QShortcut(QKeySequence("Shift+D"), self)
+        self.shortcut_persistent.activated.connect(self.btn_persistent_mode.click)
 
         self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl+="), self)
         self.shortcut_zoom_in.activated.connect(self.preview_widget.zoom_in)
@@ -873,6 +876,10 @@ class SafeMARCMainWindow(QMainWindow):
                 scope = dialog.get_selected_scope()
                 pdf_source = self.active_pdf_source if is_pdf else None
                 self.preview_widget.set_persistent_mode(True, scope=scope, pdf_source=pdf_source)
+                # Automatically activate Draw mode
+                if not self.btn_draw_mode.isChecked():
+                    self.btn_draw_mode.setChecked(True)
+                    self.toggle_draw_mode(True)
             else:
                 self.btn_persistent_mode.setChecked(False)
         else:

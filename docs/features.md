@@ -25,7 +25,7 @@
 ## Non-Destructive Review Workflow
 - [x] **Manual Toggle**: Intersected regions/boxes can be untoggled before saving.
 - [x] **Manual Draw Tool**: Ability to toggle "Draw Box" mode (with a button or the `D` keyboard shortcut) to draw custom redaction rectangles.
-- [ ] **Persistent Draw Tool**: Persistent manual redaction boxes across the entire queue or specific PDF pages for repeating layouts. (Planned)
+- [x] **Persistent Draw Tool**: Persistent manual redaction boxes across the entire queue or specific PDF pages for repeating layouts (toggled via the premium "Persistent Boxes" pin button).
 - [x] **Auto-Skip Clean Images**: Configurable feature to bypass images with no detected sensitive hits for a faster review.
 - [x] **Skip Review Mode**: Configurable checkbox toggle to run fully automated review and redaction across all items.
 - [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.

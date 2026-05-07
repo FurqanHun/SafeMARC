@@ -132,17 +132,19 @@ classDiagram
         -_toggle_target_identity(name: str, checked: bool) void
         -_rescan_current() void
         +on_quick_add_identity(hit: SensitiveHit) void
+        +toggle_persistent_mode(checked: bool) void
     }
 
     class PreviewWidget {
         +Signal identityRequested
-        +display_hits(hits: List~SensitiveHit~) void
+        +display_hits(hits: List~SensitiveHit~, is_pdf: bool, pdf_source: str) void
         +get_selected_hits() List~SensitiveHit~
         +toggle_draw_mode() void
         +zoom_in() void
         +zoom_out() void
         +reset_zoom() void
         +on_add_identity_requested(hit: SensitiveHit) void
+        +set_persistent_mode(enabled: bool, scope: str, pdf_source: str) void
     }
 
     class SelectableHitItem {
@@ -159,8 +161,14 @@ classDiagram
         +accept() void
     }
 
+    class PersistentRangeDialog {
+        +bool is_pdf
+        +get_selected_scope() str
+    }
+
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow ..> SettingsDialog : opens
+    SafeMARCMainWindow ..> PersistentRangeDialog : opens
     PreviewWidget *-- SelectableHitItem
     PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
 ```

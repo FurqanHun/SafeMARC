@@ -19,6 +19,9 @@ from PySide6.QtWidgets import (
     QComboBox,
     QLineEdit,
     QScrollArea,
+    QDialog,
+    QRadioButton,
+    QButtonGroup,
 )
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
@@ -67,6 +70,7 @@ SVG_ZOOM_OUT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
 SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'''
 SVG_CLIPBOARD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'''
 SVG_FACE = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'''
+SVG_PIN = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.12-2.12a2 2 0 0 1-.44-1.24V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v5.64a2 2 0 0 1-.44 1.24l-2.12 2.12a2 2 0 0 0-.44 1.24Z"/></svg>'''
 
 
 class PatternLineEdit(QLineEdit):
@@ -578,10 +582,17 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
-        self.btn_draw_mode = QPushButton(" Draw Box (D)")
+        self.btn_draw_mode = QPushButton(" Draw Box")
         self.btn_draw_mode.setIcon(svg_to_icon(SVG_DRAW))
         self.btn_draw_mode.setCheckable(True)
+        self.btn_draw_mode.setToolTip("Draw custom manual redaction boxes (D)")
         self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
+        
+        self.btn_persistent_mode = QPushButton(" Persist")
+        self.btn_persistent_mode.setIcon(svg_to_icon(SVG_PIN))
+        self.btn_persistent_mode.setCheckable(True)
+        self.btn_persistent_mode.setToolTip("Persist manual custom boxes across pages / files (Shift+D)")
+        self.btn_persistent_mode.clicked.connect(self.toggle_persistent_mode)
         
         self.btn_zoom_in = QPushButton(" Zoom In")
         self.btn_zoom_in.setIcon(svg_to_icon(SVG_ZOOM_IN))
@@ -601,7 +612,7 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #E5E7EB;
                 border: 1px solid #374151;
                 border-radius: 8px;
-                padding: 8px 14px;
+                padding: 8px 10px;
                 font-weight: 600;
                 font-size: 12px;
             }
@@ -617,10 +628,11 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """
 
-        for btn in (self.btn_draw_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom):
+        for btn in (self.btn_draw_mode, self.btn_persistent_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom):
             btn.setStyleSheet(tool_style)
 
         draw_layout.addWidget(self.btn_draw_mode)
+        draw_layout.addWidget(self.btn_persistent_mode)
         draw_layout.addWidget(self.btn_zoom_in)
         draw_layout.addWidget(self.btn_zoom_out)
         draw_layout.addWidget(self.btn_reset_zoom)
@@ -630,6 +642,9 @@ class SafeMARCMainWindow(QMainWindow):
         from PySide6.QtGui import QShortcut
         self.shortcut_draw = QShortcut(QKeySequence("D"), self)
         self.shortcut_draw.activated.connect(self.btn_draw_mode.click)
+
+        self.shortcut_persistent = QShortcut(QKeySequence("Shift+D"), self)
+        self.shortcut_persistent.activated.connect(self.btn_persistent_mode.click)
 
         self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl+="), self)
         self.shortcut_zoom_in.activated.connect(self.preview_widget.zoom_in)
@@ -838,6 +853,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_pages = []
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
+        self.active_pdf_source = None
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -851,10 +867,23 @@ class SafeMARCMainWindow(QMainWindow):
 
     def toggle_draw_mode(self, checked):
         self.preview_widget.set_drawing_mode(checked)
+
+    def toggle_persistent_mode(self, checked):
         if checked:
-            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #1976D2; color: white; border-radius: 4px;")
+            is_pdf = bool(self.active_pdf_pages)
+            dialog = PersistentRangeDialog(is_pdf, self)
+            if dialog.exec() == QDialog.Accepted:
+                scope = dialog.get_selected_scope()
+                pdf_source = self.active_pdf_source if is_pdf else None
+                self.preview_widget.set_persistent_mode(True, scope=scope, pdf_source=pdf_source)
+                # Automatically activate Draw mode
+                if not self.btn_draw_mode.isChecked():
+                    self.btn_draw_mode.setChecked(True)
+                    self.toggle_draw_mode(True)
+            else:
+                self.btn_persistent_mode.setChecked(False)
         else:
-            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; color: white; border-radius: 4px;")
+            self.preview_widget.set_persistent_mode(False)
 
     def cancel_batch_mode(self):
         self.is_batch_mode = False
@@ -877,6 +906,11 @@ class SafeMARCMainWindow(QMainWindow):
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
             self.toggle_draw_mode(False)
+
+        # Reset persistent mode
+        if self.btn_persistent_mode.isChecked():
+            self.btn_persistent_mode.setChecked(False)
+            self.preview_widget.set_persistent_mode(False)
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()
@@ -1043,7 +1077,9 @@ class SafeMARCMainWindow(QMainWindow):
                 hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
                 self.current_hits = hits
                 if hits:
-                    self.preview_widget.display_hits(hits)
+                    is_pdf = bool(self.active_pdf_pages)
+                    pdf_source = self.active_pdf_source if is_pdf else None
+                    self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
                     self.btn_redact_next.setEnabled(True)
             except Exception as e:
                 print(f"Rescan error: {e}")
@@ -1264,7 +1300,9 @@ class SafeMARCMainWindow(QMainWindow):
         try:
             hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
             self.current_hits = hits
-            self.preview_widget.display_hits(hits)
+            is_pdf = bool(self.active_pdf_pages)
+            pdf_source = self.active_pdf_source if is_pdf else None
+            self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
             self.btn_redact_next.setEnabled(bool(hits))
         except Exception as e:
             print(f"Re-scan failed: {e}")
@@ -1663,7 +1701,9 @@ class SafeMARCMainWindow(QMainWindow):
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
                     else:
-                        self.preview_widget.display_hits(hits)
+                        is_pdf = bool(self.active_pdf_pages)
+                        pdf_source = self.active_pdf_source if is_pdf else None
+                        self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
                         self.btn_redact_next.setEnabled(True)
                 except Exception as e:
                     print(f"Error processing page: {e}")
@@ -1717,6 +1757,7 @@ class SafeMARCMainWindow(QMainWindow):
         # Check if it's a PDF
         if file_path.lower().endswith('.pdf'):
             try:
+                self.active_pdf_source = file_path
                 self.active_pdf_pages = PDFHandler.extract_pages(file_path)
                 self.active_pdf_index = 0
                 self.active_pdf_outputs = []
@@ -1757,7 +1798,9 @@ class SafeMARCMainWindow(QMainWindow):
                     QTimer.singleShot(0, self.load_next_batch_item)
                     return
                 else:
-                    self.preview_widget.display_hits(hits)
+                    is_pdf = bool(self.active_pdf_pages)
+                    pdf_source = self.active_pdf_source if is_pdf else None
+                    self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
                     self.btn_redact_next.setEnabled(True)
             except Exception as e:
                 item.setForeground(QColor("#d32f2f"))
@@ -1772,4 +1815,112 @@ class SafeMARCMainWindow(QMainWindow):
     def update_stats(self):
         count = self.file_list.count()
         self.lbl_count.setText(f"Files: {count}")
+
+
+class PersistentRangeDialog(QDialog):
+    def __init__(self, is_pdf: bool, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Persistent Scope Settings")
+        self.setFixedSize(420, 260)
+        self.setStyleSheet("""
+            QDialog { background-color: #0B0F19; border: 1px solid #1F2937; border-radius: 12px; }
+            QLabel { color: #E5E7EB; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
+            QLabel#title { color: #10B981; font-size: 15px; font-weight: bold; }
+            QRadioButton {
+                color: #E5E7EB;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+                padding: 4px;
+                background: transparent;
+            }
+            QRadioButton:hover { color: #FFFFFF; }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                border: 2px solid #374151;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #10B981;
+                border: 2px solid #10B981;
+            }
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 4px 12px;
+                font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 12px;
+                min-width: 80px;
+                min-height: 28px;
+            }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+            QPushButton#btnSave { background-color: #10B981; color: white; border: none; }
+            QPushButton#btnSave:hover { background-color: #059669; }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+        
+        title = QLabel("Persistent Redaction Scope")
+        title.setObjectName("title")
+        layout.addWidget(title)
+        
+        desc = QLabel("How would you like manual redaction boxes to persist?")
+        desc.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        layout.addWidget(desc)
+        
+        self.radio_group = QButtonGroup(self)
+        
+        if is_pdf:
+            self.opt1 = QRadioButton("Apply to current PDF only (all pages)")
+            self.opt2 = QRadioButton("Apply to current PDF and upcoming PDFs")
+            self.opt3 = QRadioButton("Apply to all upcoming items (including images)")
+            self.opt1.setChecked(True)
+            self.options = [("current_pdf_only", self.opt1), ("pdf_upcoming", self.opt2), ("all_upcoming", self.opt3)]
+        else:
+            self.opt1 = QRadioButton("Apply to upcoming images only")
+            self.opt2 = QRadioButton("Apply to all upcoming items (including PDFs)")
+            self.opt1.setChecked(True)
+            self.options = [("image_upcoming", self.opt1), ("all_upcoming", self.opt2)]
+            
+        for val, radio in self.options:
+            radio.setFocusPolicy(Qt.TabFocus)
+            self.radio_group.addButton(radio)
+            layout.addWidget(radio)
+            
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.setFocusPolicy(Qt.TabFocus)
+        self.btn_cancel.clicked.connect(self.reject)
+        
+        self.btn_save = QPushButton("Apply")
+        self.btn_save.setObjectName("btnSave")
+        self.btn_save.setFocusPolicy(Qt.TabFocus)
+        self.btn_save.setDefault(True)
+        self.btn_save.clicked.connect(self.accept)
+        
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_save)
+        layout.addLayout(btn_layout)
+        
+        # Configure tab order explicitly
+        prev_radio = None
+        for val, radio in self.options:
+            if prev_radio:
+                self.setTabOrder(prev_radio, radio)
+            prev_radio = radio
+        self.setTabOrder(prev_radio, self.btn_cancel)
+        self.setTabOrder(self.btn_cancel, self.btn_save)
+        
+    def get_selected_scope(self) -> str:
+        for val, radio in self.options:
+            if radio.isChecked():
+                return val
+        return "all_upcoming"
 

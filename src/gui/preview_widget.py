@@ -168,6 +168,11 @@ class PreviewWidget(QGraphicsView):
         self.on_manual_hit_added = None
         self.zoom_factor = 1.0
         self.overlay = None
+        
+        self.persistent_mode = False
+        self.persistent_scope = "all_upcoming"
+        self.persistent_pdf_source = None
+        self.persistent_manual_hits = []
 
     def on_add_identity_requested(self, hit: SensitiveHit):
         self.identityRequested.emit(hit)
@@ -180,6 +185,16 @@ class PreviewWidget(QGraphicsView):
         else:
             self.setDragMode(QGraphicsView.ScrollHandDrag)
             self.viewport().setCursor(Qt.ArrowCursor)
+            
+    def set_persistent_mode(self, enabled: bool, scope: str = "all_upcoming", pdf_source: str = None):
+        self.persistent_mode = enabled
+        self.persistent_scope = scope
+        self.persistent_pdf_source = pdf_source
+        if enabled:
+            # Capture any current manual hits as persistent templates
+            self.persistent_manual_hits = [h for h in self.active_hits if h.label == "MANUAL"]
+        else:
+            self.persistent_manual_hits = []
 
     def load_image(self, file_path: str):
         self.scene.clear()
@@ -195,14 +210,34 @@ class PreviewWidget(QGraphicsView):
             self.scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
-    def display_hits(self, hits: List[SensitiveHit]):
+    def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None):
         self.active_hits = hits.copy()
+        
+        # Inject persistent manual hits if enabled and scope matches
+        if self.persistent_mode:
+            should_inject = False
+            if is_pdf:
+                if self.persistent_scope == "all_upcoming":
+                    should_inject = True
+                elif self.persistent_scope == "pdf_upcoming":
+                    should_inject = True
+                elif self.persistent_scope == "current_pdf_only":
+                    if pdf_source == self.persistent_pdf_source:
+                        should_inject = True
+            else:
+                if self.persistent_scope in ("all_upcoming", "image_upcoming"):
+                    should_inject = True
+                    
+            if should_inject:
+                for ph in self.persistent_manual_hits:
+                    if not any(h.x == ph.x and h.y == ph.y and h.w == ph.w and h.h == ph.h for h in self.active_hits):
+                        self.active_hits.append(ph)
         
         for item in self.hit_items:
             self.scene.removeItem(item)
         self.hit_items.clear()
         
-        for hit in hits:
+        for hit in self.active_hits:
             item = SelectableHitItem(hit, self.on_hit_toggled)
             self.scene.addItem(item)
             self.hit_items.append(item)
@@ -210,8 +245,12 @@ class PreviewWidget(QGraphicsView):
     def on_hit_toggled(self, hit: SensitiveHit, is_selected: bool):
         if is_selected and hit not in self.active_hits:
             self.active_hits.append(hit)
+            if self.persistent_mode and hit.label == "MANUAL" and hit not in self.persistent_manual_hits:
+                self.persistent_manual_hits.append(hit)
         elif not is_selected and hit in self.active_hits:
             self.active_hits.remove(hit)
+            if hit.label == "MANUAL" and hit in self.persistent_manual_hits:
+                self.persistent_manual_hits.remove(hit)
 
     def get_selected_hits(self) -> List[SensitiveHit]:
         return self.active_hits
@@ -280,6 +319,9 @@ class PreviewWidget(QGraphicsView):
                         h=int(rect.height())
                     )
                     self.active_hits.append(hit)
+                    if self.persistent_mode:
+                        self.persistent_manual_hits.append(hit)
+                        
                     item = SelectableHitItem(hit, self.on_hit_toggled)
                     self.scene.addItem(item)
                     self.hit_items.append(item)

@@ -582,12 +582,13 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
-        self.btn_draw_mode = QPushButton(" Draw Box (D)")
+        self.btn_draw_mode = QPushButton(" Draw Box")
         self.btn_draw_mode.setIcon(svg_to_icon(SVG_DRAW))
         self.btn_draw_mode.setCheckable(True)
+        self.btn_draw_mode.setToolTip("Draw custom manual redaction boxes (D)")
         self.btn_draw_mode.clicked.connect(self.toggle_draw_mode)
         
-        self.btn_persistent_mode = QPushButton(" Persistent Boxes")
+        self.btn_persistent_mode = QPushButton(" Persist")
         self.btn_persistent_mode.setIcon(svg_to_icon(SVG_PIN))
         self.btn_persistent_mode.setCheckable(True)
         self.btn_persistent_mode.setToolTip("Persist manual custom boxes across pages / files")
@@ -611,7 +612,7 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #E5E7EB;
                 border: 1px solid #374151;
                 border-radius: 8px;
-                padding: 8px 14px;
+                padding: 8px 10px;
                 font-weight: 600;
                 font-size: 12px;
             }

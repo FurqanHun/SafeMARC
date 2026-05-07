@@ -864,10 +864,6 @@ class SafeMARCMainWindow(QMainWindow):
 
     def toggle_draw_mode(self, checked):
         self.preview_widget.set_drawing_mode(checked)
-        if checked:
-            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #1976D2; color: white; border-radius: 4px;")
-        else:
-            self.btn_draw_mode.setStyleSheet("padding: 8px; font-weight: bold; background-color: #333; color: white; border-radius: 4px;")
 
     def toggle_persistent_mode(self, checked):
         if checked:

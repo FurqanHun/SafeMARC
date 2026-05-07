@@ -6,6 +6,7 @@ Keep this guide handy to navigate and redact your files with high efficiency usi
 | Action | Shortcut | Description |
 |---|---|---|
 | **Toggle Draw Mode** | `D` | Switches the pointer to Draw mode to manually draw a custom redaction box. |
+| **Toggle Persistent Mode** | `Shift` + `D` | Switches pointer to Draw mode and prompts for persistent propagation scope (propagates manual boxes across pages/files). |
 | **Add Files** | `Ctrl` + `O` | Add files to the review queue. |
 | **Add Folder** | `Ctrl` + `Shift` + `O` | Add a whole folder of files to the review queue. |
 | **Remove Selected File** | `Delete` | Remove the currently selected file from the queue. |

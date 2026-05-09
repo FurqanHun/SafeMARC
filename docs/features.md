@@ -17,6 +17,23 @@
 - [x] **Predefined Patterns**: Pre-configured rules for common entities (Phone Numbers, CNICs/IDs, Credit Cards, IBANs) grouped by country regions (Global, Pakistan, United States, European Union) selectable via a premium multi-select dropdown button.
 - [x] **Hybrid Confidence Scoring & Review Suggested State**: Matches found near context keywords are boosted to 95% confidence, while isolated matches default to 45% confidence. Hits falling below the customizable Auto-Redact cutoff are displayed with a warning amber outline and are initially unchecked, prompting explicit user review.
 - [x] **Custom Pattern Import/Export**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines, with seamless serialization/deserialization to `.json` files.
+  * **Example Custom Pattern JSON Format**:
+    ```json
+    [
+        {
+            "label": "REGEX",
+            "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+            "is_regex": true,
+            "whole_word": false
+        },
+        {
+            "label": "TEXT",
+            "pattern": "Confidential",
+            "is_regex": false,
+            "whole_word": true
+        }
+    ]
+    ```
 - [x] **Area-Overlap (IoU) Deduplication**: Mathematically robust Intersection-over-Union bounding box merging that consolidates redundant/overlapping native PDF text and Tesseract OCR hits, keeping the highest confidence match.
 
 ## Document Support & Handling

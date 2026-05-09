@@ -32,10 +32,15 @@ class VisionDetector(BaseDetector):
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Missing body model: {model_path}")
                 
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            fd_val = float(settings.value("model_face_detect", 0.20))
+            
             base_options = mp_python.BaseOptions(model_asset_path=model_path)
             options = vision.ObjectDetectorOptions(
-                base_options=base_options, score_threshold=0.20, max_results=5
+                base_options=base_options, score_threshold=fd_val, max_results=5
             )
+            print(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {fd_val:.2f}")
             self.detector = vision.ObjectDetector.create_from_options(options)
 
     def detect(self, image_path: str, match_identities: bool = True) -> List[SensitiveHit]:
@@ -197,6 +202,20 @@ class VisionDetector(BaseDetector):
 
         elif self.mode == "bodies":
             # Detect bodies using MediaPipe EfficientDet
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            fd_val = float(settings.value("model_face_detect", 0.20))
+            
+            if not hasattr(self, "_active_fd_val") or self._active_fd_val != fd_val:
+                print(f"[DEBUG] Recreating ObjectDetector with active threshold: {fd_val:.2f}")
+                self._active_fd_val = fd_val
+                model_path = os.path.abspath("assets/efficientdet_lite2.tflite")
+                base_options = mp_python.BaseOptions(model_asset_path=model_path)
+                options = vision.ObjectDetectorOptions(
+                    base_options=base_options, score_threshold=fd_val, max_results=5
+                )
+                self.detector = vision.ObjectDetector.create_from_options(options)
+                
             scale = 1
             # Linear contrast stretch helps with some detections
             adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)

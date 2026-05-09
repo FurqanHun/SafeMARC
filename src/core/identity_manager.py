@@ -242,9 +242,12 @@ class IdentityManager:
             # SFace cosine similarity:
             #   Same person: typically 0.4-0.8+
             #   Different person: typically 0.1-0.35
-            # Threshold 0.363 is OpenCV's recommended default
-            matched = best_score > 0.363
-            print(f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} → {'MATCH' if matched else 'REJECT'}")
+            # Dynamic matching similarity threshold loaded from QSettings (default 0.36)
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            fm_val = float(settings.value("model_face_match", 0.36))
+            matched = best_score > fm_val
+            print(f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} (Threshold: {fm_val:.2f}) → {'MATCH' if matched else 'REJECT'}")
             
             if matched:
                 return best_name

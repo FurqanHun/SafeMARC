@@ -400,7 +400,7 @@ class SettingsDialog(QDialog):
         lbl_fd.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
         self.slider_fd = QSlider(Qt.Horizontal)
         self.slider_fd.setRange(10, 100)
-        fd_val = float(self.settings.value("model_face_detect", 0.50))
+        fd_val = float(self.settings.value("model_face_detect", 0.20))
         self.slider_fd.setValue(int(fd_val * 100))
         self.lbl_fd_val = QLabel(f"{fd_val:.2f}")
         self.lbl_fd_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
@@ -422,7 +422,7 @@ class SettingsDialog(QDialog):
         lbl_fm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
         self.slider_fm = QSlider(Qt.Horizontal)
         self.slider_fm.setRange(10, 100)
-        fm_val = float(self.settings.value("model_face_match", 0.60))
+        fm_val = float(self.settings.value("model_face_match", 0.36))
         self.slider_fm.setValue(int(fm_val * 100))
         self.lbl_fm_val = QLabel(f"{fm_val:.2f}")
         self.lbl_fm_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
@@ -482,8 +482,8 @@ class SettingsDialog(QDialog):
         """)
         
         def reset_to_defaults():
-            self.slider_fd.setValue(50)
-            self.slider_fm.setValue(60)
+            self.slider_fd.setValue(20)
+            self.slider_fm.setValue(36)
             self.slider_tm.setValue(70)
         self.btn_reset_model.clicked.connect(reset_to_defaults)
         model_layout.addWidget(self.btn_reset_model, 0, Qt.AlignLeft)

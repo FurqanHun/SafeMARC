@@ -1051,6 +1051,8 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = False
         self.batch_index = -1
         self.batch_success_count = 0
+        if self.scanner:
+            self.scanner.clear_cache()
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
         self.active_pdf_index = -1
@@ -1092,6 +1094,9 @@ class SafeMARCMainWindow(QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog(self.scanner, self)
         dialog.exec()
+        if self.scanner:
+            self.scanner.clear_cache()
+        self._rescan_current()
 
     def add_pattern_row(self, is_regex=False):
         row_widget = QWidget()
@@ -1373,8 +1378,8 @@ class SafeMARCMainWindow(QMainWindow):
                     
         self.scanner.set_text_patterns(patterns)
         
-        # Auto-rescan if in batch mode
-        if self.is_batch_mode and self.current_file_path:
+        # Auto-rescan if a file is loaded
+        if self.current_file_path:
             self.btn_redact_next.setEnabled(False)
             self.preview_widget.load_image(self.current_file_path)
             self.current_hits = []
@@ -1472,6 +1477,8 @@ class SafeMARCMainWindow(QMainWindow):
                     QMessageBox.information(self, "Success", f"Added '{name}' permanently.")
                 
                 os.remove(temp_path)
+                if self.scanner:
+                    self.scanner.clear_cache()
                 self.load_next_batch_item() # Trigger rescan
 
     def _show_regions_selector(self):
@@ -1942,6 +1949,8 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = True
         self.batch_index = 0
         self.batch_success_count = 0
+        if self.scanner:
+            self.scanner.clear_cache()
         self.file_list.setEnabled(False)
         
         # Update UI state

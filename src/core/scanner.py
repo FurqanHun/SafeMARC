@@ -15,10 +15,18 @@ class SafeScanner:
         self.face_redaction_mode = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
         self.target_identities = [] # List of names to filter on
         
+        # Performance session vision cache
+        self._vision_cache = {}  # file_path -> list of SensitiveHit
+        
+    def clear_cache(self):
+        self._vision_cache = {}
+        print("[SafeScanner] Vision session cache cleared.")
+        
     def set_vision_mode(self, mode: str):
         # Re-initialize the vision detector with the new mode
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
         self.detectors = [self.text_detector, self.vision_detector]
+        self.clear_cache()
 
     def set_face_redaction_mode(self, mode: str):
         self.face_redaction_mode = mode
@@ -40,15 +48,21 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
 
-        # Face matching is only needed if in Blacklist or Whitelist mode and we have selected target identities
-        match_faces = bool(self.face_redaction_mode in ("BLACKLIST", "WHITELIST") and self.target_identities)
+        # Check if we have cached vision hits for this file in the session cache
+        use_cached_vision = (file_path in self._vision_cache)
 
         for detector in self.detectors:
             try:
                 if isinstance(detector, RegexDetector):
                     hits = detector.detect(file_path, pdf_words=pdf_words)
                 elif isinstance(detector, VisionDetector):
-                    hits = detector.detect(file_path, match_identities=match_faces)
+                    if use_cached_vision:
+                        print(f"  [CACHE] Reusing {len(self._vision_cache[file_path])} cached vision hits for {file_path}.")
+                        hits = self._vision_cache[file_path]
+                    else:
+                        # Always detect and match identities on first run so we have all names cached
+                        hits = detector.detect(file_path, match_identities=True)
+                        self._vision_cache[file_path] = list(hits)
                 else:
                     hits = detector.detect(file_path)
                 all_hits.extend(hits)

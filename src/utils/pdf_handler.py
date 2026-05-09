@@ -12,7 +12,9 @@ class PDFHandler:
         [{"image_path": str, "words": list}]
         """
         doc = fitz.open(pdf_path)
-        temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
+        safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
+        os.makedirs(safemarc_temp, exist_ok=True)
+        temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_", dir=safemarc_temp)
         pages_data = []
         
         for page_num in range(len(doc)):
@@ -44,7 +46,9 @@ class PDFHandler:
     def extract_first_page(pdf_path: str) -> str:
         doc = fitz.open(pdf_path)
         if len(doc) > 0:
-            temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_")
+            safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
+            os.makedirs(safemarc_temp, exist_ok=True)
+            temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_", dir=safemarc_temp)
             page = doc.load_page(0)
             zoom = 4.0
             mat = fitz.Matrix(zoom, zoom)

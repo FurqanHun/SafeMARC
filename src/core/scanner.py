@@ -43,13 +43,14 @@ class SafeScanner:
                     keywords=p.get("keywords")
                 )
 
-    def scan(self, file_path: str, pdf_words: list = None) -> List[SensitiveHit]:
+    def scan(self, file_path: str, pdf_words: list = None, cache_key: str = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""
         all_hits = []
         print(f"Scanning: {file_path}")
 
         # Check if we have cached vision hits for this file in the session cache
-        use_cached_vision = (file_path in self._vision_cache)
+        ckey = cache_key if cache_key else file_path
+        use_cached_vision = (ckey in self._vision_cache)
 
         for detector in self.detectors:
             try:
@@ -57,12 +58,12 @@ class SafeScanner:
                     hits = detector.detect(file_path, pdf_words=pdf_words)
                 elif isinstance(detector, VisionDetector):
                     if use_cached_vision:
-                        print(f"  [CACHE] Reusing {len(self._vision_cache[file_path])} cached vision hits for {file_path}.")
-                        hits = self._vision_cache[file_path]
+                        print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
+                        hits = self._vision_cache[ckey]
                     else:
                         # Always detect and match identities on first run so we have all names cached
                         hits = detector.detect(file_path, match_identities=True)
-                        self._vision_cache[file_path] = list(hits)
+                        self._vision_cache[ckey] = list(hits)
                 else:
                     hits = detector.detect(file_path)
                 all_hits.extend(hits)

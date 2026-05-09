@@ -201,7 +201,7 @@ sequenceDiagram
     IM->>IM: reload_identities() → generate SFace .npy files
     SD->>SD: Restore normal cursor & Enable Window
     SD->>SD: Clear status label and refresh thumbnails
-
+```
 
 ---
 

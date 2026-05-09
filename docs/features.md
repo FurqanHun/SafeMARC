@@ -14,8 +14,27 @@
 
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
-- [ ] **Predefined Patterns**: Pre-configured rules for Common entities (Phone Numbers, CNICs/IDs, Credit Cards). (Planned/Partial)
-- [x] **Custom Text & Regex Redaction**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines.
+- [x] **Predefined Patterns**: Pre-configured rules for common entities (Phone Numbers, CNICs/IDs, Credit Cards, IBANs) grouped by country regions (Global, Pakistan, United States, European Union) selectable via a premium multi-select dropdown button.
+- [x] **Hybrid Confidence Scoring & Review Suggested State**: Matches found near context keywords are boosted to 95% confidence, while isolated matches default to 45% confidence. Hits falling below the customizable Auto-Redact cutoff are displayed with a warning amber outline and are initially unchecked, prompting explicit user review.
+- [x] **Custom Pattern Import/Export**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines, with seamless serialization/deserialization to `.json` files.
+  * **Example Custom Pattern JSON Format**:
+    ```json
+    [
+        {
+            "label": "REGEX",
+            "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+            "is_regex": true,
+            "whole_word": false
+        },
+        {
+            "label": "TEXT",
+            "pattern": "Confidential",
+            "is_regex": false,
+            "whole_word": true
+        }
+    ]
+    ```
+- [x] **Area-Overlap (IoU) Deduplication**: Mathematically robust Intersection-over-Union bounding box merging that consolidates redundant/overlapping native PDF text and Tesseract OCR hits, keeping the highest confidence match.
 
 ## Document Support & Handling
 - [x] **Images**: Comprehensive support for modern image formats (JPG, JPEG, PNG, WEBP).
@@ -49,5 +68,17 @@
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.
+
+## Visual Confidence & Color Legend
+
+To make reviewing sensitive matches completely intuitive and tactile, SafeMARC uses distinct visual states and colors based on match type and calculated confidence:
+
+| State / Match Type | Status | Outline Style | Fill Style | Identity Label | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Low-Confidence Text** | Checked (Selected) | **Solid Amber** (`#F59E0B`, thickness: 3) | **Amber Fill** (opacity: 50) | Visible (if set) | Calculated confidence falls below the user's customized text cutoff threshold, but explicitly selected for redaction. |
+| **Low-Confidence Text** | Unchecked (Unselected) | **Dashed Amber** (`#F59E0B`, thickness: 2) | **Light Amber Fill** (opacity: 15) | Hidden | "Review Suggested" state; isolated pattern match lacking context keywords. Unselected by default. |
+| **Known Face Hit** | Checked (Selected) | **Solid Green** (`#10B981`, thickness: 3) | **Green Fill** (opacity: 50) | Visible | Matched biometric face with similarity score above the face matching threshold. |
+| **High-Confidence Hit** | Checked (Selected) | **Solid Red** (`#FF0000`, thickness: 3) | **Red Fill** (opacity: 50) | Visible (if set) | High-confidence text (confidence $\ge$ threshold), generic face, body silhouette, or custom manual draw box. |
+| **De-selected Hit** | Unchecked (Unselected) | **Dashed Grey** (`#646464`, thickness: 2) | **Transparent** (no fill) | Hidden | Standard high-confidence or generic hit that the user has unchecked to skip redacting. |
 
 For more information, please check `requirements.txt`.

@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QRadioButton,
     QButtonGroup,
+    QGridLayout,
 )
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
@@ -491,6 +492,32 @@ class SafeMARCMainWindow(QMainWindow):
         lbl_text_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
         text_layout.addWidget(lbl_text_title)
         
+        SVG_REGIONS = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'''
+        
+        self.btn_select_regions = QPushButton(" Select Regions (1)")
+        self.btn_select_regions.setIcon(svg_to_icon(SVG_REGIONS))
+        self.btn_select_regions.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 11px;
+                font-weight: 600;
+                min-height: 28px;
+                margin-top: 5px;
+                margin-bottom: 5px;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #10B981;
+                color: #FFFFFF;
+            }
+        """)
+        self.btn_select_regions.clicked.connect(self._show_regions_selector)
+        text_layout.addWidget(self.btn_select_regions)
+        
         # Scroll Area for Text Patterns
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -559,6 +586,40 @@ class SafeMARCMainWindow(QMainWindow):
         text_btns.addWidget(btn_add_text)
         text_btns.addWidget(btn_add_regex)
         text_layout.addLayout(text_btns)
+        
+        SVG_IMPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'''
+        SVG_EXPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'''
+
+        btn_import = QPushButton(" Import")
+        btn_import.setIcon(svg_to_icon(SVG_IMPORT))
+        btn_import.clicked.connect(self.import_custom_patterns)
+        
+        btn_export = QPushButton(" Export")
+        btn_export.setIcon(svg_to_icon(SVG_EXPORT))
+        btn_export.clicked.connect(self.export_custom_patterns)
+        
+        for b in (btn_import, btn_export):
+            b.setStyleSheet("""
+                QPushButton {
+                    background-color: #111827;
+                    color: #9CA3AF;
+                    border: 1px solid #374151;
+                    border-radius: 8px;
+                    padding: 6px 10px;
+                    font-weight: 600;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #1F2937;
+                    border-color: #10B981;
+                    color: #FFFFFF;
+                }
+            """)
+            
+        import_export_layout = QHBoxLayout()
+        import_export_layout.addWidget(btn_import)
+        import_export_layout.addWidget(btn_export)
+        text_layout.addLayout(import_export_layout)
         
         right_panel_layout.addWidget(settings_card)
         right_panel_layout.addWidget(text_card, 1)
@@ -846,6 +907,11 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Batch Mode State
         self.is_batch_mode = False
+        try:
+            from src.core.patterns import REGIONS
+            self.active_regions = {r: (r == "Global") for r in REGIONS}
+        except Exception:
+            self.active_regions = {"Global": True, "Pakistan": False, "United States": False, "European Union": False}
         self.batch_index = -1
         self.batch_success_count = 0
         
@@ -1021,6 +1087,85 @@ class SafeMARCMainWindow(QMainWindow):
         row_widget.deleteLater()
         self.update_text_patterns()
 
+    def import_custom_patterns(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Custom Patterns", "", "SafeMARC Patterns (*.json)")
+        if not file_path:
+            return
+            
+        import json
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+            if not isinstance(data, list):
+                raise ValueError("JSON content must be a list of patterns.")
+                
+            # Clear current custom pattern rows first
+            while self.text_patterns_layout.count() > 0:
+                item = self.text_patterns_layout.takeAt(0)
+                if item and item.widget():
+                    item.widget().deleteLater()
+                    
+            # Load imported patterns
+            for item in data:
+                pattern_str = item.get("pattern", "").strip()
+                is_regex = item.get("is_regex", False)
+                whole_word = item.get("whole_word", False)
+                
+                if pattern_str:
+                    self.add_pattern_row(is_regex=is_regex)
+                    # Find the newly added row widget
+                    last_idx = self.text_patterns_layout.count() - 1
+                    if last_idx >= 0:
+                        row_widget = self.text_patterns_layout.itemAt(last_idx).widget()
+                        if row_widget:
+                            input_field = row_widget.findChild(QLineEdit)
+                            if input_field:
+                                input_field.setText(pattern_str)
+                            chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
+                            if chk_whole:
+                                chk_whole.setChecked(whole_word)
+                                
+            self.update_text_patterns()
+            QMessageBox.information(self, "Success", "Custom patterns imported successfully!")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to import patterns: {str(e)}")
+
+    def export_custom_patterns(self):
+        # Gather custom patterns
+        patterns = []
+        for i in range(self.text_patterns_layout.count()):
+            item = self.text_patterns_layout.itemAt(i)
+            if item:
+                row_widget = item.widget()
+                if row_widget and row_widget.isVisible():
+                    input_field = row_widget.findChild(QLineEdit)
+                    chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
+                    is_whole_word = chk_whole.isChecked() if chk_whole else False
+                    
+                    if input_field and input_field.text().strip():
+                        patterns.append({
+                            "pattern": input_field.text(),
+                            "is_regex": bool(input_field.property("is_regex")),
+                            "whole_word": is_whole_word
+                        })
+                        
+        if not patterns:
+            QMessageBox.warning(self, "Export", "No custom patterns found to export.")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Custom Patterns", "", "SafeMARC Patterns (*.json)")
+        if not file_path:
+            return
+            
+        import json
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(patterns, f, indent=4)
+            QMessageBox.information(self, "Success", f"Successfully exported {len(patterns)} patterns!")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to export patterns: {str(e)}")
+
     def focus_last_pattern_field(self):
         count = self.text_patterns_layout.count()
         for i in range(count - 1, -1, -1):
@@ -1038,6 +1183,24 @@ class SafeMARCMainWindow(QMainWindow):
             return
             
         patterns = []
+        
+        # 1. Load active predefined region patterns from patterns.py
+        try:
+            from src.core.patterns import PREDEFINED_PATTERNS
+            for region_name, is_active in getattr(self, "active_regions", {}).items():
+                if is_active:
+                    for pat_id, p_info in PREDEFINED_PATTERNS.items():
+                        if region_name in p_info["regions"]:
+                            patterns.append({
+                                "label": p_info["label"],
+                                "pattern": p_info["regex"],
+                                "is_regex": True,
+                                "keywords": p_info["keywords"]
+                            })
+        except Exception as e:
+            print(f"Error loading predefined patterns: {e}")
+            
+        # 2. Gather custom patterns from rows
         for i in range(self.text_patterns_layout.count()):
             item = self.text_patterns_layout.itemAt(i)
             if item:
@@ -1157,6 +1320,56 @@ class SafeMARCMainWindow(QMainWindow):
                 
                 os.remove(temp_path)
                 self.load_next_batch_item() # Trigger rescan
+
+    def _show_regions_selector(self):
+        from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout, QWidget, QLabel
+        from PySide6.QtCore import QPoint
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 10px; border-radius: 8px; }
+        """)
+        
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(8)
+        
+        lbl_header = QLabel("Active Regions")
+        lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
+        layout.addWidget(lbl_header)
+        
+        try:
+            from src.core.patterns import REGIONS
+            regions_list = REGIONS
+        except Exception:
+            regions_list = ["Global", "Pakistan", "United States", "European Union"]
+        for r_name in regions_list:
+            chk = QCheckBox(r_name)
+            chk.setCursor(Qt.PointingHandCursor)
+            chk.setChecked(self.active_regions.get(r_name, False))
+            chk.setStyleSheet("""
+                QCheckBox { spacing: 8px; color: #E5E7EB; font-size: 13px; font-family: 'Segoe UI', Arial, sans-serif; }
+                QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #374151; background-color: #1F2937; }
+                QCheckBox::indicator:hover { border-color: #4B5563; }
+                QCheckBox::indicator:checked { background-color: #10B981; border-color: #10B981; }
+            """)
+            
+            def make_toggle_region(name):
+                return lambda checked: self._toggle_active_region(name, checked)
+            chk.toggled.connect(make_toggle_region(r_name))
+            layout.addWidget(chk)
+            
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(container)
+        menu.addAction(action)
+        menu.exec(self.btn_select_regions.mapToGlobal(QPoint(0, self.btn_select_regions.height())))
+
+    def _toggle_active_region(self, name, checked):
+        self.active_regions[name] = checked
+        active_count = sum(1 for val in self.active_regions.values() if val)
+        self.btn_select_regions.setText(f" Select Regions ({active_count})")
+        self.update_text_patterns()
 
     def _show_people_selector(self):
         if not self.scanner: return

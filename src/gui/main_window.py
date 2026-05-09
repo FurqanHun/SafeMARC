@@ -907,7 +907,11 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Batch Mode State
         self.is_batch_mode = False
-        self.active_regions = {"Global": True, "Pakistan": False, "United States": False, "European Union": False}
+        try:
+            from src.core.patterns import REGIONS
+            self.active_regions = {r: (r == "Global") for r in REGIONS}
+        except Exception:
+            self.active_regions = {"Global": True, "Pakistan": False, "United States": False, "European Union": False}
         self.batch_index = -1
         self.batch_success_count = 0
         
@@ -1335,7 +1339,11 @@ class SafeMARCMainWindow(QMainWindow):
         lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
         layout.addWidget(lbl_header)
         
-        regions_list = ["Global", "Pakistan", "United States", "European Union"]
+        try:
+            from src.core.patterns import REGIONS
+            regions_list = REGIONS
+        except Exception:
+            regions_list = ["Global", "Pakistan", "United States", "European Union"]
         for r_name in regions_list:
             chk = QCheckBox(r_name)
             chk.setCursor(Qt.PointingHandCursor)

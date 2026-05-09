@@ -9,12 +9,9 @@ class IdentityManager:
         self.identities_dir = os.path.abspath(identities_dir)
         os.makedirs(self.identities_dir, exist_ok=True)
         
-        # Clean up session-only temp faces from previous runs
-        session_temp = os.path.join(self.identities_dir, "session_temp")
-        if os.path.exists(session_temp):
-            import shutil
-            shutil.rmtree(session_temp)
-        os.makedirs(session_temp, exist_ok=True)
+        import tempfile
+        self.session_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "session_temp")
+        os.makedirs(self.session_temp, exist_ok=True)
         
         self.identity_map = {}  # int id -> str Name
         self.is_trained = False
@@ -99,7 +96,7 @@ class IdentityManager:
         faces_lbph = []
         labels_lbph = []
         
-        dirs_to_scan = [self.identities_dir, os.path.join(self.identities_dir, "session_temp")]
+        dirs_to_scan = [self.identities_dir, self.session_temp]
         
         current_id = 0
         for base_dir in dirs_to_scan:
@@ -297,7 +294,7 @@ class IdentityManager:
 
     def add_session_identity(self, name: str, image_path: str):
         """Adds an identity that will be deleted when the app restarts."""
-        session_dir = os.path.join(self.identities_dir, "session_temp", name)
+        session_dir = os.path.join(self.session_temp, name)
         os.makedirs(session_dir, exist_ok=True)
         
         import shutil

@@ -96,16 +96,17 @@ class ScanWorker(QThread):
     finished = Signal()
     error = Signal(Exception)
 
-    def __init__(self, scanner, file_path, pdf_words=None):
+    def __init__(self, scanner, file_path, pdf_words=None, cache_key=None):
         super().__init__()
         self.scanner = scanner
         self.file_path = file_path
         self.pdf_words = pdf_words
+        self.cache_key = cache_key
         self.hits = []
 
     def run(self):
         try:
-            self.hits = self.scanner.scan(self.file_path, pdf_words=self.pdf_words)
+            self.hits = self.scanner.scan(self.file_path, pdf_words=self.pdf_words, cache_key=self.cache_key)
             self.finished.emit()
         except Exception as e:
             self.error.emit(e)
@@ -1053,6 +1054,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_success_count = 0
         if self.scanner:
             self.scanner.clear_cache()
+        self.cleanup_temp_resources(full=False)
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
         self.active_pdf_index = -1
@@ -1395,7 +1397,8 @@ class SafeMARCMainWindow(QMainWindow):
                 show_anim = False
                 
             try:
-                hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
+                cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
+                hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim, cache_key=cache_key)
                 self.current_hits = hits
                 if hits:
                     is_pdf = bool(self.active_pdf_pages)
@@ -1696,7 +1699,8 @@ class SafeMARCMainWindow(QMainWindow):
             show_anim = False
             
         try:
-            hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim)
+            cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
+            hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim, cache_key=cache_key)
             self.current_hits = hits
             is_pdf = bool(self.active_pdf_pages)
             pdf_source = self.active_pdf_source if is_pdf else None
@@ -1800,7 +1804,7 @@ class SafeMARCMainWindow(QMainWindow):
             
             # Use system temp directory
             import tempfile
-            temp_dir = os.path.join(tempfile.gettempdir(), "safemarc_clipboard")
+            temp_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "clipboard")
             os.makedirs(temp_dir, exist_ok=True)
             
             # Create unique filename
@@ -1879,13 +1883,13 @@ class SafeMARCMainWindow(QMainWindow):
                 use_suffix=self.chk_suffix.isChecked()
             )
 
-    def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True):
+    def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True, cache_key=None):
         if show_animation:
             self.preview_widget.show_loading("Scanning document for sensitive data...")
         from PySide6.QtCore import QEventLoop
         loop = QEventLoop()
         
-        worker = ScanWorker(self.scanner, path, pdf_words)
+        worker = ScanWorker(self.scanner, path, pdf_words, cache_key=cache_key)
         worker.finished.connect(loop.quit)
         worker.error.connect(loop.quit)
         
@@ -1912,7 +1916,9 @@ class SafeMARCMainWindow(QMainWindow):
         # Handle PDF sub-loop
         if self.active_pdf_pages:
             import tempfile
-            fd, temp_path = tempfile.mkstemp(suffix=".png")
+            redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
+            os.makedirs(redacted_dir, exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
             os.close(fd)
             success = self.scanner.redact(self.current_file_path, temp_path, selected_hits)
             if success:
@@ -2083,11 +2089,14 @@ class SafeMARCMainWindow(QMainWindow):
                 
                 self.preview_widget.load_image(page_path)
                 try:
-                    hits = self.run_scan_with_overlay(page_path, pdf_words=pdf_words)
+                    cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
+                    hits = self.run_scan_with_overlay(page_path, pdf_words=pdf_words, cache_key=cache_key)
                     self.current_hits = hits
                     if self.chk_skip_review.isChecked():
                         import tempfile
-                        fd, temp_path = tempfile.mkstemp(suffix=".png")
+                        redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
+                        os.makedirs(redacted_dir, exist_ok=True)
+                        fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
                         os.close(fd)
                         success = self.scanner.redact(page_path, temp_path, hits)
                         if success:
@@ -2219,6 +2228,35 @@ class SafeMARCMainWindow(QMainWindow):
         self.lbl_count.setText(f"Files: {count}")
         if hasattr(self, "txt_queue_search"):
             self.txt_queue_search.setVisible(count > 0)
+
+    def cleanup_temp_resources(self, full=False):
+        print(f"[SafeMARC] Cleaning up temporary resources (full={full})...")
+        import shutil
+        import tempfile
+        safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp")
+        if os.path.exists(safemarc_temp):
+            if full:
+                try:
+                    shutil.rmtree(safemarc_temp)
+                    print("[SafeMARC] Successfully cleaned up entire safemarc_temp directory.")
+                except Exception as e:
+                    print(f"[SafeMARC] Error cleaning up temporary directory: {e}")
+            else:
+                # Keep clipboard images intact so queue is not broken, only clean intermediate pdf/redacted
+                for sub in ["pdf", "redacted"]:
+                    sub_path = os.path.join(safemarc_temp, sub)
+                    if os.path.exists(sub_path):
+                        try:
+                            shutil.rmtree(sub_path)
+                            print(f"[SafeMARC] Cleaned up temporary {sub} directory.")
+                        except Exception as e:
+                            print(f"[SafeMARC] Error cleaning up {sub}: {e}")
+
+    def closeEvent(self, event):
+        self.cleanup_temp_resources(full=True)
+        event.accept()
+
+
 
 
 class PersistentRangeDialog(QDialog):

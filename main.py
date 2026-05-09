@@ -2,6 +2,21 @@ import sys
 import signal
 
 def run_gui():
+    import shutil
+    import os
+    import tempfile
+    import atexit
+
+    # Clean up leftover temporary directories from previous crashed or aborted sessions
+    safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp")
+    if os.path.exists(safemarc_temp):
+        try:
+            shutil.rmtree(safemarc_temp)
+            print("[SafeMARC] Successfully cleared leftover temporary resources on startup.")
+        except Exception:
+            pass
+
+
     import qdarktheme
     from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QCheckBox, QComboBox, QTabBar, QMenu
     from PySide6.QtCore import Qt
@@ -17,8 +32,12 @@ def run_gui():
             return new_init
         widget_class.__init__ = make_new_init(original_init)
 
-    # Allow Ctrl+C to terminate application
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    # Custom SIGINT handler to explicitly quit the application and trigger RAII cleanup
+    def handle_sigint(signum, frame):
+        print("\n[SafeMARC] Caught Ctrl+C. Quitting event loop to trigger cleanup...")
+        QApplication.quit()
+        sys.exit(0)
+    signal.signal(signal.SIGINT, handle_sigint)
 
     app = QApplication(sys.argv)
     custom_style = """
@@ -80,7 +99,23 @@ def run_gui():
             "Tesseract OCR is missing.\n\nLinux: sudo dnf install tesseract\nWindows: Download Installer",
         )
 
-    sys.exit(app.exec())
+    # Let Python interpreter check for signals periodically
+    from PySide6.QtCore import QTimer
+    timer = QTimer()
+    timer.start(500)
+    timer.timeout.connect(lambda: None)
+
+    try:
+        sys.exit(app.exec())
+    except KeyboardInterrupt:
+        print("\n[SafeMARC] Caught KeyboardInterrupt. Exiting cleanly...")
+    finally:
+        if os.path.exists(safemarc_temp):
+            try:
+                shutil.rmtree(safemarc_temp)
+                print("[SafeMARC] RAII Guard: Successfully cleared temporary resources on termination.")
+            except Exception:
+                pass
 
 def run_cli():
     from src.cli.cli import main

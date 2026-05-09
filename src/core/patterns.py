@@ -51,7 +51,7 @@ PREDEFINED_PATTERNS = {
     },
     "us_dl": {
         "label": "US Driver's License",
-        "regex": r"\b[A-Z\d]{9,12}\b",
+        "regex": r"\b(?=.*\d)(?=.*[A-Z])[A-Z0-9]{9,12}\b",
         "keywords": ["license", "dl", "licence", "permit", "driver", "dmv", "vehicle"],
         "regions": ["United States"]
     },
@@ -63,7 +63,7 @@ PREDEFINED_PATTERNS = {
     },
     "eu_vat": {
         "label": "EU VAT ID",
-        "regex": r"\b[A-Z]{2}\s?[A-Z0-9]{2,12}\b",
+        "regex": r"\b[A-Z]{2}\s?(?=.*\d)[A-Z0-9]{2,12}\b",
         "keywords": ["vat", "tax", "tin", "business", "company", "registration", "eu"],
         "regions": ["European Union"]
     },
@@ -123,7 +123,7 @@ PREDEFINED_PATTERNS = {
     },
     "global_passport": {
         "label": "Passport No",
-        "regex": r"\b[A-Z0-9]{6,9}\b",
+        "regex": r"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{6,9}\b",
         "keywords": ["passport", "document", "travel", "visa", "border", "identity", "no"],
         "regions": ["Global"]
     }

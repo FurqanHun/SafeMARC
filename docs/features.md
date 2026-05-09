@@ -69,4 +69,16 @@
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.
 
+## Visual Confidence & Color Legend
+
+To make reviewing sensitive matches completely intuitive and tactile, SafeMARC uses distinct visual states and colors based on match type and calculated confidence:
+
+| State / Match Type | Status | Outline Style | Fill Style | Identity Label | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Low-Confidence Text** | Checked (Selected) | **Solid Amber** (`#F59E0B`, thickness: 3) | **Amber Fill** (opacity: 50) | Visible (if set) | Calculated confidence falls below the user's customized text cutoff threshold, but explicitly selected for redaction. |
+| **Low-Confidence Text** | Unchecked (Unselected) | **Dashed Amber** (`#F59E0B`, thickness: 2) | **Light Amber Fill** (opacity: 15) | Hidden | "Review Suggested" state; isolated pattern match lacking context keywords. Unselected by default. |
+| **Known Face Hit** | Checked (Selected) | **Solid Green** (`#10B981`, thickness: 3) | **Green Fill** (opacity: 50) | Visible | Matched biometric face with similarity score above the face matching threshold. |
+| **High-Confidence Hit** | Checked (Selected) | **Solid Red** (`#FF0000`, thickness: 3) | **Red Fill** (opacity: 50) | Visible (if set) | High-confidence text (confidence $\ge$ threshold), generic face, body silhouette, or custom manual draw box. |
+| **De-selected Hit** | Unchecked (Unselected) | **Dashed Grey** (`#646464`, thickness: 2) | **Transparent** (no fill) | Hidden | Standard high-confidence or generic hit that the user has unchecked to skip redacting. |
+
 For more information, please check `requirements.txt`.

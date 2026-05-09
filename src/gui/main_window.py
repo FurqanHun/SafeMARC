@@ -259,6 +259,29 @@ class SafeMARCMainWindow(QMainWindow):
         queue_header.addWidget(self.lbl_count)
         
         sidebar_layout.addLayout(queue_header)
+        
+        self.txt_queue_search = QLineEdit()
+        self.txt_queue_search.setPlaceholderText("Search queue...")
+        self.txt_queue_search.setStyleSheet("""
+            QLineEdit {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #E5E7EB;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin-top: 4px;
+                margin-bottom: 4px;
+            }
+            QLineEdit:focus {
+                border-color: #10B981;
+            }
+        """)
+        self.txt_queue_search.textChanged.connect(self._filter_queue_list)
+        self.txt_queue_search.setVisible(False)
+        sidebar_layout.addWidget(self.txt_queue_search)
+        
         sidebar_layout.addWidget(self.file_list, 1)
 
         # Queue Buttons
@@ -488,13 +511,19 @@ class SafeMARCMainWindow(QMainWindow):
         text_layout.setContentsMargins(14, 14, 14, 14)
         text_layout.setSpacing(10)
         
+        text_title_layout = QHBoxLayout()
+        text_title_layout.setContentsMargins(0, 0, 0, 0)
+        text_title_layout.setSpacing(6)
+        
         lbl_text_title = QLabel("TEXT REDACTION")
-        lbl_text_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
-        text_layout.addWidget(lbl_text_title)
+        lbl_text_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase; background: transparent;")
+        text_title_layout.addWidget(lbl_text_title)
+        text_title_layout.addStretch()
         
         SVG_REGIONS = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'''
+        SVG_SEARCH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'''
         
-        self.btn_select_regions = QPushButton(" Select Regions (1)")
+        self.btn_select_regions = QPushButton(" Regions (1)")
         self.btn_select_regions.setIcon(svg_to_icon(SVG_REGIONS))
         self.btn_select_regions.setStyleSheet("""
             QPushButton {
@@ -502,12 +531,9 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #E5E7EB;
                 border: 1px solid #374151;
                 border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 11px;
+                padding: 3px 8px;
+                font-size: 10px;
                 font-weight: 600;
-                min-height: 28px;
-                margin-top: 5px;
-                margin-bottom: 5px;
             }
             QPushButton:hover {
                 background-color: #374151;
@@ -515,8 +541,76 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #FFFFFF;
             }
         """)
+        self.btn_select_regions.setFixedHeight(24)
         self.btn_select_regions.clicked.connect(self._show_regions_selector)
-        text_layout.addWidget(self.btn_select_regions)
+        text_title_layout.addWidget(self.btn_select_regions)
+        
+        self.btn_toggle_search = QPushButton()
+        self.btn_toggle_search.setIcon(svg_to_icon(SVG_SEARCH))
+        self.btn_toggle_search.setToolTip("Search custom patterns")
+        self.btn_toggle_search.setCursor(Qt.PointingHandCursor)
+        self.btn_toggle_search.setFixedWidth(24)
+        self.btn_toggle_search.setFixedHeight(24)
+        
+        def get_search_toggle_style(active):
+            if active:
+                return """
+                    QPushButton {
+                        background-color: #10B981;
+                        border: 1px solid #10B981;
+                        border-radius: 6px;
+                    }
+                """
+            else:
+                return """
+                    QPushButton {
+                        background-color: #1F2937;
+                        border: 1px solid #374151;
+                        border-radius: 6px;
+                    }
+                    QPushButton:hover {
+                        background-color: #374151;
+                        border-color: #10B981;
+                    }
+                """
+                
+        self.btn_toggle_search.setStyleSheet(get_search_toggle_style(False))
+        self.btn_toggle_search.setVisible(False)
+        
+        def toggle_search_bar():
+            is_visible = self.txt_search_patterns.isVisible()
+            self.txt_search_patterns.setVisible(not is_visible)
+            self.btn_toggle_search.setStyleSheet(get_search_toggle_style(not is_visible))
+            if not is_visible:
+                self.txt_search_patterns.setFocus()
+            else:
+                self.txt_search_patterns.clear()
+                
+        self.btn_toggle_search.clicked.connect(toggle_search_bar)
+        text_title_layout.addWidget(self.btn_toggle_search)
+        text_layout.addLayout(text_title_layout)
+        
+        self.txt_search_patterns = QLineEdit()
+        self.txt_search_patterns.setPlaceholderText("Search custom patterns...")
+        self.txt_search_patterns.setStyleSheet("""
+            QLineEdit {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #E5E7EB;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin-top: 4px;
+                margin-bottom: 4px;
+            }
+            QLineEdit:focus {
+                border-color: #10B981;
+            }
+        """)
+        self.txt_search_patterns.textChanged.connect(self._filter_text_patterns)
+        self.txt_search_patterns.setVisible(False)
+        text_layout.addWidget(self.txt_search_patterns)
         
         # Scroll Area for Text Patterns
         scroll_area = QScrollArea()
@@ -556,13 +650,26 @@ class SafeMARCMainWindow(QMainWindow):
         text_layout.addWidget(scroll_area, 1)
         
         SVG_PLUS = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'''
+        SVG_IMPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'''
+        SVG_EXPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'''
 
-        btn_add_text = QPushButton(" Add Text")
+        btn_add_text = QPushButton(" Text")
         btn_add_text.setIcon(svg_to_icon(SVG_PLUS))
         btn_add_text.clicked.connect(lambda: self.add_pattern_row(is_regex=False))
-        btn_add_regex = QPushButton(" Add Regex")
+        
+        btn_add_regex = QPushButton(" Regex")
         btn_add_regex.setIcon(svg_to_icon(SVG_PLUS))
         btn_add_regex.clicked.connect(lambda: self.add_pattern_row(is_regex=True))
+        
+        btn_import = QPushButton()
+        btn_import.setIcon(svg_to_icon(SVG_IMPORT))
+        btn_import.setToolTip("Import Custom Patterns")
+        btn_import.clicked.connect(self.import_custom_patterns)
+        
+        btn_export = QPushButton()
+        btn_export.setIcon(svg_to_icon(SVG_EXPORT))
+        btn_export.setToolTip("Export Custom Patterns")
+        btn_export.clicked.connect(self.export_custom_patterns)
         
         for b in (btn_add_text, btn_add_regex):
             b.setStyleSheet("""
@@ -570,44 +677,28 @@ class SafeMARCMainWindow(QMainWindow):
                     background-color: #1F2937;
                     color: #E5E7EB;
                     border: 1px solid #374151;
-                    border-radius: 8px;
-                    padding: 8px 12px;
+                    border-radius: 6px;
+                    padding: 5px 8px;
                     font-weight: 600;
-                    font-size: 12px;
+                    font-size: 11px;
+                    min-height: 28px;
                 }
                 QPushButton:hover {
                     background-color: #374151;
-                    border-color: #4B5563;
+                    border-color: #10B981;
                     color: #FFFFFF;
                 }
             """)
-        
-        text_btns = QHBoxLayout()
-        text_btns.addWidget(btn_add_text)
-        text_btns.addWidget(btn_add_regex)
-        text_layout.addLayout(text_btns)
-        
-        SVG_IMPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'''
-        SVG_EXPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'''
-
-        btn_import = QPushButton(" Import")
-        btn_import.setIcon(svg_to_icon(SVG_IMPORT))
-        btn_import.clicked.connect(self.import_custom_patterns)
-        
-        btn_export = QPushButton(" Export")
-        btn_export.setIcon(svg_to_icon(SVG_EXPORT))
-        btn_export.clicked.connect(self.export_custom_patterns)
-        
+            
         for b in (btn_import, btn_export):
+            b.setFixedWidth(28)
+            b.setFixedHeight(28)
             b.setStyleSheet("""
                 QPushButton {
                     background-color: #111827;
                     color: #9CA3AF;
                     border: 1px solid #374151;
-                    border-radius: 8px;
-                    padding: 6px 10px;
-                    font-weight: 600;
-                    font-size: 11px;
+                    border-radius: 6px;
                 }
                 QPushButton:hover {
                     background-color: #1F2937;
@@ -616,10 +707,15 @@ class SafeMARCMainWindow(QMainWindow):
                 }
             """)
             
-        import_export_layout = QHBoxLayout()
-        import_export_layout.addWidget(btn_import)
-        import_export_layout.addWidget(btn_export)
-        text_layout.addLayout(import_export_layout)
+        action_row_layout = QHBoxLayout()
+        action_row_layout.setContentsMargins(0, 0, 0, 0)
+        action_row_layout.setSpacing(6)
+        action_row_layout.addWidget(btn_add_text, 2)
+        action_row_layout.addWidget(btn_add_regex, 2)
+        action_row_layout.addWidget(btn_import)
+        action_row_layout.addWidget(btn_export)
+        
+        text_layout.addLayout(action_row_layout)
         
         right_panel_layout.addWidget(settings_card)
         right_panel_layout.addWidget(text_card, 1)
@@ -1002,13 +1098,10 @@ class SafeMARCMainWindow(QMainWindow):
         row_widget.setStyleSheet("background: transparent;")
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(6)
-        
-        label = QLabel("Regex:" if is_regex else "Text:")
-        label.setStyleSheet("color: #9CA3AF; font-weight: 600; font-size: 12px; background: transparent;")
+        row_layout.setSpacing(4)
         
         input_field = PatternLineEdit(is_regex, self)
-        input_field.setPlaceholderText("e.g. \\b\\d{4}\\b" if is_regex else "e.g. CONFIDENTIAL")
+        input_field.setPlaceholderText("Regex pattern..." if is_regex else "Text pattern...")
         input_field.setProperty("is_regex", is_regex)
         input_field.setStyleSheet("""
             QLineEdit {
@@ -1016,16 +1109,59 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #F3F4F6;
                 border: 1px solid #374151;
                 border-radius: 6px;
-                padding: 4px 8px;
+                padding: 5px 8px;
                 font-size: 13px;
             }
             QLineEdit:focus {
                 border-color: #10B981;
             }
         """)
-        # Use editingFinished so it doesn't trigger Tesseract on every keystroke
         input_field.editingFinished.connect(self.update_text_patterns)
+        row_layout.addWidget(input_field, 1)
         
+        if not is_regex:
+            SVG_WHOLE_WORD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 5H4v14h2"/>
+                <path d="M18 5h2v14h-2"/>
+                <path d="M8 9l2 6l2-5l2 5l2-6"/>
+            </svg>'''
+            
+            btn_whole = QPushButton()
+            btn_whole.setObjectName("btn_whole")
+            btn_whole.setCheckable(True)
+            btn_whole.setChecked(True)
+            btn_whole.setIcon(svg_to_icon(SVG_WHOLE_WORD))
+            btn_whole.setToolTip("Whole Word Match")
+            btn_whole.setCursor(Qt.PointingHandCursor)
+            btn_whole.setFixedWidth(28)
+            btn_whole.setFixedHeight(28)
+            
+            def get_whole_style(checked):
+                if checked:
+                    return """
+                        QPushButton {
+                            background-color: #10B981;
+                            border: 1px solid #10B981;
+                            border-radius: 6px;
+                        }
+                    """
+                else:
+                    return """
+                        QPushButton {
+                            background-color: #1F2937;
+                            border: 1px solid #374151;
+                            border-radius: 6px;
+                        }
+                        QPushButton:hover {
+                            background-color: #374151;
+                            border-color: #4B5563;
+                        }
+                    """
+            
+            btn_whole.setStyleSheet(get_whole_style(True))
+            btn_whole.clicked.connect(lambda checked, b=btn_whole: [b.setStyleSheet(get_whole_style(checked)), self.update_text_patterns()])
+            row_layout.addWidget(btn_whole)
+            
         btn_remove = QPushButton()
         btn_remove.setIcon(svg_to_icon(SVG_X_CIRCLE))
         btn_remove.setFixedWidth(28)
@@ -1042,42 +1178,11 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """)
         btn_remove.clicked.connect(lambda checked=False, rw=row_widget: self.remove_pattern_row(rw))
-        
-        row_layout.addWidget(label)
-        row_layout.addWidget(input_field)
-        
-        if not is_regex:
-            chk_whole = QCheckBox("Whole Word")
-            chk_whole.setChecked(True)
-            chk_whole.setObjectName("chk_whole")
-            chk_whole.setStyleSheet("""
-                QCheckBox {
-                    spacing: 6px;
-                    color: #E5E7EB;
-                    font-size: 12px;
-                    background: transparent;
-                }
-                QCheckBox::indicator {
-                    width: 14px;
-                    height: 14px;
-                    border-radius: 4px;
-                    border: 1px solid #374151;
-                    background-color: #1F2937;
-                }
-                QCheckBox::indicator:hover {
-                    border-color: #4B5563;
-                }
-                QCheckBox::indicator:checked {
-                    background-color: #10B981;
-                    border-color: #10B981;
-                }
-            """)
-            chk_whole.stateChanged.connect(self.update_text_patterns)
-            row_layout.addWidget(chk_whole)
-            
         row_layout.addWidget(btn_remove)
         
         self.text_patterns_layout.addWidget(row_widget)
+        if hasattr(self, "btn_toggle_search"):
+            self.btn_toggle_search.setVisible(True)
         self.update_text_patterns()
         input_field.setFocus()
         
@@ -1085,6 +1190,13 @@ class SafeMARCMainWindow(QMainWindow):
         row_widget.hide()  # Hide immediately so it gets filtered out
         self.text_patterns_layout.removeWidget(row_widget)
         row_widget.deleteLater()
+        has_patterns = self.text_patterns_layout.count() > 0
+        if hasattr(self, "btn_toggle_search"):
+            self.btn_toggle_search.setVisible(has_patterns)
+            if not has_patterns:
+                self.txt_search_patterns.setVisible(False)
+                self.txt_search_patterns.clear()
+                self.btn_toggle_search.setStyleSheet("background-color: #1F2937; color: #9CA3AF; border: 1px solid #374151; border-radius: 4px;")
         self.update_text_patterns()
 
     def import_custom_patterns(self):
@@ -1122,11 +1234,36 @@ class SafeMARCMainWindow(QMainWindow):
                             input_field = row_widget.findChild(QLineEdit)
                             if input_field:
                                 input_field.setText(pattern_str)
-                            chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
-                            if chk_whole:
-                                chk_whole.setChecked(whole_word)
+                            btn_whole = row_widget.findChild(QPushButton, "btn_whole")
+                            if btn_whole:
+                                btn_whole.setChecked(whole_word)
+                                style = """
+                                    QPushButton {
+                                        background-color: #10B981;
+                                        border: 1px solid #10B981;
+                                        border-radius: 6px;
+                                    }
+                                """ if whole_word else """
+                                    QPushButton {
+                                        background-color: #1F2937;
+                                        border: 1px solid #374151;
+                                        border-radius: 6px;
+                                    }
+                                    QPushButton:hover {
+                                        background-color: #374151;
+                                        border-color: #4B5563;
+                                    }
+                                """
+                                btn_whole.setStyleSheet(style)
                                 
             self.update_text_patterns()
+            has_patterns = self.text_patterns_layout.count() > 0
+            if hasattr(self, "btn_toggle_search"):
+                self.btn_toggle_search.setVisible(has_patterns)
+                if not has_patterns:
+                    self.txt_search_patterns.setVisible(False)
+                    self.txt_search_patterns.clear()
+                    self.btn_toggle_search.setStyleSheet("background-color: #1F2937; color: #9CA3AF; border: 1px solid #374151; border-radius: 4px;")
             QMessageBox.information(self, "Success", "Custom patterns imported successfully!")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to import patterns: {str(e)}")
@@ -1140,8 +1277,8 @@ class SafeMARCMainWindow(QMainWindow):
                 row_widget = item.widget()
                 if row_widget and row_widget.isVisible():
                     input_field = row_widget.findChild(QLineEdit)
-                    chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
-                    is_whole_word = chk_whole.isChecked() if chk_whole else False
+                    btn_whole = row_widget.findChild(QPushButton, "btn_whole")
+                    is_whole_word = btn_whole.isChecked() if btn_whole else False
                     
                     if input_field and input_field.text().strip():
                         patterns.append({
@@ -1178,6 +1315,22 @@ class SafeMARCMainWindow(QMainWindow):
                         input_field.setFocus()
                         break
         
+    def _filter_queue_list(self, text):
+        text = text.lower().strip()
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            item.setHidden(text not in item.text().lower())
+
+    def _filter_text_patterns(self, text):
+        text = text.lower().strip()
+        for i in range(self.text_patterns_layout.count()):
+            item = self.text_patterns_layout.itemAt(i)
+            if item and item.widget():
+                row_widget = item.widget()
+                input_field = row_widget.findChild(PatternLineEdit)
+                if input_field:
+                    row_widget.setHidden(text not in input_field.text().lower())
+
     def update_text_patterns(self):
         if not self.scanner:
             return
@@ -1207,8 +1360,8 @@ class SafeMARCMainWindow(QMainWindow):
                 row_widget = item.widget()
                 if row_widget and row_widget.isVisible():
                     input_field = row_widget.findChild(QLineEdit)
-                    chk_whole = row_widget.findChild(QCheckBox, "chk_whole")
-                    is_whole_word = chk_whole.isChecked() if chk_whole else False
+                    btn_whole = row_widget.findChild(QPushButton, "btn_whole")
+                    is_whole_word = btn_whole.isChecked() if btn_whole else False
                     
                     if input_field and input_field.text().strip():
                         patterns.append({
@@ -1397,6 +1550,24 @@ class SafeMARCMainWindow(QMainWindow):
             lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
             layout.addWidget(lbl_header)
             
+            from PySide6.QtWidgets import QLineEdit
+            txt_search = QLineEdit()
+            txt_search.setPlaceholderText("Search people...")
+            txt_search.setStyleSheet("""
+                QLineEdit {
+                    background-color: #1F2937;
+                    border: 1px solid #374151;
+                    border-radius: 6px;
+                    padding: 5px 8px;
+                    color: #E5E7EB;
+                    font-size: 11px;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    margin-bottom: 4px;
+                }
+                QLineEdit:focus { border-color: #10B981; }
+            """)
+            layout.addWidget(txt_search)
+            
             # Checkboxes
             checkboxes = []
             for name in all_names:
@@ -1415,6 +1586,13 @@ class SafeMARCMainWindow(QMainWindow):
                 chk.toggled.connect(make_toggle_cb(name, chk))
                 layout.addWidget(chk)
                 checkboxes.append(chk)
+                
+            def filter_checkboxes(text):
+                text = text.lower().strip()
+                for cb in checkboxes:
+                    cb.setHidden(text not in cb.text().lower())
+                menu.adjustSize()
+            txt_search.textChanged.connect(filter_checkboxes)
                 
             # Quick Actions Layout (Select All / Clear)
             layout.addSpacing(4)
@@ -1591,6 +1769,7 @@ class SafeMARCMainWindow(QMainWindow):
                 elif row == self.batch_index:
                     # If we removed the current batch item, move to the next one
                     self.load_next_batch_item()
+        self.update_stats()
 
     def clear_queue(self):
         self.file_list.clear()
@@ -1601,6 +1780,7 @@ class SafeMARCMainWindow(QMainWindow):
         # Reset batch mode if active
         if self.is_batch_mode:
             self.cancel_batch_mode()
+        self.update_stats()
 
     def on_paste(self):
         clipboard = QApplication.clipboard()
@@ -2028,6 +2208,8 @@ class SafeMARCMainWindow(QMainWindow):
     def update_stats(self):
         count = self.file_list.count()
         self.lbl_count.setText(f"Files: {count}")
+        if hasattr(self, "txt_queue_search"):
+            self.txt_queue_search.setVisible(count > 0)
 
 
 class PersistentRangeDialog(QDialog):

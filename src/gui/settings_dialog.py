@@ -225,6 +225,27 @@ class SettingsDialog(QDialog):
         lbl_people = QLabel("People / Identities")
         lbl_people.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
         left_panel.addWidget(lbl_people)
+        
+        self.search_people = QLineEdit()
+        self.search_people.setPlaceholderText("Search identities...")
+        self.search_people.setStyleSheet("""
+            QLineEdit {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #E5E7EB;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin-bottom: 8px;
+            }
+            QLineEdit:focus {
+                border-color: #10B981;
+            }
+        """)
+        self.search_people.textChanged.connect(self._filter_people_list)
+        left_panel.addWidget(self.search_people)
+        
         left_panel.addWidget(self.list_people)
         
         btn_people_layout = QHBoxLayout()
@@ -508,6 +529,12 @@ class SettingsDialog(QDialog):
                     item.setData(Qt.UserRole, {"name": name, "is_session": True})
                     item.setForeground(QColor("#10B981"))
                     self.list_people.addItem(item)
+
+    def _filter_people_list(self, text):
+        text = text.lower().strip()
+        for i in range(self.list_people.count()):
+            item = self.list_people.item(i)
+            item.setHidden(text not in item.text().lower())
 
     def _on_selection_changed(self):
         selected_items = self.list_people.selectedItems()

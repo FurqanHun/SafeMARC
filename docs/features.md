@@ -1,5 +1,11 @@
 # SafeMARC Features
 
+## Performance & Architecture
+- [x] **Zero-Lag Session Caching**: An advanced memory dictionary cache that saves full biometric and text hits per file/page, ensuring backwards and forwards queue navigation is instantaneous (<10ms latency).
+- [x] **Stable PDF Cache Keys**: Maps randomized temporary PDF extraction paths to stable document/page keys to perfectly track PDF hits inside the zero-lag session cache.
+- [x] **Unified Resource Pooling**: All temporary files (PDF pages, cropped identities, clipboard images, and redacted assets) are securely managed inside a single system-level `safemarc_temp` directory to prevent workspace clutter and bypass Windows permission issues.
+- [x] **Graceful RAII Loop Guard**: PySide6 event loops are protected with a custom `SIGINT` signal handler and a `try-finally` Python RAII guard. This guarantees that `safemarc_temp` is securely and completely purged even if the application is killed forcefully with `Ctrl+C`.
+
 ## Core Vision Features
 - [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
   - *Pose & Occlusion Robustness*: Employs a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces.
@@ -14,7 +20,7 @@
 
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
-- [x] **Predefined Patterns**: Pre-configured rules for common entities (Phone Numbers, CNICs/IDs, Credit Cards, IBANs) grouped by country regions (Global, Pakistan, United States, European Union) selectable via a premium multi-select dropdown button.
+- [x] **Predefined & Dynamic Regional Patterns**: Pre-configured rules for common entities (Phone Numbers, CNICs/IDs, Credit Cards, IBANs) grouped by country regions (Global, Pakistan, United States, European Union). Regions can be checked/unchecked in the UI, and the document is instantly re-evaluated live.
 - [x] **Hybrid Confidence Scoring & Review Suggested State**: Matches found near context keywords are boosted to 95% confidence, while isolated matches default to 45% confidence. Hits falling below the customizable Auto-Redact cutoff are displayed with a warning amber outline and are initially unchecked, prompting explicit user review.
 - [x] **Custom Pattern Import/Export**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines, with seamless serialization/deserialization to `.json` files.
   * **Example Custom Pattern JSON Format**:
@@ -59,6 +65,7 @@
 - [x] **Real-Time Training Feedback**: Fully tactile status updates (e.g. `"Loading & detecting face..."`, `"Retraining face recognition model..."`) paired with busy override cursors and temporary interface lockouts to provide perfect, seamless transition feedback during batch cropping.
 - [x] **Individual Reference Image Removal**: Delete specific reference images via interactive red corner corner close markers on thumbnails, triggering immediate `.npy` cache cleanups.
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
+- [x] **Live Biometric Threshold Synchronization**: Adjusting the Face Matching Threshold or Text Auto-Redact cutoff in the Settings dialog instantly synchronizes with the deep-learning backend.
 
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.

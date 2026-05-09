@@ -35,10 +35,12 @@ classDiagram
         +Redactor redactor
         +str face_redaction_mode
         +List target_identities
+        +Dict _vision_cache
+        +clear_cache() void
         +set_vision_mode(mode: str) void
         +set_face_redaction_mode(mode: str) void
         +set_text_patterns(patterns_list: List) void
-        +scan(file_path: str, pdf_words: list) List~SensitiveHit~
+        +scan(file_path: str, pdf_words: list, cache_key: str) List~SensitiveHit~
         +redact(file_path: str, output_path: str, hits: List~SensitiveHit~) bool
         +cleanup() void
     }
@@ -120,6 +122,8 @@ classDiagram
         +QComboBox cmb_face_mode
         +QLabel lbl_count
         +Dict active_regions
+        +str active_pdf_source
+        +int active_pdf_index
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -136,6 +140,8 @@ classDiagram
         -_rescan_current() void
         +on_quick_add_identity(hit: SensitiveHit) void
         +toggle_persistent_mode(checked: bool) void
+        +cleanup_temp_resources(full: bool) void
+        +handle_sigint(signum, frame) void
     }
 
     class PreviewWidget {

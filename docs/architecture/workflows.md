@@ -9,8 +9,12 @@ graph TD
     A[Add files to queue] --> B[Click Start Review]
     B --> C{Check File Type}
     
-    C -- Image --> D[Scan with face/text detectors]
+    C -- Image --> D1{Hit in Session Cache?}
     C -- PDF --> E[Extract PDF pages into high-fidelity temp images]
+    
+    E --> D1
+    D1 -- Yes --> F2[Load Cached Hits Instantly]
+    D1 -- No --> D[Scan with face/text detectors & Update Cache]
 
     D --> F1{Face Mode?}
     E --> F1
@@ -227,4 +231,31 @@ sequenceDiagram
         UI-->>User: Render merged auto-detected + persistent manual redactions
     end
 ```
+
+---
+
+## Unified Temp Resource Lifecycle & Exit Routines
+
+```mermaid
+graph TD
+    A[Launch Application] --> B[Startup Cleanup: Purge Leftover safemarc_temp]
+    B --> C[Application Active]
+    
+    C --> D[Clipboard Paste] --> E[Save to safemarc_temp/clipboard]
+    C --> F[PDF Scan] --> G[Extract to safemarc_temp/pdf]
+    C --> H[Add Session Identity] --> I[Save to safemarc_temp/session_temp]
+    
+    C --> J[Click Start Review]
+    J --> K[Clear scanner vision cache]
+    
+    C --> L[Cancel Batch Review]
+    L --> M[cleanup_temp_resources full=False]
+    M --> N[Purge PDF and Redacted temps, Keep Clipboard & Session temps]
+    
+    C --> O[App Close / Ctrl+C]
+    O --> P[PySide6 handle_sigint / Exit]
+    P --> Q[RAII try-finally Guard]
+    Q --> R[cleanup_temp_resources full=True]
+    R --> S[Completely destroy safemarc_temp]
 ```
+

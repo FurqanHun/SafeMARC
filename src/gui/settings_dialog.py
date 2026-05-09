@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView, QSlider
 from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
 from src.core.identity_manager import IdentityManager
@@ -91,6 +91,29 @@ class SettingsDialog(QDialog):
             }
             QLineEdit:focus {
                 border-color: #10B981;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid #374151;
+                height: 6px;
+                background: #1F2937;
+                border-radius: 3px;
+            }
+            QSlider::sub-page:horizontal {
+                background: #10B981;
+                border-radius: 3px;
+            }
+            QSlider::handle:horizontal {
+                background: #10B981;
+                border: 1px solid #10B981;
+                width: 14px;
+                height: 14px;
+                margin-top: -4px;
+                margin-bottom: -4px;
+                border-radius: 7px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: #34D399;
+                border-color: #34D399;
             }
         """)
 
@@ -333,6 +356,119 @@ class SettingsDialog(QDialog):
         id_layout.addLayout(right_panel, 2)
         
         self.tabs.addTab(self.tab_identities, "Identities")
+        
+        # Tab 3: Model Settings
+        self.tab_model = QWidget()
+        self.tab_model.setStyleSheet("background-color: #111827; border: none;")
+        model_layout = QVBoxLayout(self.tab_model)
+        model_layout.setContentsMargins(20, 20, 20, 20)
+        model_layout.setSpacing(15)
+
+        lbl_model_title = QLabel("AI Model & Redaction Confidence Settings")
+        lbl_model_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #10B981;")
+        model_layout.addWidget(lbl_model_title)
+
+        lbl_model_desc = QLabel("Adjust confidence thresholds for various detection models. Higher values improve precision (less false positives) but may miss some occurrences. Lower values improve recall (more detections) but may include false positives.")
+        lbl_model_desc.setWordWrap(True)
+        lbl_model_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 10px;")
+        model_layout.addWidget(lbl_model_desc)
+
+        # 1. Face Detection Slider
+        fd_box = QHBoxLayout()
+        lbl_fd = QLabel("Face Detection Threshold:")
+        lbl_fd.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_fd = QSlider(Qt.Horizontal)
+        self.slider_fd.setRange(10, 100)
+        fd_val = float(self.settings.value("model_face_detect", 0.50))
+        self.slider_fd.setValue(int(fd_val * 100))
+        self.lbl_fd_val = QLabel(f"{fd_val:.2f}")
+        self.lbl_fd_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
+        
+        def fd_changed(val):
+            v = val / 100.0
+            self.lbl_fd_val.setText(f"{v:.2f}")
+            self.settings.setValue("model_face_detect", v)
+        self.slider_fd.valueChanged.connect(fd_changed)
+        
+        fd_box.addWidget(lbl_fd)
+        fd_box.addWidget(self.slider_fd, 1)
+        fd_box.addWidget(self.lbl_fd_val)
+        model_layout.addLayout(fd_box)
+
+        # 2. Face Matching Slider
+        fm_box = QHBoxLayout()
+        lbl_fm = QLabel("Face Matching Similarity:")
+        lbl_fm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_fm = QSlider(Qt.Horizontal)
+        self.slider_fm.setRange(10, 100)
+        fm_val = float(self.settings.value("model_face_match", 0.60))
+        self.slider_fm.setValue(int(fm_val * 100))
+        self.lbl_fm_val = QLabel(f"{fm_val:.2f}")
+        self.lbl_fm_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
+        
+        def fm_changed(val):
+            v = val / 100.0
+            self.lbl_fm_val.setText(f"{v:.2f}")
+            self.settings.setValue("model_face_match", v)
+        self.slider_fm.valueChanged.connect(fm_changed)
+        
+        fm_box.addWidget(lbl_fm)
+        fm_box.addWidget(self.slider_fm, 1)
+        fm_box.addWidget(self.lbl_fm_val)
+        model_layout.addLayout(fm_box)
+
+        # 3. Text Match Slider
+        tm_box = QHBoxLayout()
+        lbl_tm = QLabel("Text Auto-Redact Cutoff:")
+        lbl_tm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_tm = QSlider(Qt.Horizontal)
+        self.slider_tm.setRange(0, 100)
+        tm_val = int(self.settings.value("model_text_conf", 70))
+        self.slider_tm.setValue(tm_val)
+        self.lbl_tm_val = QLabel(f"{tm_val}%")
+        self.lbl_tm_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
+        
+        def tm_changed(val):
+            self.lbl_tm_val.setText(f"{val}%")
+            self.settings.setValue("model_text_conf", val)
+        self.slider_tm.valueChanged.connect(tm_changed)
+        
+        tm_box.addWidget(lbl_tm)
+        tm_box.addWidget(self.slider_tm, 1)
+        tm_box.addWidget(self.lbl_tm_val)
+        model_layout.addLayout(tm_box)
+
+        # Reset to Defaults Button
+        self.btn_reset_model = QPushButton("Reset to Defaults")
+        self.btn_reset_model.setCursor(Qt.PointingHandCursor)
+        self.btn_reset_model.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin-top: 15px;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #E11D48;
+                color: #FFFFFF;
+            }
+        """)
+        
+        def reset_to_defaults():
+            self.slider_fd.setValue(50)
+            self.slider_fm.setValue(60)
+            self.slider_tm.setValue(70)
+        self.btn_reset_model.clicked.connect(reset_to_defaults)
+        model_layout.addWidget(self.btn_reset_model, 0, Qt.AlignLeft)
+
+        model_layout.addStretch()
+        self.tabs.addTab(self.tab_model, "Model Settings")
         
         # Close Button
         btn_layout = QHBoxLayout()

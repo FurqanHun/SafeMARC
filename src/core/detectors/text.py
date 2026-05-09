@@ -17,7 +17,7 @@ class RegexDetector(BaseDetector):
         self.cached_pdf_words = None
         self.cached_data_list = [] # List of tuples: (data_dict, scale)
 
-    def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False):
+    def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False, keywords: list = None):
         if not is_regex:
             # Escape literal text so special regex characters don't break
             pattern = re.escape(pattern)
@@ -28,7 +28,11 @@ class RegexDetector(BaseDetector):
         # We compile with re.IGNORECASE for user convenience
         try:
             compiled = re.compile(pattern, re.IGNORECASE)
-            self.custom_patterns.append({"label": label, "pattern": compiled})
+            self.custom_patterns.append({
+                "label": label,
+                "pattern": compiled,
+                "keywords": keywords or []
+            })
         except re.error as e:
             print(f"Failed to compile regex pattern '{pattern}': {e}")
 
@@ -107,12 +111,34 @@ class RegexDetector(BaseDetector):
             self.cached_data_list = new_cached_list
 
         # --- 3. Near-Duplicate Box Deduplication with Coordinate Tolerance ---
+        def boxes_overlap_heavily(b1, b2) -> bool:
+            x_left = max(b1.x, b2.x)
+            y_top = max(b1.y, b2.y)
+            x_right = min(b1.x + b1.w, b2.x + b2.w)
+            y_bottom = min(b1.y + b1.h, b2.y + b2.h)
+            
+            if x_right < x_left or y_bottom < y_top:
+                return False
+                
+            intersect_area = (x_right - x_left) * (y_bottom - y_top)
+            b1_area = b1.w * b1.h
+            b2_area = b2.w * b2.h
+            
+            if b1_area == 0 or b2_area == 0:
+                return False
+                
+            overlap_ratio_1 = intersect_area / b1_area
+            overlap_ratio_2 = intersect_area / b2_area
+            return overlap_ratio_1 > 0.40 or overlap_ratio_2 > 0.40
+
         unique_hits = []
         for h in hits:
             is_dup = False
-            for uh in unique_hits:
-                if uh.label == h.label and abs(uh.x - h.x) <= 4 and abs(uh.y - h.y) <= 4 and abs(uh.w - h.w) <= 8 and abs(uh.h - h.h) <= 8:
+            for idx, uh in enumerate(unique_hits):
+                if boxes_overlap_heavily(uh, h):
                     is_dup = True
+                    if h.confidence > uh.confidence:
+                        unique_hits[idx] = h
                     break
             if not is_dup:
                 unique_hits.append(h)
@@ -154,6 +180,7 @@ class RegexDetector(BaseDetector):
             for pat_dict in self.custom_patterns:
                 label = pat_dict["label"]
                 pattern = pat_dict["pattern"]
+                keywords = pat_dict.get("keywords", [])
                 
                 for match in pattern.finditer(line_text):
                     start_char = match.start()
@@ -201,6 +228,20 @@ class RegexDetector(BaseDetector):
                         max_y = max(y2_coords)
                         avg_conf = sum(confs) / len(confs) if confs else 100.0
                         
+                        match_text = match.group()
+                        
+                        # Hybrid confidence calculation based on context keyword proximity
+                        if keywords:
+                            line_text_lower = line_text.lower()
+                            has_keyword = False
+                            for kw in keywords:
+                                if kw.lower() in line_text_lower:
+                                    has_keyword = True
+                                    break
+                            final_confidence = 95.0 if has_keyword else 45.0
+                        else:
+                            final_confidence = avg_conf
+
                         hits.append(
                             SensitiveHit(
                                 x=min_x,
@@ -208,8 +249,8 @@ class RegexDetector(BaseDetector):
                                 w=max_x - min_x,
                                 h=max_y - min_y,
                                 label=label,
-                                confidence=avg_conf,
-                                text_content=match.group(),
+                                confidence=final_confidence,
+                                text_content=match_text,
                             )
                         )
         return hits

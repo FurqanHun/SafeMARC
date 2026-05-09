@@ -119,6 +119,7 @@ classDiagram
         +QListWidget file_list
         +QComboBox cmb_face_mode
         +QLabel lbl_count
+        +Dict active_regions
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -129,7 +130,9 @@ classDiagram
         +add_dropped_paths(paths: List) void
         -_update_face_mode(text: str) void
         -_show_people_selector() void
+        -_show_regions_selector() void
         -_toggle_target_identity(name: str, checked: bool) void
+        -_toggle_active_region(name: str, checked: bool) void
         -_rescan_current() void
         +on_quick_add_identity(hit: SensitiveHit) void
         +toggle_persistent_mode(checked: bool) void

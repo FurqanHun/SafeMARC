@@ -1,16 +1,16 @@
 from typing import List, Callable
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem
 from PySide6.QtGui import QPixmap, QPen, QColor, QBrush, QFont
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QSettings
 
 from src.core.types import SensitiveHit
 
 class SelectableHitItem(QGraphicsRectItem):
-    def __init__(self, hit: SensitiveHit, on_toggle: Callable):
+    def __init__(self, hit: SensitiveHit, on_toggle: Callable, is_selected: bool = True):
         super().__init__(QRectF(hit.x, hit.y, hit.w, hit.h))
         self.hit = hit
         self.on_toggle = on_toggle
-        self.is_selected = True
+        self.is_selected = is_selected
         
         self.setAcceptHoverEvents(True)
         
@@ -26,15 +26,30 @@ class SelectableHitItem(QGraphicsRectItem):
         self.update_style()
 
     def update_style(self):
-        if self.is_selected:
-            color = QColor(16, 185, 129, 200) if self.hit.identity else QColor(255, 0, 0, 200)
-            self.setPen(QPen(color, 3))
-            self.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), 50)))
-            if self.text_item: self.text_item.setVisible(True)
+        settings = QSettings("SafeMARC", "SafeMARC")
+        threshold = int(settings.value("model_text_conf", 70))
+        is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.confidence < threshold)
+        
+        if is_low_conf_text:
+            # Low confidence "Review Suggested" hit -> Amber/Yellow color state
+            color = QColor(245, 158, 11, 200) # Amber `#F59E0B`
+            if self.is_selected:
+                self.setPen(QPen(color, 3))
+                self.setBrush(QBrush(QColor(245, 158, 11, 50)))
+            else:
+                self.setPen(QPen(color, 2, Qt.DashLine))
+                self.setBrush(QBrush(QColor(245, 158, 11, 15)))
+            if self.text_item: self.text_item.setVisible(self.is_selected)
         else:
-            self.setPen(QPen(QColor(100, 100, 100, 200), 2, Qt.DashLine))
-            self.setBrush(QBrush(QColor(0, 0, 0, 0)))
-            if self.text_item: self.text_item.setVisible(False)
+            if self.is_selected:
+                color = QColor(16, 185, 129, 200) if self.hit.identity else QColor(255, 0, 0, 200)
+                self.setPen(QPen(color, 3))
+                self.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), 50)))
+                if self.text_item: self.text_item.setVisible(True)
+            else:
+                self.setPen(QPen(QColor(100, 100, 100, 200), 2, Qt.DashLine))
+                self.setBrush(QBrush(QColor(0, 0, 0, 0)))
+                if self.text_item: self.text_item.setVisible(False)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -211,7 +226,15 @@ class PreviewWidget(QGraphicsView):
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
     def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None):
-        self.active_hits = hits.copy()
+        # Filter out low-confidence text hits from initial auto-selection
+        settings = QSettings("SafeMARC", "SafeMARC")
+        threshold = int(settings.value("model_text_conf", 70))
+        
+        self.active_hits = []
+        for hit in hits:
+            is_low_conf = bool("FACE" not in hit.label and "BODY" not in hit.label and hit.confidence < threshold)
+            if not is_low_conf:
+                self.active_hits.append(hit)
         
         # Inject persistent manual hits if enabled and scope matches
         if self.persistent_mode:
@@ -237,8 +260,10 @@ class PreviewWidget(QGraphicsView):
             self.scene.removeItem(item)
         self.hit_items.clear()
         
-        for hit in self.active_hits:
-            item = SelectableHitItem(hit, self.on_hit_toggled)
+        # Render ALL hits, marking as selected/checked only if they are in self.active_hits
+        for hit in hits:
+            is_sel = hit in self.active_hits
+            item = SelectableHitItem(hit, self.on_hit_toggled, is_selected=is_sel)
             self.scene.addItem(item)
             self.hit_items.append(item)
 

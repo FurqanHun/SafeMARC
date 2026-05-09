@@ -24,7 +24,6 @@ class SafeScanner:
         self.face_redaction_mode = mode
 
     def set_text_patterns(self, patterns_list):
-        # ... (rest of method remains same)
         self.text_detector.clear_custom_patterns()
         for p in patterns_list:
             if p["pattern"].strip():
@@ -32,7 +31,8 @@ class SafeScanner:
                     label=p.get("label", "TEXT"),
                     pattern=p["pattern"],
                     is_regex=p.get("is_regex", False),
-                    is_whole_word=p.get("whole_word", False)
+                    is_whole_word=p.get("whole_word", False),
+                    keywords=p.get("keywords")
                 )
 
     def scan(self, file_path: str, pdf_words: list = None) -> List[SensitiveHit]:

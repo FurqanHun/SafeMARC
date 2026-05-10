@@ -2,11 +2,12 @@ import os
 import cv2
 import numpy as np
 from typing import List, Dict, Optional
+from src.utils.paths import resource_path
 
 
 class IdentityManager:
-    def __init__(self, identities_dir: str = "assets/identities"):
-        self.identities_dir = os.path.abspath(identities_dir)
+    def __init__(self, identities_dir: str = None):
+        self.identities_dir = os.path.abspath(identities_dir) if identities_dir else resource_path("assets/identities")
         os.makedirs(self.identities_dir, exist_ok=True)
         
         import tempfile
@@ -32,7 +33,7 @@ class IdentityManager:
         self.sface_recognizer = None
         self.sface_embeddings = {}  # name -> list of embeddings
         
-        sface_model = os.path.abspath("assets/face_recognition_sface_2021dec.onnx")
+        sface_model = resource_path("assets/face_recognition_sface_2021dec.onnx")
         if os.path.exists(sface_model):
             try:
                 self.sface_recognizer = cv2.FaceRecognizerSF.create(sface_model, "")

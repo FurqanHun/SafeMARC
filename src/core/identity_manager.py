@@ -2,12 +2,12 @@ import os
 import cv2
 import numpy as np
 from typing import List, Dict, Optional
-from src.utils.paths import resource_path
+from src.utils.paths import resource_path, get_app_data_dir
 
 
 class IdentityManager:
     def __init__(self, identities_dir: str = None):
-        self.identities_dir = os.path.abspath(identities_dir) if identities_dir else resource_path("assets/identities")
+        self.identities_dir = os.path.abspath(identities_dir) if identities_dir else os.path.join(get_app_data_dir(), "identities")
         os.makedirs(self.identities_dir, exist_ok=True)
         
         import tempfile

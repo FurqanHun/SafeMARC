@@ -230,17 +230,63 @@ class RegexDetector(BaseDetector):
                         
                         match_text = match.group()
                         
-                        # Hybrid confidence calculation based on context keyword proximity
-                        if keywords:
-                            line_text_lower = line_text.lower()
-                            has_keyword = False
-                            for kw in keywords:
-                                if kw.lower() in line_text_lower:
-                                    has_keyword = True
-                                    break
-                            final_confidence = 95.0 if has_keyword else 45.0
-                        else:
-                            final_confidence = avg_conf
+                        # Hybrid confidence calculation based on context keyword proximity and algorithmic heuristics
+                        final_confidence = avg_conf
+                        
+                        if label == "Credit Card":
+                            digits = [int(d) for d in match_text if d.isdigit()]
+                            if len(digits) >= 13 and len(digits) <= 19:
+                                checksum = 0
+                                for i, d in enumerate(digits[::-1]):
+                                    if i % 2 == 1:
+                                        d *= 2
+                                        if d > 9:
+                                            d -= 9
+                                    checksum += d
+                                if checksum % 10 == 0:
+                                    final_confidence = 95.0
+                                else:
+                                    continue # Failed Luhn check, discard hit entirely
+                            else:
+                                continue # Invalid length, discard
+                        
+                        elif label == "EU IBAN":
+                            # IBAN mod-97 checksum validation (ISO 7064)
+                            iban_clean = match_text.replace(" ", "").replace("-", "").upper()
+                            if len(iban_clean) >= 15:
+                                rearranged = iban_clean[4:] + iban_clean[:4]
+                                numeric_str = ""
+                                for c in rearranged:
+                                    if c.isdigit():
+                                        numeric_str += c
+                                    else:
+                                        numeric_str += str(ord(c) - 55)
+                                try:
+                                    if int(numeric_str) % 97 == 1:
+                                        final_confidence = 95.0
+                                    else:
+                                        continue # Failed IBAN checksum, discard
+                                except ValueError:
+                                    continue
+                            else:
+                                continue # Too short for IBAN
+                        
+                        elif label in ("US SSN", "IN Aadhaar"):
+                            # These are high-value patterns — require keyword proximity strictly
+                            window_start = max(0, start_char - 35)
+                            window_end = min(len(line_text), match.end() + 35)
+                            context_window = line_text.lower()[window_start:window_end]
+                            has_keyword = any(kw.lower() in context_window for kw in keywords)
+                            final_confidence = 90.0 if has_keyword else 25.0
+                        
+                        elif keywords:
+                            # Context window of ~35 characters around the match to prevent false positives in long paragraphs
+                            window_start = max(0, start_char - 35)
+                            window_end = min(len(line_text), match.end() + 35)
+                            context_window = line_text.lower()[window_start:window_end]
+                            
+                            has_keyword = any(kw.lower() in context_window for kw in keywords)
+                            final_confidence = 90.0 if has_keyword else 30.0
 
                         hits.append(
                             SensitiveHit(

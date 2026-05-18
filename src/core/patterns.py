@@ -27,13 +27,13 @@ PREDEFINED_PATTERNS = {
     },
     "pk_plate": {
         "label": "PK Vehicle Plate",
-        "regex": r"\b[A-Z]{2,3}[- ]?\d{3,4}\b",
+        "regex": r"\b[A-Z]{2,3}[- ]?\d{3,4}[- ]?[A-Z]{0,2}\b",
         "keywords": ["plate", "vehicle", "registration", "car", "number", "motor", "pakistan"],
         "regions": ["Pakistan"]
     },
     "us_ssn": {
         "label": "US SSN",
-        "regex": r"\b\d{3}[- ]?\d{2}[- ]?\d{4}\b",
+        "regex": r"\b(?!000|666|9\d{2})\d{3}[- ]\d{2}[- ]\d{4}\b",
         "keywords": ["ssn", "social security", "tax", "tin", "sec", "payroll"],
         "regions": ["United States"]
     },
@@ -51,7 +51,7 @@ PREDEFINED_PATTERNS = {
     },
     "us_dl": {
         "label": "US Driver's License",
-        "regex": r"\b(?=.*\d)(?=.*[A-Z])[A-Z0-9]{9,12}\b",
+        "regex": r"\b[A-Z]\d{7,11}\b",
         "keywords": ["license", "dl", "licence", "permit", "driver", "dmv", "vehicle"],
         "regions": ["United States"]
     },
@@ -63,13 +63,13 @@ PREDEFINED_PATTERNS = {
     },
     "eu_vat": {
         "label": "EU VAT ID",
-        "regex": r"\b[A-Z]{2}\s?(?=.*\d)[A-Z0-9]{2,12}\b",
+        "regex": r"\b(?:AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[A-Z0-9]{8,12}\b",
         "keywords": ["vat", "tax", "tin", "business", "company", "registration", "eu"],
         "regions": ["European Union"]
     },
     "in_aadhaar": {
         "label": "IN Aadhaar",
-        "regex": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}\b",
+        "regex": r"\b[2-9]\d{3}[- ]?\d{4}[- ]?\d{4}\b",
         "keywords": ["aadhaar", "uid", "identity", "card", "citizen", "india", "uidai"],
         "regions": ["India"]
     },
@@ -117,14 +117,8 @@ PREDEFINED_PATTERNS = {
     },
     "global_ip": {
         "label": "IP Address",
-        "regex": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
+        "regex": r"\b(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b",
         "keywords": ["ip", "address", "host", "server", "ipv4", "dns"],
-        "regions": ["Global"]
-    },
-    "global_passport": {
-        "label": "Passport No",
-        "regex": r"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{6,9}\b",
-        "keywords": ["passport", "document", "travel", "visa", "border", "identity", "no"],
         "regions": ["Global"]
     }
 }

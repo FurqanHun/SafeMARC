@@ -763,6 +763,11 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_reset_zoom = QPushButton(" Reset")
         self.btn_reset_zoom.setIcon(svg_to_icon(SVG_REFRESH))
         self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
+        
+        self.btn_rescan = QPushButton(" Rescan")
+        self.btn_rescan.setIcon(svg_to_icon(SVG_REFRESH))
+        self.btn_rescan.setToolTip("Rescan current image (F5)")
+        self.btn_rescan.clicked.connect(self._rescan_current)
 
         tool_style = """
             QPushButton {
@@ -786,7 +791,7 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """
 
-        for btn in (self.btn_draw_mode, self.btn_persistent_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom):
+        for btn in (self.btn_draw_mode, self.btn_persistent_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom, self.btn_rescan):
             btn.setStyleSheet(tool_style)
 
         draw_layout.addWidget(self.btn_draw_mode)
@@ -794,6 +799,7 @@ class SafeMARCMainWindow(QMainWindow):
         draw_layout.addWidget(self.btn_zoom_in)
         draw_layout.addWidget(self.btn_zoom_out)
         draw_layout.addWidget(self.btn_reset_zoom)
+        draw_layout.addWidget(self.btn_rescan)
         preview_layout.addLayout(draw_layout)
         
         # Shortcuts
@@ -815,6 +821,9 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.shortcut_zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
         self.shortcut_zoom_reset.activated.connect(self.preview_widget.reset_zoom)
+
+        self.shortcut_rescan = QShortcut(QKeySequence("F5"), self)
+        self.shortcut_rescan.activated.connect(self._rescan_current)
 
         # Action Buttons
         actions_layout = QHBoxLayout()
@@ -1000,6 +1009,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_reset_layout.activated.connect(self._apply_default_splitter_sizes)
 
         self.current_file_path = None
+        self.user_selections_cache = {}
         self.current_hits = []
         
         # Batch Mode State
@@ -1382,31 +1392,10 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Auto-rescan if a file is loaded
         if self.current_file_path:
-            self.btn_redact_next.setEnabled(False)
-            self.preview_widget.load_image(self.current_file_path)
-            self.current_hits = []
-            
-            pdf_words = None
-            if hasattr(self, "active_pdf_pages") and self.active_pdf_pages and self.active_pdf_index < len(self.active_pdf_pages):
-                page_data = self.active_pdf_pages[self.active_pdf_index]
-                if isinstance(page_data, dict):
-                    pdf_words = page_data.get("words", None)
-                    
-            show_anim = True
-            if hasattr(self.scanner, "text_detector") and self.scanner.text_detector.cached_image_path == self.current_file_path:
-                show_anim = False
-                
-            try:
-                cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
-                hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim, cache_key=cache_key)
-                self.current_hits = hits
-                if hits:
-                    is_pdf = bool(self.active_pdf_pages)
-                    pdf_source = self.active_pdf_source if is_pdf else None
-                    self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
-                    self.btn_redact_next.setEnabled(True)
-            except Exception as e:
-                print(f"Rescan error: {e}")
+            # Cache current selections before rescanning
+            manuals = self.preview_widget.active_hits.copy()
+            self.user_selections_cache[self.current_file_path] = manuals
+            self._rescan_current()
 
     def on_vision_mode_changed(self, index):
         if not self.scanner:
@@ -1687,6 +1676,10 @@ class SafeMARCMainWindow(QMainWindow):
         """Re-scan the currently loaded image with current settings."""
         if not self.current_file_path:
             return
+            
+        # Cache manual boxes before rescanning
+        manuals = self.preview_widget.active_hits.copy()
+        self.user_selections_cache[self.current_file_path] = manuals
         
         pdf_words = None
         if hasattr(self, "active_pdf_pages") and self.active_pdf_pages and self.active_pdf_index < len(self.active_pdf_pages):
@@ -1704,7 +1697,8 @@ class SafeMARCMainWindow(QMainWindow):
             self.current_hits = hits
             is_pdf = bool(self.active_pdf_pages)
             pdf_source = self.active_pdf_source if is_pdf else None
-            self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
+            cached_active_hits = self.user_selections_cache.get(self.current_file_path, None)
+            self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits)
             self.btn_redact_next.setEnabled(bool(hits))
         except Exception as e:
             print(f"Re-scan failed: {e}")
@@ -1837,6 +1831,10 @@ class SafeMARCMainWindow(QMainWindow):
         if self.is_batch_mode and self.file_list.row(item) != self.batch_index:
             self.cancel_batch_mode()
             
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            self.user_selections_cache[self.current_file_path] = manuals
+                
         file_path = item.data(Qt.UserRole)
         self.current_file_path = file_path
         self.current_hits = []
@@ -1851,6 +1849,12 @@ class SafeMARCMainWindow(QMainWindow):
                 print(f"Failed to load PDF preview: {e}")
         elif file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
+            
+        # Restore any cached manual boxes for this newly selected file
+        if self.current_file_path in self.user_selections_cache:
+            cached_hits = self.user_selections_cache[self.current_file_path]
+            if cached_hits:
+                self.preview_widget.display_hits(cached_hits, is_pdf=file_path.lower().endswith('.pdf'), cached_active_hits=cached_hits)
 
     def get_redacted_output_path(self, input_path: str) -> str:
         from PySide6.QtCore import QSettings, QStandardPaths
@@ -1900,11 +1904,30 @@ class SafeMARCMainWindow(QMainWindow):
         
         if show_animation:
             self.preview_widget.hide_loading()
-        return worker.hits
+            
+        # Start with AI-detected hits
+        merged_hits = list(worker.hits)
+        
+        # Inject persistent manual hits from the preview widget
+        for ph in self.preview_widget.persistent_manual_hits:
+            if not any(ph.x == h.x and ph.y == h.y and ph.w == h.w and ph.h == h.h for h in merged_hits):
+                merged_hits.append(ph)
+        
+        # Inject cached MANUAL hits (user-drawn boxes) that the AI wouldn't re-detect
+        if path in self.user_selections_cache:
+            for ch in self.user_selections_cache[path]:
+                if ch.label == "MANUAL" and not any(ch.x == h.x and ch.y == h.y and ch.w == h.w and ch.h == h.h for h in merged_hits):
+                    merged_hits.append(ch)
+                
+        return merged_hits
 
     def redact_current(self):
         if not self.scanner or not self.current_file_path:
             return
+
+        # Explicitly cache manual hits BEFORE any redaction processing
+        manuals = self.preview_widget.active_hits.copy()
+        self.user_selections_cache[self.current_file_path] = manuals
 
         selected_hits = self.preview_widget.get_selected_hits()   
         if not selected_hits:
@@ -1944,6 +1967,10 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Queue is empty.")
             return
 
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            self.user_selections_cache[self.current_file_path] = manuals
+
         for i in range(self.file_list.count()):
             from PySide6.QtGui import QColor
             self.file_list.item(i).setForeground(QColor("#E5E7EB"))
@@ -1973,6 +2000,11 @@ class SafeMARCMainWindow(QMainWindow):
     def skip_current(self):
         if not self.is_batch_mode:
             return
+            
+        # Explicitly cache manual hits BEFORE skipping
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            self.user_selections_cache[self.current_file_path] = manuals
             
         if self.active_pdf_pages:
             from PySide6.QtWidgets import QMessageBox
@@ -2018,6 +2050,11 @@ class SafeMARCMainWindow(QMainWindow):
     def go_previous(self):
         if not self.is_batch_mode:
             return
+            
+        # Explicitly cache manual hits BEFORE going previous
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            self.user_selections_cache[self.current_file_path] = manuals
             
         # Scenario A: Inside a PDF sub-loop
         if self.active_pdf_pages and self.active_pdf_index > 0:
@@ -2114,7 +2151,8 @@ class SafeMARCMainWindow(QMainWindow):
                     else:
                         is_pdf = bool(self.active_pdf_pages)
                         pdf_source = self.active_pdf_source if is_pdf else None
-                        self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
+                        cached_active_hits = self.user_selections_cache.get(page_path, None)
+                        self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits)
                         self.btn_redact_next.setEnabled(True)
                 except Exception as e:
                     print(f"Error processing page: {e}")
@@ -2211,7 +2249,8 @@ class SafeMARCMainWindow(QMainWindow):
                 else:
                     is_pdf = bool(self.active_pdf_pages)
                     pdf_source = self.active_pdf_source if is_pdf else None
-                    self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source)
+                    cached_active_hits = self.user_selections_cache.get(file_path, None)
+                    self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits)
                     self.btn_redact_next.setEnabled(True)
             except Exception as e:
                 item.setForeground(QColor("#d32f2f"))

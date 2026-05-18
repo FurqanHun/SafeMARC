@@ -225,16 +225,38 @@ class PreviewWidget(QGraphicsView):
             self.scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
-    def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None):
-        # Filter out low-confidence text hits from initial auto-selection
+    def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None, cached_active_hits: list = None):
         settings = QSettings("SafeMARC", "SafeMARC")
         threshold = int(settings.value("model_text_conf", 70))
         
-        self.active_hits = []
-        for hit in hits:
-            is_low_conf = bool("FACE" not in hit.label and "BODY" not in hit.label and hit.confidence < threshold)
-            if not is_low_conf:
-                self.active_hits.append(hit)
+        def _hits_match(a, b):
+            """Check if two hits refer to the same detection by coordinates and label."""
+            return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h and a.label == b.label
+        
+        if cached_active_hits is not None and any(ch.label != "MANUAL" for ch in cached_active_hits):
+            # Full review snapshot: restore user's exact checkbox state
+            self.active_hits = []
+            for hit in hits:
+                if any(_hits_match(hit, ch) for ch in cached_active_hits):
+                    self.active_hits.append(hit)
+            # Inject cached manual hits that aren't in the new AI hits
+            for ch in cached_active_hits:
+                if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
+                    hits.append(ch)
+                    self.active_hits.append(ch)
+        else:
+            # Default or pre-review cache: use confidence filtering for AI hits
+            self.active_hits = []
+            for hit in hits:
+                is_low_conf = bool("FACE" not in hit.label and "BODY" not in hit.label and hit.label != "MANUAL" and hit.confidence < threshold)
+                if not is_low_conf:
+                    self.active_hits.append(hit)
+            # Inject any pre-review manual boxes from cache
+            if cached_active_hits:
+                for ch in cached_active_hits:
+                    if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
+                        hits.append(ch)
+                        self.active_hits.append(ch)
         
         # Inject persistent manual hits if enabled and scope matches
         if self.persistent_mode:
@@ -253,7 +275,7 @@ class PreviewWidget(QGraphicsView):
                     
             if should_inject:
                 for ph in self.persistent_manual_hits:
-                    if not any(h.x == ph.x and h.y == ph.y and h.w == ph.w and h.h == ph.h for h in self.active_hits):
+                    if not any(_hits_match(ph, h) for h in self.active_hits):
                         self.active_hits.append(ph)
         
         for item in self.hit_items:

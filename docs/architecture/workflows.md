@@ -259,3 +259,54 @@ graph TD
     R --> S[Completely destroy safemarc_temp]
 ```
 
+
+---
+
+## Checkbox Selections Persistence & Manual Box Restoration Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Reviewer
+    participant MW as MainWindow
+    participant PW as PreviewWidget
+    participant SC as User Selections Cache
+
+    User->>MW: Click "Redact Next", "Skip", "Previous", or "F5"
+    MW->>PW: Query currently displayed active hits
+    PW-->>MW: active_hits (includes manual & AI selections)
+    MW->>SC: Save active_hits to user_selections_cache[current_file_path]
+    
+    note over MW,SC: Cache holds exact checkbox selections & manually drawn shapes
+    
+    MW->>MW: Load next/target document / trigger scan
+    MW->>SC: Get cached selections for target path
+    SC-->>MW: cached_active_hits (or None)
+    
+    MW->>PW: display_hits(new_scan_hits, cached_active_hits)
+    
+    alt cached_active_hits is not None
+        loop For each new scan hit
+            PW->>PW: Match coordinates and label against cached_active_hits
+            alt Match Found
+                PW->>PW: Keep Checked state / Add to active_hits
+            else Match Not Found
+                PW->>PW: Leave Unchecked / Exclude from active_hits
+            end
+        end
+        loop For each cached hit
+            alt Hit is "MANUAL" and not in new scan
+                PW->>PW: Inject and check manual box on preview canvas
+            end
+        end
+    else Default / Pre-Review State
+        PW->>PW: Apply model confidence thresholds to auto-check scan hits
+        loop For each cached hit
+            alt Hit is "MANUAL"
+                PW->>PW: Inject and check manual box
+            end
+        end
+    end
+    PW-->>User: Display fully restored selections & manual shapes
+```
+

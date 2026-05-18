@@ -32,6 +32,8 @@ graph TD
         UC3 --> UC3_E[Toggle Auto-Skip Clean Images]
         UC3 --> UC3_F[Toggle Skip Review / Auto-Redact]
         UC3 --> UC3_G[Toggle Always Rasterize PDFs]
+        UC3 --> UC3_H[Adjust Face Detection Threshold Slider]
+        UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
     end
 
     subgraph Identity Management
@@ -66,18 +68,23 @@ graph TD
   4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition.
   5. Hits are filtered based on the active face redaction mode and selected target identities.
   6. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).
-  7. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
-  8. On skipping, the user can choose to skip the active PDF page or skip the entire PDF file.
-  9. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
+  7. The user can press `F5` at any point to rescan the current document with the active regional and text pattern filters while preserving custom manual selections.
+  8. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
+  9. On skipping, the user can choose to skip the active PDF page or skip the entire PDF file.
+  10. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
 
-### UC3: Configure Face Redaction Mode
+### UC3: Configure Redaction Settings & Thresholds
 - **Actors**: User
-- **Preconditions**: Application is open with scanner initialized.
-- **Trigger**: User selects a mode from the Face Mode dropdown.
-- **Modes**:
-  - **All**: Redact every detected face (default).
-  - **Blacklist**: Only redact faces that match selected target identities.
-  - **Whitelist**: Redact all faces *except* those matching selected target identities.
+- **Preconditions**: Application is open.
+- **Trigger**: User opens settings or updates dropdown configurations.
+- **Configurations**:
+  - **Face Redaction Mode**:
+    - **All**: Redact every detected face (default).
+    - **Blacklist**: Only redact faces that match selected target identities.
+    - **Whitelist**: Redact all faces *except* those matching selected target identities.
+  - **Dynamic Threshold Adjustments**:
+    - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
+    - **Face Detection Sensitivity Slider**: Adjusts the MediaPipe ObjectDetector score threshold (10-90%) for body silhouettes, preventing false body matches or allowing faint body detections.
 - **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
 
 ### UC4: Manage Identities

@@ -17,21 +17,29 @@ classDiagram
         +str mode
         +IdentityManager identity_manager
         +CascadeClassifier face_cascade
+        +CascadeClassifier face_cascade_alt
+        +CascadeClassifier profile_cascade
+        +ObjectDetector detector
         +detect(image_path: str, match_identities: bool) List~SensitiveHit~
         +cleanup() void
     }
     
     class RegexDetector {
         +List custom_patterns
+        +str cached_image_path
+        +List cached_pdf_words
+        +List cached_data_list
         +clear_custom_patterns() void
-        +add_custom_pattern(label: str, pattern: str, is_regex: bool, is_whole_word: bool) void
+        +add_custom_pattern(label: str, pattern: str, is_regex: bool, is_whole_word: bool, keywords: List) void
         +detect(file_path: str, pdf_words: list) List~SensitiveHit~
+        -_scan_data_dict(data: dict, scale: float) List~SensitiveHit~
     }
     
     class SafeScanner {
         +IdentityManager identity_manager
         +VisionDetector vision_detector
         +RegexDetector text_detector
+        +List detectors
         +Redactor redactor
         +str face_redaction_mode
         +List target_identities
@@ -63,7 +71,12 @@ classDiagram
 
     class IdentityManager {
         +str identities_dir
+        +str session_temp
+        +CascadeClassifier face_cascade
+        +CascadeClassifier face_cascade_alt
+        +CascadeClassifier profile_cascade
         +FaceRecognizerSF sface_recognizer
+        +LBPHFaceRecognizer recognizer
         +bool use_sface
         +Dict identity_map
         +Dict sface_embeddings
@@ -72,6 +85,7 @@ classDiagram
         +match_face(face_image: ndarray) Optional~str~
         +add_identity(name: str, image_paths: List~str~) void
         +add_session_identity(name: str, image_path: str) void
+        -_extract_face_crop(img: ndarray) ndarray
     }
 
     BaseDetector <|-- VisionDetector
@@ -102,6 +116,7 @@ classDiagram
     class PDFHandler {
         <<static>>
         +extract_pages(pdf_path: str) List~dict~
+        +extract_first_page(pdf_path: str) str
         +build_pdf(page_image_paths: List~str~, out_path: str) bool
     }
 ```
@@ -122,8 +137,10 @@ classDiagram
         +QComboBox cmb_face_mode
         +QLabel lbl_count
         +Dict active_regions
+        +Dict user_selections_cache
         +str active_pdf_source
         +int active_pdf_index
+        +QShortcut shortcut_rescan
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -146,7 +163,7 @@ classDiagram
 
     class PreviewWidget {
         +Signal identityRequested
-        +display_hits(hits: List~SensitiveHit~, is_pdf: bool, pdf_source: str) void
+        +display_hits(hits: List~SensitiveHit~, is_pdf: bool, pdf_source: str, cached_active_hits: list) void
         +get_selected_hits() List~SensitiveHit~
         +toggle_draw_mode() void
         +zoom_in() void

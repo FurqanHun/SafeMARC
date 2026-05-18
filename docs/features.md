@@ -20,8 +20,15 @@
 
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
-- [x] **Predefined & Dynamic Regional Patterns**: Pre-configured rules for common entities (Phone Numbers, CNICs/IDs, Credit Cards, IBANs) grouped by country regions (Global, Pakistan, United States, European Union). Regions can be checked/unchecked in the UI, and the document is instantly re-evaluated live.
-- [x] **Hybrid Confidence Scoring & Review Suggested State**: Matches found near context keywords are boosted to 95% confidence, while isolated matches default to 45% confidence. Hits falling below the customizable Auto-Redact cutoff are displayed with a warning amber outline and are initially unchecked, prompting explicit user review.
+- [x] **Predefined & Dynamic Regional Patterns**: Pre-configured rules for common entities grouped by country regions. The user can toggle these regions via the UI, instantly re-evaluating matches:
+  - **Global**: Credit Card numbers (Visa, Mastercard, Amex, etc.), Email Addresses, IPv4 Addresses.
+  - **Pakistan**: National Identity Card (CNIC), Phone Numbers, Passports, Driving Licenses, and Vehicle Registration Plates.
+  - **United States**: Social Security Numbers (SSN), Phone Numbers, Zip Codes, and Driver's Licenses.
+  - **European Union**: IBAN Bank Account numbers, VAT Registration Numbers.
+  - **India**: Aadhaar Card numbers, Phone Numbers, PAN Card numbers, and Driving Licenses.
+  - **United Kingdom**: National Insurance Numbers (NINO), Phone Numbers.
+- [x] **Algorithmic Verification & Mod-97 Checksum**: Employs mathematical structural validation (e.g. ISO 7064 mod-97 checksum checks for IBAN accounts) to immediately discard invalid OCR text matches.
+- [x] **Context Proximity & Review Suggested State**: Matches found near context keywords are boosted to 90% or 95% confidence. Isolated ambiguous matches (like Zip Codes, IPs) default to 30% confidence, while high-value targets (SSN, Aadhaar) lacking surrounding context keywords drop to 25% confidence, keeping them review-suggested and hidden from automatic selection by default.
 - [x] **Custom Pattern Import/Export**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines, with seamless serialization/deserialization to `.json` files.
   * **Example Custom Pattern JSON Format**:
     ```json
@@ -59,6 +66,7 @@
 - [x] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item.
 - [x] **Global Output Folder & Clipboard Safety**: Configuration to specify a custom global folder for all redactions. Clipboard-pasted files automatically redirect here to prevent loss in system temporary directories.
 - [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
+- [x] **State Selections & Checkbox Persistence**: Keeps the exact checked/unchecked state of all AI detections and manually added bounding boxes perfectly synchronized and persistent across queue navigation (back, next, skip) and settings/pattern rescans.
 
 ## Biometric Identity Editor
 - [x] **Interactive 1:1 Aspect-Ratio Crop Editor**: Crop uploaded reference faces with a locked 1:1 aspect ratio, interactive resize handles, transparent helper labels, and automatic face detection fallback.

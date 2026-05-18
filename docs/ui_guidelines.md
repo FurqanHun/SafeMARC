@@ -60,3 +60,20 @@ Do not use standard emojis or built-in Qt icons. Instead, utilize raw inline str
 SVG_SETTINGS = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3F4F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">...</svg>'''
 btn_settings.setIcon(svg_to_icon(SVG_SETTINGS))
 ```
+
+### Premium Visual Feedback & Cursors
+
+1. **Custom Hand Cursors**: To maximize tactile engagement, any interactive component—including buttons, checkboxes, comboboxes, list items, and reference image thumbnail close icons—must be set with a pointing hand cursor:
+   ```python
+   widget.setCursor(Qt.PointingHandCursor)
+   ```
+2. **Dynamic Loading Overlays**: When computationally heavy detection or retraining is running, a semi-transparent, dark `LoadingOverlay` containing a custom rotating spinner and clear, user-friendly labels (e.g., *"Scanning document..."*, *"Retraining face recognition model..."*) must lock the preview/dialog area to prevent duplicate submissions and provide immediate visual progress.
+3. **Interactive 1:1 Aspect-Ratio Crop Editor**: When cropping face references inside `FaceCropDialog`, always lock the crop selection to a 1:1 square ratio with responsive, translucent drag handles. The system must also auto-detect the face region via cascades to pre-focus the crop selection for the user.
+
+### Bounding Box Color Coding & Review Suggested States
+
+To make manual review of automatic detections perfectly clear and visual, redactable regions are drawn with color-coded borders and translucent fills:
+- **High-Confidence AI Hit / Custom Manual Box** (`confidence` $\ge$ threshold): Solid Ruby Red (`#FF0000`, opacity: 50%, thickness: 3). Automatically selected for redaction.
+- **Biometric Known Identity Match**: Solid Emerald Green (`#10B981`, opacity: 50%, thickness: 3) with a floating text label showing the matched person's name.
+- **Low-Confidence / Ambiguous Text Match** (falls below the auto-redact cutoff): Solid Amber (`#F59E0B`, opacity: 50%, thickness: 3) if explicitly checked by the user; otherwise, a dashed Amber border (`#F59E0B`, opacity: 15%, thickness: 2) in the "Review Suggested" unchecked state, requesting user confirmation.
+- **Deselected Hit**: Dashed Grey (`#646464`, opacity: 0% / transparent fill, thickness: 2). Hit is ignored and will not be redacted when saving.

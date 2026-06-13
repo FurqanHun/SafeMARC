@@ -856,25 +856,25 @@ class SafeMARCMainWindow(QMainWindow):
         # Shortcuts
         from PySide6.QtGui import QShortcut
         self.shortcut_draw = QShortcut(QKeySequence("D"), self)
-        self.shortcut_draw.activated.connect(self.btn_draw_mode.click)
+        self.shortcut_draw.activated.connect(self._on_shortcut_draw)
 
         self.shortcut_persistent = QShortcut(QKeySequence("Shift+D"), self)
-        self.shortcut_persistent.activated.connect(self.btn_persistent_mode.click)
+        self.shortcut_persistent.activated.connect(self._on_shortcut_persistent)
 
         self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl+="), self)
-        self.shortcut_zoom_in.activated.connect(self.preview_widget.zoom_in)
+        self.shortcut_zoom_in.activated.connect(self._on_shortcut_zoom_in)
 
         self.shortcut_zoom_in2 = QShortcut(QKeySequence("Ctrl++"), self)
-        self.shortcut_zoom_in2.activated.connect(self.preview_widget.zoom_in)
+        self.shortcut_zoom_in2.activated.connect(self._on_shortcut_zoom_in)
 
         self.shortcut_zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
-        self.shortcut_zoom_out.activated.connect(self.preview_widget.zoom_out)
+        self.shortcut_zoom_out.activated.connect(self._on_shortcut_zoom_out)
 
         self.shortcut_zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
-        self.shortcut_zoom_reset.activated.connect(self.preview_widget.reset_zoom)
+        self.shortcut_zoom_reset.activated.connect(self._on_shortcut_zoom_reset)
 
         self.shortcut_rescan = QShortcut(QKeySequence("F5"), self)
-        self.shortcut_rescan.activated.connect(self._rescan_current)
+        self.shortcut_rescan.activated.connect(self._on_shortcut_rescan)
 
         # Action Buttons
         actions_layout = QHBoxLayout()
@@ -1003,46 +1003,46 @@ class SafeMARCMainWindow(QMainWindow):
         # Batch Navigation Shortcuts
         from PySide6.QtGui import QShortcut
         self.shortcut_start_redact = QShortcut(QKeySequence("Return"), self)
-        self.shortcut_start_redact.activated.connect(self.on_return_pressed)
+        self.shortcut_start_redact.activated.connect(self._on_shortcut_start_redact)
         
         self.shortcut_start_redact_ent = QShortcut(QKeySequence("Enter"), self)
-        self.shortcut_start_redact_ent.activated.connect(self.on_return_pressed)
+        self.shortcut_start_redact_ent.activated.connect(self._on_shortcut_start_redact)
 
         # Skip Shortcuts (Space or S)
         self.shortcut_skip_space = QShortcut(QKeySequence("Space"), self)
-        self.shortcut_skip_space.activated.connect(self.btn_skip.click)
+        self.shortcut_skip_space.activated.connect(self._on_shortcut_skip)
 
         self.shortcut_skip_s = QShortcut(QKeySequence("S"), self)
-        self.shortcut_skip_s.activated.connect(self.btn_skip.click)
+        self.shortcut_skip_s.activated.connect(self._on_shortcut_skip)
 
         # Previous Shortcuts (Backspace or P)
         self.shortcut_prev_bs = QShortcut(QKeySequence("Backspace"), self)
-        self.shortcut_prev_bs.activated.connect(self.btn_previous.click)
+        self.shortcut_prev_bs.activated.connect(self._on_shortcut_previous)
 
         self.shortcut_prev_p = QShortcut(QKeySequence("P"), self)
-        self.shortcut_prev_p.activated.connect(self.btn_previous.click)
+        self.shortcut_prev_p.activated.connect(self._on_shortcut_previous)
 
         self.shortcut_escape = QShortcut(QKeySequence("Escape"), self)
-        self.shortcut_escape.activated.connect(self.on_escape_pressed)
+        self.shortcut_escape.activated.connect(self._on_shortcut_escape)
 
         # Global Application Shortcuts
         self.shortcut_add_file = QShortcut(QKeySequence("Ctrl+O"), self)
-        self.shortcut_add_file.activated.connect(self.add_files)
+        self.shortcut_add_file.activated.connect(self._on_shortcut_add_file)
 
         self.shortcut_add_folder = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
-        self.shortcut_add_folder.activated.connect(self.add_folder)
+        self.shortcut_add_folder.activated.connect(self._on_shortcut_add_folder)
 
         self.shortcut_remove_file = QShortcut(QKeySequence("Delete"), self)
-        self.shortcut_remove_file.activated.connect(self.remove_selected_file)
+        self.shortcut_remove_file.activated.connect(self._on_shortcut_remove_file)
 
         self.shortcut_settings = QShortcut(QKeySequence("Ctrl+,"), self)
-        self.shortcut_settings.activated.connect(self.open_settings)
+        self.shortcut_settings.activated.connect(self._on_shortcut_settings)
 
         self.shortcut_clear_queue = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
-        self.shortcut_clear_queue.activated.connect(self.clear_queue)
+        self.shortcut_clear_queue.activated.connect(self._on_shortcut_clear_queue)
 
         self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
-        self.shortcut_paste.activated.connect(self.on_paste)
+        self.shortcut_paste.activated.connect(self._on_shortcut_paste)
 
         sidebar_widget.setMinimumWidth(200)
         preview_container.setMinimumWidth(300)
@@ -1057,7 +1057,7 @@ class SafeMARCMainWindow(QMainWindow):
         QTimer.singleShot(50, self._apply_default_splitter_sizes)
 
         self.shortcut_reset_layout = QShortcut(QKeySequence("Ctrl+Alt+R"), self)
-        self.shortcut_reset_layout.activated.connect(self._apply_default_splitter_sizes)
+        self.shortcut_reset_layout.activated.connect(self._on_shortcut_reset_layout)
 
         self.current_file_path = None
         self.user_selections_cache = {}
@@ -1136,6 +1136,106 @@ class SafeMARCMainWindow(QMainWindow):
         if self.btn_persistent_mode.isChecked():
             self.btn_persistent_mode.setChecked(False)
             self.preview_widget.set_persistent_mode(False)
+
+    def _is_input_focused(self):
+        if QApplication.activeModalWidget() is not None:
+            return True
+        focused = QApplication.focusWidget()
+        if not focused:
+            return False
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        return isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit))
+
+    def _on_shortcut_draw(self):
+        if self._is_input_focused():
+            return
+        self.btn_draw_mode.click()
+
+    def _on_shortcut_persistent(self):
+        if self._is_input_focused():
+            return
+        self.btn_persistent_mode.click()
+
+    def _on_shortcut_zoom_in(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.zoom_in()
+
+    def _on_shortcut_zoom_out(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.zoom_out()
+
+    def _on_shortcut_zoom_reset(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.reset_zoom()
+
+    def _on_shortcut_rescan(self):
+        if self._is_input_focused():
+            return
+        self._rescan_current()
+
+    def _on_shortcut_start_redact(self):
+        self.on_return_pressed()
+
+    def _on_shortcut_skip(self):
+        if self._is_input_focused():
+            return
+        if self.btn_skip.isVisible() and self.btn_skip.isEnabled():
+            self.btn_skip.click()
+
+    def _on_shortcut_previous(self):
+        if self._is_input_focused():
+            return
+        if self.btn_previous.isVisible() and self.btn_previous.isEnabled():
+            self.btn_previous.click()
+
+    def _on_shortcut_escape(self):
+        focused = QApplication.focusWidget()
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        if focused and isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            focused.clearFocus()
+            return
+        self.on_escape_pressed()
+
+    def _on_shortcut_add_file(self):
+        if self._is_input_focused():
+            return
+        self.add_files()
+
+    def _on_shortcut_add_folder(self):
+        if self._is_input_focused():
+            return
+        self.add_folder()
+
+    def _on_shortcut_remove_file(self):
+        if self._is_input_focused():
+            return
+        self.remove_selected_file()
+
+    def _on_shortcut_settings(self):
+        if self._is_input_focused():
+            return
+        self.open_settings()
+
+    def _on_shortcut_clear_queue(self):
+        if self._is_input_focused():
+            return
+        self.clear_queue()
+
+    def _on_shortcut_paste(self):
+        focused = QApplication.focusWidget()
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        if focused and isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            focused.paste()
+            return
+        self.on_paste()
+
+    def _on_shortcut_reset_layout(self):
+        if self._is_input_focused():
+            return
+        self._apply_default_splitter_sizes()
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

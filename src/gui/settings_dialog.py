@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView, QSlider
-from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint
+from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint, Signal
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
 from src.core.identity_manager import IdentityManager
 import os
@@ -16,6 +16,188 @@ def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
 
 
 SVG_CLOSE = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'''
+
+SVG_RESET = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>'''
+
+DEFAULT_SHORTCUTS = {
+    "add_file": "Ctrl+O",
+    "add_folder": "Ctrl+Shift+O",
+    "remove_file": "Delete",
+    "clear_queue": "Ctrl+Shift+C",
+    "settings": "Ctrl+,",
+    "paste": "Ctrl+V",
+    "reset_layout": "Ctrl+Alt+R",
+    "zoom_in": "Ctrl+=",
+    "zoom_in_alt": "Ctrl++",
+    "zoom_out": "Ctrl+-",
+    "zoom_reset": "Ctrl+0",
+    "toggle_draw": "D",
+    "toggle_persistent": "Shift+D",
+    "rescan": "F5",
+    "redact_next": "Return",
+    "redact_next_alt": "Enter",
+    "skip_s": "S",
+    "skip_space": "Space",
+    "previous_p": "P",
+    "previous_bs": "Backspace",
+    "escape": "Escape",
+    "hit_next": "Right",
+    "hit_prev": "Left",
+    "hit_toggle": "C"
+}
+
+SHORTCUT_METADATA = {
+    "add_file": {"label": "Add Files", "category": "General", "default": "Ctrl+O"},
+    "add_folder": {"label": "Add Folder", "category": "General", "default": "Ctrl+Shift+O"},
+    "remove_file": {"label": "Remove Selected File", "category": "General", "default": "Delete"},
+    "clear_queue": {"label": "Clear Queue", "category": "General", "default": "Ctrl+Shift+C"},
+    "settings": {"label": "Open Settings", "category": "General", "default": "Ctrl+,"},
+    "paste": {"label": "Paste from Clipboard", "category": "General", "default": "Ctrl+V"},
+    "reset_layout": {"label": "Reset Splitter Layout", "category": "General", "default": "Ctrl+Alt+R"},
+    
+    "zoom_in": {"label": "Zoom In (Primary)", "category": "Zoom & Navigation", "default": "Ctrl+="},
+    "zoom_in_alt": {"label": "Zoom In (Alternative)", "category": "Zoom & Navigation", "default": "Ctrl++"},
+    "zoom_out": {"label": "Zoom Out", "category": "Zoom & Navigation", "default": "Ctrl+-"},
+    "zoom_reset": {"label": "Reset Zoom", "category": "Zoom & Navigation", "default": "Ctrl+0"},
+    
+    "toggle_draw": {"label": "Toggle Draw Mode", "category": "Review Actions", "default": "D"},
+    "toggle_persistent": {"label": "Toggle Persistent Draw Mode", "category": "Review Actions", "default": "Shift+D"},
+    "rescan": {"label": "Rescan Current File", "category": "Review Actions", "default": "F5"},
+    
+    "redact_next": {"label": "Redact & Next (Primary)", "category": "Batch Workflow", "default": "Return"},
+    "redact_next_alt": {"label": "Redact & Next (Alternative)", "category": "Batch Workflow", "default": "Enter"},
+    "skip_s": {"label": "Skip Item (Primary Key)", "category": "Batch Workflow", "default": "S"},
+    "skip_space": {"label": "Skip / Toggle Box (Space)", "category": "Batch Workflow", "default": "Space"},
+    "previous_p": {"label": "Previous Item (Primary Key)", "category": "Batch Workflow", "default": "P"},
+    "previous_bs": {"label": "Previous Item (Alternative Key)", "category": "Batch Workflow", "default": "Backspace"},
+    "escape": {"label": "Stop Review / Cancel", "category": "Batch Workflow", "default": "Escape"},
+    
+    "hit_next": {"label": "Focus Next Box", "category": "Sensitive Box Keyboard Selection", "default": "Right"},
+    "hit_prev": {"label": "Focus Previous Box", "category": "Sensitive Box Keyboard Selection", "default": "Left"},
+    "hit_toggle": {"label": "Toggle Selected State", "category": "Sensitive Box Keyboard Selection", "default": "C"}
+}
+
+class ShortcutRebindButton(QPushButton):
+    keySequenceChanged = Signal(str)
+
+    def __init__(self, current_sequence: str, parent=None):
+        super().__init__(current_sequence, parent)
+        self.current_sequence = current_sequence
+        self.is_listening = False
+        self.setCursor(Qt.PointingHandCursor)
+        self.setCheckable(True)
+        self.clicked.connect(self._on_clicked)
+        self.update_style()
+
+    def update_style(self):
+        if self.is_listening:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #10B981;
+                    color: #FFFFFF;
+                    border: 1px solid #10B981;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 13px;
+                    min-width: 120px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #1F2937;
+                    color: #F3F4F6;
+                    border: 1px solid #374151;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 13px;
+                    min-width: 120px;
+                }
+                QPushButton:hover {
+                    background-color: #374151;
+                    border-color: #10B981;
+                    color: #FFFFFF;
+                }
+            """)
+
+    def _on_clicked(self):
+        if self.isChecked():
+            self.is_listening = True
+            self.setText("Press any key...")
+            self.update_style()
+            self.grabKeyboard()
+        else:
+            self.is_listening = False
+            self.setText(self.current_sequence)
+            self.update_style()
+            self.releaseKeyboard()
+
+    def keyPressEvent(self, event):
+        if self.is_listening:
+            key = event.key()
+            if key in (Qt.Key_unknown, Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta):
+                return
+
+            modifiers = event.modifiers()
+            key_seq = []
+            if modifiers & Qt.ControlModifier:
+                key_seq.append("Ctrl")
+            if modifiers & Qt.ShiftModifier:
+                key_seq.append("Shift")
+            if modifiers & Qt.AltModifier:
+                key_seq.append("Alt")
+            if modifiers & Qt.MetaModifier:
+                key_seq.append("Meta")
+
+            from PySide6.QtGui import QKeySequence
+            key_text = QKeySequence(key).toString()
+            if key_text:
+                if key == Qt.Key_Left:
+                    key_text = "Left"
+                elif key == Qt.Key_Right:
+                    key_text = "Right"
+                elif key == Qt.Key_Up:
+                    key_text = "Up"
+                elif key == Qt.Key_Down:
+                    key_text = "Down"
+                elif key == Qt.Key_Space:
+                    key_text = "Space"
+                elif key == Qt.Key_Return or key == Qt.Key_Enter:
+                    key_text = "Return" if key == Qt.Key_Return else "Enter"
+                elif key == Qt.Key_Backspace:
+                    key_text = "Backspace"
+                elif key == Qt.Key_Escape:
+                    key_text = "Escape"
+                elif key == Qt.Key_Delete:
+                    key_text = "Delete"
+                
+                key_seq.append(key_text)
+            else:
+                return
+
+            new_seq = "+".join(key_seq)
+            self.current_sequence = new_seq
+            self.setText(new_seq)
+            self.setChecked(False)
+            self.is_listening = False
+            self.update_style()
+            self.releaseKeyboard()
+            self.keySequenceChanged.emit(new_seq)
+        else:
+            super().keyPressEvent(event)
+
+    def focusOutEvent(self, event):
+        if self.is_listening:
+            self.setChecked(False)
+            self.is_listening = False
+            self.setText(self.current_sequence)
+            self.update_style()
+            self.releaseKeyboard()
+        super().focusOutEvent(event)
 
 class SettingsDialog(QDialog):
     def __init__(self, scanner, parent=None):
@@ -490,6 +672,12 @@ class SettingsDialog(QDialog):
 
         model_layout.addStretch()
         self.tabs.addTab(self.tab_model, "Model Settings")
+
+        # Tab 4: Shortcuts
+        self.tab_shortcuts = QWidget()
+        self.tab_shortcuts.setStyleSheet("background-color: #111827; border: none;")
+        self._init_shortcuts_tab()
+        self.tabs.addTab(self.tab_shortcuts, "Shortcuts")
         
         # Close Button
         btn_layout = QHBoxLayout()
@@ -751,6 +939,209 @@ class SettingsDialog(QDialog):
                 self.lbl_status.setText("")
                 self.setEnabled(True)
                 QApplication.restoreOverrideCursor()
+
+    def _init_shortcuts_tab(self):
+        layout = QVBoxLayout(self.tab_shortcuts)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        lbl_title = QLabel("Keyboard Shortcut Configuration")
+        lbl_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #10B981;")
+        layout.addWidget(lbl_title)
+
+        lbl_desc = QLabel("Customize SafeMARC's keyboard-driven workflow. Click any shortcut value to rebind it by pressing your new key combination.")
+        lbl_desc.setWordWrap(True)
+        lbl_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 5px;")
+        layout.addWidget(lbl_desc)
+
+        # Conflict warning label (hidden by default)
+        self.lbl_shortcut_conflict = QLabel("")
+        self.lbl_shortcut_conflict.setWordWrap(True)
+        self.lbl_shortcut_conflict.setStyleSheet("color: #E11D48; font-size: 12px; font-weight: bold;")
+        self.lbl_shortcut_conflict.setVisible(False)
+        layout.addWidget(self.lbl_shortcut_conflict)
+
+        # Scroll Area for shortcuts
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea { border: 1px solid #374151; border-radius: 8px; background-color: #111827; }
+            QScrollBar:vertical { background: #111827; width: 8px; }
+            QScrollBar::handle:vertical { background: #374151; border-radius: 4px; }
+            QScrollBar::handle:vertical:hover { background: #4B5563; }
+        """)
+        
+        scroll_widget = QWidget()
+        scroll_widget.setStyleSheet("background-color: #111827;")
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setContentsMargins(10, 10, 10, 10)
+        scroll_layout.setSpacing(15)
+
+        # Group by categories
+        categories = ["General", "Review Actions", "Zoom & Navigation", "Batch Workflow", "Sensitive Box Keyboard Selection"]
+        
+        # Keep track of rebind buttons
+        self.shortcut_buttons = {}
+
+        for cat in categories:
+            cat_widget = QWidget()
+            cat_widget.setObjectName("shortcutCategoryCard")
+            cat_widget.setStyleSheet("""
+                QWidget#shortcutCategoryCard {
+                    background-color: #1F2937;
+                    border: 1px solid #374151;
+                    border-radius: 8px;
+                }
+                QLabel { background: transparent; }
+            """)
+            cat_layout = QVBoxLayout(cat_widget)
+            cat_layout.setContentsMargins(12, 12, 12, 12)
+            cat_layout.setSpacing(10)
+
+            cat_title = QLabel(cat)
+            cat_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981;")
+            cat_layout.addWidget(cat_title)
+
+            # Grid for shortcuts in this category
+            grid = QGridLayout()
+            grid.setSpacing(8)
+            grid.setColumnStretch(0, 1) # Action label takes all space
+            grid.setColumnStretch(1, 0) # Button takes min space
+            grid.setColumnStretch(2, 0) # Reset button takes min space
+
+            row = 0
+            for key, meta in SHORTCUT_METADATA.items():
+                if meta["category"] != cat:
+                    continue
+
+                lbl_action = QLabel(meta["label"])
+                lbl_action.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500;")
+
+                # Load current value
+                current_val = self.settings.value(f"shortcut_{key}", meta["default"])
+
+                btn_rebind = ShortcutRebindButton(current_val)
+                btn_rebind.keySequenceChanged.connect(lambda seq, k=key: self._on_shortcut_changed(k, seq))
+                self.shortcut_buttons[key] = btn_rebind
+
+                btn_reset = QPushButton()
+                btn_reset.setIcon(svg_to_icon(SVG_RESET, 12))
+                btn_reset.setIconSize(QSize(12, 12))
+                btn_reset.setToolTip("Reset to Default")
+                btn_reset.setCursor(Qt.PointingHandCursor)
+                btn_reset.setStyleSheet("""
+                    QPushButton {
+                        background-color: #1F2937;
+                        border: 1px solid #374151;
+                        border-radius: 6px;
+                        padding: 6px;
+                    }
+                    QPushButton:hover {
+                        background-color: #374151;
+                        border-color: #E11D48;
+                    }
+                """)
+                btn_reset.clicked.connect(lambda _, k=key, d=meta["default"]: self._on_shortcut_reset(k, d))
+
+                grid.addWidget(lbl_action, row, 0)
+                grid.addWidget(btn_rebind, row, 1)
+                grid.addWidget(btn_reset, row, 2)
+                row += 1
+
+            cat_layout.addLayout(grid)
+            scroll_layout.addWidget(cat_widget)
+
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        # Global Reset All Button
+        self.btn_reset_all_shortcuts = QPushButton("Reset All Shortcuts to Defaults")
+        self.btn_reset_all_shortcuts.setCursor(Qt.PointingHandCursor)
+        self.btn_reset_all_shortcuts.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #E11D48;
+                color: #FFFFFF;
+            }
+        """)
+        self.btn_reset_all_shortcuts.clicked.connect(self._reset_all_shortcuts)
+        layout.addWidget(self.btn_reset_all_shortcuts, 0, Qt.AlignLeft)
+
+        # Check for initial conflicts
+        self._check_for_conflicts()
+
+    def _on_shortcut_changed(self, key: str, new_seq: str):
+        self.settings.setValue(f"shortcut_{key}", new_seq)
+        
+        # Propagate to MainWindow if it has the update method
+        if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
+            self.parent().update_shortcut_key(key, new_seq)
+            
+        self._check_for_conflicts()
+
+    def _on_shortcut_reset(self, key: str, default_seq: str):
+        self.settings.remove(f"shortcut_{key}") # Removes custom setting, returning to default
+        btn = self.shortcut_buttons[key]
+        btn.current_sequence = default_seq
+        btn.setText(default_seq)
+        btn.update_style()
+        
+        if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
+            self.parent().update_shortcut_key(key, default_seq)
+            
+        self._check_for_conflicts()
+
+    def _reset_all_shortcuts(self):
+        reply = QMessageBox.question(
+            self, "Reset Shortcuts",
+            "Are you sure you want to reset all keyboard shortcuts to their factory defaults?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            for key, meta in SHORTCUT_METADATA.items():
+                self.settings.remove(f"shortcut_{key}")
+                btn = self.shortcut_buttons[key]
+                btn.current_sequence = meta["default"]
+                btn.setText(meta["default"])
+                btn.update_style()
+                
+                if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
+                    self.parent().update_shortcut_key(key, meta["default"])
+            
+            self._check_for_conflicts()
+
+    def _check_for_conflicts(self):
+        # Scan self.shortcut_buttons for duplicates
+        seq_to_keys = {}
+        for key, btn in self.shortcut_buttons.items():
+            seq = btn.current_sequence.strip()
+            if seq:
+                if seq not in seq_to_keys:
+                    seq_to_keys[seq] = []
+                seq_to_keys[seq].append(key)
+
+        conflicts = []
+        for seq, keys in seq_to_keys.items():
+            if len(keys) > 1:
+                labels = [SHORTCUT_METADATA[k]["label"] for k in keys]
+                conflicts.append(f"'{seq}' is assigned to: " + ", ".join(labels))
+
+        if conflicts:
+            self.lbl_shortcut_conflict.setText("⚠️ Shortcut Conflict Detected:\n" + "\n".join(conflicts))
+            self.lbl_shortcut_conflict.setVisible(True)
+        else:
+            self.lbl_shortcut_conflict.setVisible(False)
 
 
 class InteractiveCropLabel(QLabel):

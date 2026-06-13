@@ -126,6 +126,14 @@ class SafeMARCMainWindow(QMainWindow):
         self.setGeometry(x, y, w, h)
         self.setAcceptDrops(True)
 
+        # Load Keyboard Shortcuts Configuration
+        from PySide6.QtCore import QSettings
+        from src.gui.settings_dialog import DEFAULT_SHORTCUTS
+        self.settings = QSettings("SafeMARC", "SafeMARC")
+        self.shortcuts_config = {}
+        for key, default_seq in DEFAULT_SHORTCUTS.items():
+            self.shortcuts_config[key] = self.settings.value(f"shortcut_{key}", default_seq)
+
         # Core Engines
         try:
             self.scanner = SafeScanner()
@@ -855,25 +863,25 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Shortcuts
         from PySide6.QtGui import QShortcut
-        self.shortcut_draw = QShortcut(QKeySequence("D"), self)
+        self.shortcut_draw = QShortcut(QKeySequence(self.shortcuts_config["toggle_draw"]), self)
         self.shortcut_draw.activated.connect(self._on_shortcut_draw)
 
-        self.shortcut_persistent = QShortcut(QKeySequence("Shift+D"), self)
+        self.shortcut_persistent = QShortcut(QKeySequence(self.shortcuts_config["toggle_persistent"]), self)
         self.shortcut_persistent.activated.connect(self._on_shortcut_persistent)
 
-        self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl+="), self)
+        self.shortcut_zoom_in = QShortcut(QKeySequence(self.shortcuts_config["zoom_in"]), self)
         self.shortcut_zoom_in.activated.connect(self._on_shortcut_zoom_in)
 
-        self.shortcut_zoom_in2 = QShortcut(QKeySequence("Ctrl++"), self)
+        self.shortcut_zoom_in2 = QShortcut(QKeySequence(self.shortcuts_config["zoom_in_alt"]), self)
         self.shortcut_zoom_in2.activated.connect(self._on_shortcut_zoom_in)
 
-        self.shortcut_zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
+        self.shortcut_zoom_out = QShortcut(QKeySequence(self.shortcuts_config["zoom_out"]), self)
         self.shortcut_zoom_out.activated.connect(self._on_shortcut_zoom_out)
 
-        self.shortcut_zoom_reset = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.shortcut_zoom_reset = QShortcut(QKeySequence(self.shortcuts_config["zoom_reset"]), self)
         self.shortcut_zoom_reset.activated.connect(self._on_shortcut_zoom_reset)
 
-        self.shortcut_rescan = QShortcut(QKeySequence("F5"), self)
+        self.shortcut_rescan = QShortcut(QKeySequence(self.shortcuts_config["rescan"]), self)
         self.shortcut_rescan.activated.connect(self._on_shortcut_rescan)
 
         # Action Buttons
@@ -1002,46 +1010,46 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Batch Navigation Shortcuts
         from PySide6.QtGui import QShortcut
-        self.shortcut_start_redact = QShortcut(QKeySequence("Return"), self)
+        self.shortcut_start_redact = QShortcut(QKeySequence(self.shortcuts_config["redact_next"]), self)
         self.shortcut_start_redact.activated.connect(self._on_shortcut_start_redact)
         
-        self.shortcut_start_redact_ent = QShortcut(QKeySequence("Enter"), self)
+        self.shortcut_start_redact_ent = QShortcut(QKeySequence(self.shortcuts_config["redact_next_alt"]), self)
         self.shortcut_start_redact_ent.activated.connect(self._on_shortcut_start_redact)
 
         # Skip Shortcuts (Space or S)
-        self.shortcut_skip_space = QShortcut(QKeySequence("Space"), self)
+        self.shortcut_skip_space = QShortcut(QKeySequence(self.shortcuts_config["skip_space"]), self)
         self.shortcut_skip_space.activated.connect(self._on_shortcut_skip_space)
 
-        self.shortcut_skip_s = QShortcut(QKeySequence("S"), self)
+        self.shortcut_skip_s = QShortcut(QKeySequence(self.shortcuts_config["skip_s"]), self)
         self.shortcut_skip_s.activated.connect(self._on_shortcut_skip_s)
 
         # Previous Shortcuts (Backspace or P)
-        self.shortcut_prev_bs = QShortcut(QKeySequence("Backspace"), self)
+        self.shortcut_prev_bs = QShortcut(QKeySequence(self.shortcuts_config["previous_bs"]), self)
         self.shortcut_prev_bs.activated.connect(self._on_shortcut_previous)
 
-        self.shortcut_prev_p = QShortcut(QKeySequence("P"), self)
+        self.shortcut_prev_p = QShortcut(QKeySequence(self.shortcuts_config["previous_p"]), self)
         self.shortcut_prev_p.activated.connect(self._on_shortcut_previous)
 
-        self.shortcut_escape = QShortcut(QKeySequence("Escape"), self)
+        self.shortcut_escape = QShortcut(QKeySequence(self.shortcuts_config["escape"]), self)
         self.shortcut_escape.activated.connect(self._on_shortcut_escape)
 
         # Global Application Shortcuts
-        self.shortcut_add_file = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.shortcut_add_file = QShortcut(QKeySequence(self.shortcuts_config["add_file"]), self)
         self.shortcut_add_file.activated.connect(self._on_shortcut_add_file)
 
-        self.shortcut_add_folder = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
+        self.shortcut_add_folder = QShortcut(QKeySequence(self.shortcuts_config["add_folder"]), self)
         self.shortcut_add_folder.activated.connect(self._on_shortcut_add_folder)
 
-        self.shortcut_remove_file = QShortcut(QKeySequence("Delete"), self)
+        self.shortcut_remove_file = QShortcut(QKeySequence(self.shortcuts_config["remove_file"]), self)
         self.shortcut_remove_file.activated.connect(self._on_shortcut_remove_file)
 
-        self.shortcut_settings = QShortcut(QKeySequence("Ctrl+,"), self)
+        self.shortcut_settings = QShortcut(QKeySequence(self.shortcuts_config["settings"]), self)
         self.shortcut_settings.activated.connect(self._on_shortcut_settings)
 
-        self.shortcut_clear_queue = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        self.shortcut_clear_queue = QShortcut(QKeySequence(self.shortcuts_config["clear_queue"]), self)
         self.shortcut_clear_queue.activated.connect(self._on_shortcut_clear_queue)
 
-        self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
+        self.shortcut_paste = QShortcut(QKeySequence(self.shortcuts_config["paste"]), self)
         self.shortcut_paste.activated.connect(self._on_shortcut_paste)
 
         sidebar_widget.setMinimumWidth(200)
@@ -1056,17 +1064,17 @@ class SafeMARCMainWindow(QMainWindow):
         self.splitter.setStretchFactor(2, 1)
         QTimer.singleShot(50, self._apply_default_splitter_sizes)
 
-        self.shortcut_reset_layout = QShortcut(QKeySequence("Ctrl+Alt+R"), self)
+        self.shortcut_reset_layout = QShortcut(QKeySequence(self.shortcuts_config["reset_layout"]), self)
         self.shortcut_reset_layout.activated.connect(self._on_shortcut_reset_layout)
 
         # Hit Navigation/Toggle Shortcuts
-        self.shortcut_hit_next = QShortcut(QKeySequence("Right"), self)
+        self.shortcut_hit_next = QShortcut(QKeySequence(self.shortcuts_config["hit_next"]), self)
         self.shortcut_hit_next.activated.connect(self._on_shortcut_hit_next)
 
-        self.shortcut_hit_prev = QShortcut(QKeySequence("Left"), self)
+        self.shortcut_hit_prev = QShortcut(QKeySequence(self.shortcuts_config["hit_prev"]), self)
         self.shortcut_hit_prev.activated.connect(self._on_shortcut_hit_prev)
 
-        self.shortcut_hit_toggle = QShortcut(QKeySequence("C"), self)
+        self.shortcut_hit_toggle = QShortcut(QKeySequence(self.shortcuts_config["hit_toggle"]), self)
         self.shortcut_hit_toggle.activated.connect(self._on_shortcut_hit_toggle)
 
         self.current_file_path = None
@@ -1271,6 +1279,45 @@ class SafeMARCMainWindow(QMainWindow):
         if self._is_input_focused():
             return
         self._apply_default_splitter_sizes()
+
+    def update_shortcut_key(self, action_name: str, new_sequence: str):
+        """Dynamically update key sequence of QShortcut objects in MainWindow."""
+        self.shortcuts_config[action_name] = new_sequence
+        
+        # Mapping from config key to self.shortcut_* attribute name(s)
+        shortcut_mapping = {
+            "add_file": ["shortcut_add_file"],
+            "add_folder": ["shortcut_add_folder"],
+            "remove_file": ["shortcut_remove_file"],
+            "clear_queue": ["shortcut_clear_queue"],
+            "settings": ["shortcut_settings"],
+            "paste": ["shortcut_paste"],
+            "reset_layout": ["shortcut_reset_layout"],
+            "zoom_in": ["shortcut_zoom_in"],
+            "zoom_in_alt": ["shortcut_zoom_in2"],
+            "zoom_out": ["shortcut_zoom_out"],
+            "zoom_reset": ["shortcut_zoom_reset"],
+            "toggle_draw": ["shortcut_draw"],
+            "toggle_persistent": ["shortcut_persistent"],
+            "rescan": ["shortcut_rescan"],
+            "redact_next": ["shortcut_start_redact"],
+            "redact_next_alt": ["shortcut_start_redact_ent"],
+            "skip_s": ["shortcut_skip_s"],
+            "skip_space": ["shortcut_skip_space"],
+            "previous_p": ["shortcut_prev_p"],
+            "previous_bs": ["shortcut_prev_bs"],
+            "escape": ["shortcut_escape"],
+            "hit_next": ["shortcut_hit_next"],
+            "hit_prev": ["shortcut_hit_prev"],
+            "hit_toggle": ["shortcut_hit_toggle"]
+        }
+        
+        from PySide6.QtGui import QKeySequence
+        if action_name in shortcut_mapping:
+            for attr_name in shortcut_mapping[action_name]:
+                shortcut_obj = getattr(self, attr_name, None)
+                if shortcut_obj:
+                    shortcut_obj.setKey(QKeySequence(new_sequence))
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

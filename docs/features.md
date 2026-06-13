@@ -79,7 +79,7 @@
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.
 - [x] **Premium UI/UX Polish**: Premium unified deep-dark `#0B0F19` canvas, custom `NewIdentityDialog` with matching aesthetics (including Enter-key Save/Default support), global transparent labels, and tactile `PointingHandCursor` feedback on all interactive components (buttons, checkboxes, comboboxes, menus, and list items).
 - [x] **Keyboard-Driven Workflow**: Fully complete and safety-guarded keyboard navigation. Navigate queue, toggle Draw/Persist modes, and use `Left`/`Right` arrow keys to cycle focus on detected bounding boxes, toggling them with `Space`/`C`. All shortcuts are automatically bypassed when input fields are active or modal dialogs are open to prevent conflicts.
-- [ ] **Rebindable Shortcuts Settings**: Settings panel to allow users to fully customize and rebind keys (Planned).
+- [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 24 keyboard shortcuts using QSettings.
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.

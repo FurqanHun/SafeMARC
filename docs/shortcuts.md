@@ -1,6 +1,6 @@
 # SafeMARC Keyboard Shortcuts
 
-Keep this guide handy to navigate and redact your files with high efficiency using SafeMARC's keyboard-driven workflow.
+SafeMARC's keyboard-driven workflow enables highly efficient document review. All keyboard shortcuts listed below can be fully customized and rebound to your preferred key combinations in **Settings** (`Ctrl` + `,`) under the **Shortcuts** tab. Custom combinations persist across application restarts.
 
 ## General Shortcuts
 | Action | Shortcut | Description |

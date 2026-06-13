@@ -1062,8 +1062,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = False
         self.batch_index = -1
         self.batch_success_count = 0
-        if self.scanner:
-            self.scanner.clear_cache()
         self.cleanup_temp_resources(full=False)
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
@@ -2034,8 +2032,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = True
         self.batch_index = 0
         self.batch_success_count = 0
-        if self.scanner:
-            self.scanner.clear_cache()
         self.file_list.setEnabled(False)
         
         # Update UI state

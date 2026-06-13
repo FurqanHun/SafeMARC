@@ -20,7 +20,6 @@ class Redactor:
             print(f"❌ Error: Could not read image at {input_path}")
             return False
 
-        # Iterate through all hits and paint
         for hit in hits:
             # Draw solid black rectangle (-1 fills it)
             cv2.rectangle(

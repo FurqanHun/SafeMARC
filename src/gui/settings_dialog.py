@@ -304,7 +304,6 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
         
-        # Tab 1: General (Current settings)
         self.settings = QSettings("SafeMARC", "SafeMARC")
         default_out = self.settings.value("global_output_dir", "")
         if not default_out:
@@ -393,12 +392,10 @@ class SettingsDialog(QDialog):
         gen_layout.addStretch()
         self.tabs.addTab(self.tab_general, "General")
         
-        # Tab 2: Identities
         self.tab_identities = QWidget()
         self.tab_identities.setStyleSheet("background-color: #111827; border: none;")
         id_layout = QHBoxLayout(self.tab_identities)
         
-        # Left: People List
         left_panel = QVBoxLayout()
         self.list_people = QListWidget()
         self.list_people.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -489,7 +486,6 @@ class SettingsDialog(QDialog):
         
         id_layout.addLayout(left_panel, 1)
         
-        # Right: Thumbnails
         right_panel = QVBoxLayout()
         lbl_ref = QLabel("Reference Images")
         lbl_ref.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
@@ -560,7 +556,6 @@ class SettingsDialog(QDialog):
         
         self.tabs.addTab(self.tab_identities, "Identities")
         
-        # Tab 3: Model Settings
         self.tab_model = QWidget()
         self.tab_model.setStyleSheet("background-color: #111827; border: none;")
         model_layout = QVBoxLayout(self.tab_model)
@@ -575,8 +570,6 @@ class SettingsDialog(QDialog):
         lbl_model_desc.setWordWrap(True)
         lbl_model_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 10px;")
         model_layout.addWidget(lbl_model_desc)
-
-        # 1. Face Detection Slider
         fd_box = QHBoxLayout()
         lbl_fd = QLabel("Face Detection Threshold:")
         lbl_fd.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
@@ -598,7 +591,6 @@ class SettingsDialog(QDialog):
         fd_box.addWidget(self.lbl_fd_val)
         model_layout.addLayout(fd_box)
 
-        # 2. Face Matching Slider
         fm_box = QHBoxLayout()
         lbl_fm = QLabel("Face Matching Similarity:")
         lbl_fm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
@@ -620,7 +612,6 @@ class SettingsDialog(QDialog):
         fm_box.addWidget(self.lbl_fm_val)
         model_layout.addLayout(fm_box)
 
-        # 3. Text Match Slider
         tm_box = QHBoxLayout()
         lbl_tm = QLabel("Text Auto-Redact Cutoff:")
         lbl_tm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
@@ -641,7 +632,6 @@ class SettingsDialog(QDialog):
         tm_box.addWidget(self.lbl_tm_val)
         model_layout.addLayout(tm_box)
 
-        # Reset to Defaults Button
         self.btn_reset_model = QPushButton("Reset to Defaults")
         self.btn_reset_model.setCursor(Qt.PointingHandCursor)
         self.btn_reset_model.setStyleSheet("""
@@ -679,9 +669,6 @@ class SettingsDialog(QDialog):
         self._init_shortcuts_tab()
         self.tabs.addTab(self.tab_shortcuts, "Shortcuts")
         
-        # Close Button
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
         self.close_btn = QPushButton("Close")
         self.close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(self.close_btn)
@@ -954,14 +941,12 @@ class SettingsDialog(QDialog):
         lbl_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 5px;")
         layout.addWidget(lbl_desc)
 
-        # Conflict warning label (hidden by default)
         self.lbl_shortcut_conflict = QLabel("")
         self.lbl_shortcut_conflict.setWordWrap(True)
         self.lbl_shortcut_conflict.setStyleSheet("color: #E11D48; font-size: 12px; font-weight: bold;")
         self.lbl_shortcut_conflict.setVisible(False)
         layout.addWidget(self.lbl_shortcut_conflict)
 
-        # Scroll Area for shortcuts
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("""
@@ -977,10 +962,8 @@ class SettingsDialog(QDialog):
         scroll_layout.setContentsMargins(10, 10, 10, 10)
         scroll_layout.setSpacing(15)
 
-        # Group by categories
         categories = ["General", "Review Actions", "Zoom & Navigation", "Batch Workflow", "Sensitive Box Keyboard Selection"]
         
-        # Keep track of rebind buttons
         self.shortcut_buttons = {}
 
         for cat in categories:
@@ -1017,7 +1000,6 @@ class SettingsDialog(QDialog):
                 lbl_action = QLabel(meta["label"])
                 lbl_action.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500;")
 
-                # Load current value
                 current_val = self.settings.value(f"shortcut_{key}", meta["default"])
 
                 btn_rebind = ShortcutRebindButton(current_val)

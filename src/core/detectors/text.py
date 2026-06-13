@@ -10,7 +10,7 @@ from src.core.types import SensitiveHit
 
 class RegexDetector(BaseDetector):
     def __init__(self):
-        # We will store a list of dicts: {"label": str, "pattern": compiled_re}
+        # Store list of custom patterns: {"label": str, "pattern": compiled_re}
         self.custom_patterns = []
         # Cache for currently loaded image/page to make real-time updates instantaneous
         self.cached_image_path = None
@@ -25,7 +25,7 @@ class RegexDetector(BaseDetector):
                 # Use lookarounds to ensure it's not surrounded by word characters
                 pattern = r'(?<!\w)' + pattern + r'(?!\w)'
             
-        # We compile with re.IGNORECASE for user convenience
+        # Compile with re.IGNORECASE for user convenience
         try:
             compiled = re.compile(pattern, re.IGNORECASE)
             self.custom_patterns.append({
@@ -43,7 +43,7 @@ class RegexDetector(BaseDetector):
         if not self.custom_patterns:
             return []
             
-        # Check if we can reuse the cached word-extraction dictionaries for the active page
+        # Reuse the cached word-extraction dictionaries if the active page matches
         if (image_path == self.cached_image_path and 
             (pdf_words is self.cached_pdf_words or 
              (pdf_words is not None and self.cached_pdf_words is not None and len(pdf_words) == len(self.cached_pdf_words)))):
@@ -71,7 +71,7 @@ class RegexDetector(BaseDetector):
                 for w in pdf_words:
                     x0, y0, x1, y1, word_text, block_no, line_no, word_no = w
                     data["text"].append(word_text)
-                    data["level"].append(5) # 5 means word level
+                    data["level"].append(5)
                     data["block_num"].append(block_no)
                     data["par_num"].append(0)
                     data["line_num"].append(line_no)
@@ -105,7 +105,6 @@ class RegexDetector(BaseDetector):
                 except Exception as e:
                     print(f"Tesseract OCR failed: {e}")
 
-            # Update cache
             self.cached_image_path = image_path
             self.cached_pdf_words = pdf_words
             self.cached_data_list = new_cached_list
@@ -153,7 +152,7 @@ class RegexDetector(BaseDetector):
             
         lines = {}
         for i in range(n_boxes):
-            if int(data['level'][i]) == 5: # 5 means word level
+            if int(data['level'][i]) == 5:
                 text = str(data["text"][i]).strip()
                 if not text:
                     continue
@@ -246,9 +245,9 @@ class RegexDetector(BaseDetector):
                                 if checksum % 10 == 0:
                                     final_confidence = 95.0
                                 else:
-                                    continue # Failed Luhn check, discard hit entirely
+                                    continue
                             else:
-                                continue # Invalid length, discard
+                                continue
                         
                         elif label == "EU IBAN":
                             # IBAN mod-97 checksum validation (ISO 7064)
@@ -265,14 +264,14 @@ class RegexDetector(BaseDetector):
                                     if int(numeric_str) % 97 == 1:
                                         final_confidence = 95.0
                                     else:
-                                        continue # Failed IBAN checksum, discard
+                                        continue
                                 except ValueError:
                                     continue
                             else:
-                                continue # Too short for IBAN
+                                continue
                         
                         elif label in ("US SSN", "IN Aadhaar"):
-                            # These are high-value patterns — require keyword proximity strictly
+                            # High-value patterns require keyword proximity strictly
                             window_start = max(0, start_char - 35)
                             window_end = min(len(line_text), match.end() + 35)
                             context_window = line_text.lower()[window_start:window_end]
@@ -280,7 +279,7 @@ class RegexDetector(BaseDetector):
                             final_confidence = 90.0 if has_keyword else 25.0
                         
                         elif keywords:
-                            # Context window of ~35 characters around the match to prevent false positives in long paragraphs
+                            # Scan a context window of ~35 characters around the match to prevent false positives in long paragraphs
                             window_start = max(0, start_char - 35)
                             window_end = min(len(line_text), match.end() + 35)
                             context_window = line_text.lower()[window_start:window_end]

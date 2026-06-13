@@ -28,7 +28,7 @@ class IdentityManager:
             cv2.data.haarcascades + 'haarcascade_profileface.xml'
         )
         
-        # Try to use SFace (deep learning) — vastly superior to LBPH
+        # SFace (deep learning) is preferred for face recognition over LBPH
         self.use_sface = False
         self.sface_recognizer = None
         self.sface_embeddings = {}  # name -> list of embeddings
@@ -41,15 +41,13 @@ class IdentityManager:
                 print("[IdentityManager] Using SFace deep learning model for recognition.")
             except Exception as e:
                 print(f"[IdentityManager] SFace init failed ({e}), falling back to LBPH.")
-        
         if not self.use_sface:
-            # Fallback: LBPH
+            # Fallback to LBPH recognizer if SFace ONNX model is missing or fails to initialize
             print("[IdentityManager] Using LBPH fallback (less accurate).")
             self.recognizer = cv2.face.LBPHFaceRecognizer_create(
                 radius=2, neighbors=8, grid_x=8, grid_y=8
             )
         
-        # Try to load existing identities
         self.reload_identities()
 
     def _extract_face_crop(self, img):
@@ -65,7 +63,6 @@ class IdentityManager:
         flipped_gray = cv2.flip(gray, 1)
         faces_profile_flipped = self.profile_cascade.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=4)
         
-        # Consolidate all detections
         all_faces = []
         for (x, y, w, h) in faces_default:
             all_faces.append((int(x), int(y), int(w), int(h)))
@@ -118,7 +115,7 @@ class IdentityManager:
                     
                     img_path = os.path.join(person_path, img_name)
                     
-                    # 1. Try to load cached SFace embedding
+                    # 1. Load cached SFace embedding if available
                     if self.use_sface:
                         npy_path = img_path + ".sface.npy"
                         if os.path.exists(npy_path):
@@ -132,7 +129,7 @@ class IdentityManager:
                             except Exception as e:
                                 print(f"[IdentityManager] Failed to load cached SFace embedding: {e}")
                     else:
-                        # 2. Try to load cached LBPH grayscale face crop
+                        # 2. Load cached LBPH grayscale face crop if available
                         crop_path = img_path + ".lbph.png"
                         if os.path.exists(crop_path):
                             try:
@@ -153,7 +150,6 @@ class IdentityManager:
                     face_crop = self._extract_face_crop(img)
                     
                     if self.use_sface:
-                        # Compute deep embedding
                         aligned = cv2.resize(face_crop, (112, 112))
                         embedding = self.sface_recognizer.feature(aligned)
                         
@@ -167,7 +163,6 @@ class IdentityManager:
                             self.sface_embeddings[person_name] = []
                         self.sface_embeddings[person_name].append(embedding)
                     else:
-                        # LBPH path
                         gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
                         gray_crop = cv2.resize(gray_crop, (150, 150))
                         gray_crop = cv2.equalizeHist(gray_crop)

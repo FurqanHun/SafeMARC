@@ -15,7 +15,6 @@ class SelectableHitItem(QGraphicsRectItem):
         
         self.setAcceptHoverEvents(True)
         
-        # Identity Label
         self.text_item = None
         if hit.identity:
             self.text_item = QGraphicsTextItem(hit.identity, self)
@@ -142,7 +141,7 @@ class LoadingOverlay(QWidget):
 
     def animate(self):
         self.angle = (self.angle + 6) % 360
-        self.update() # Repaint
+        self.update()
         
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -151,22 +150,18 @@ class LoadingOverlay(QWidget):
         # Draw translucent dark glassmorphism background
         painter.fillRect(self.rect(), QColor(11, 15, 25, 210))
         
-        # Draw premium spinning loading circle in the center of self.spinner_spacer
         spacer_pos = self.spinner_spacer.mapTo(self, self.spinner_spacer.rect().topLeft())
         cx = spacer_pos.x() + 30
         cy = spacer_pos.y() + 30
         
-        # Draw spinning track (light gray translucent)
         pen_track = QPen(QColor(55, 65, 81, 100), 4)
         painter.setPen(pen_track)
         painter.drawEllipse(cx - 20, cy - 20, 40, 40)
         
-        # Draw spinning arc (vibrant Emerald Green)
         pen_arc = QPen(QColor(16, 185, 129), 4)
         pen_arc.setCapStyle(Qt.RoundCap)
         painter.setPen(pen_arc)
         
-        # Draw 270-degree spinning arc with rotation angle
         painter.drawArc(cx - 20, cy - 20, 40, 40, -self.angle * 16, 270 * 16)
 
 

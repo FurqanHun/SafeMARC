@@ -27,8 +27,8 @@ class PDFHandler:
             out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
             pix.save(out_path)
             
-            # Extract word level bounding boxes directly from PDF using PyMuPDF
-            # page.get_text("words") returns list of tuples:
+            # Extract word-level bounding boxes directly from the PDF using PyMuPDF.
+            # page.get_text("words") returns a list of tuples formatted as:
             # (x0, y0, x1, y1, "word", block_no, line_no, word_no)
             words = []
             for w in page.get_text("words"):
@@ -67,12 +67,10 @@ class PDFHandler:
             return False
             
         try:
-            # Ensure the output directory exists
             output_dir = os.path.dirname(output_pdf_path)
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
                 
-            # We use PIL to save the images as a multi-page PDF
             images = [Image.open(img_path).convert('RGB') for img_path in image_paths]
             if images:
                 images[0].save(

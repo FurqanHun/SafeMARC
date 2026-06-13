@@ -73,7 +73,7 @@ class VisionDetector(BaseDetector):
             faces_profile = self.profile_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
-            # 4. Profile Flip Trick: Horizontally flip image to detect right-facing profiles
+            # 4. Profile Flip: Horizontally flip image to detect right-facing profiles
             flipped_gray = cv2.flip(gray, 1)
             faces_profile_flipped = self.profile_cascade.detectMultiScale(
                 flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
@@ -87,7 +87,6 @@ class VisionDetector(BaseDetector):
                 clahe_gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_face, min_face)
             )
             
-            # Consolidate all raw detection coordinates
             raw_boxes = []
             for (x, y, w, h) in faces_alt:
                 raw_boxes.append([int(x), int(y), int(w), int(h)])
@@ -96,14 +95,13 @@ class VisionDetector(BaseDetector):
             for (x, y, w, h) in faces_profile:
                 raw_boxes.append([int(x), int(y), int(w), int(h)])
             for (x, y, w, h) in faces_profile_flipped:
-                # Map flipped coordinate back to original image space
                 orig_x = w_img - x - w
                 raw_boxes.append([int(orig_x), int(y), int(w), int(h)])
             for (x, y, w, h) in faces_alt_clahe:
                 raw_boxes.append([int(x), int(y), int(w), int(h)])
                 
-            # 6. Rotational Search Trick: For severely tilted posing (e.g. 30+ degree head tilts)
-            # we rotate the image by -30 and +30 degrees, run the robust alternative frontal cascade,
+            # 6. Rotational Search: For severely tilted posing (e.g. 30+ degree head tilts),
+            # rotate the image by -30 and +30 degrees, run the robust alternative frontal cascade,
             # and map coordinates back using inverse affine transformation matrices.
             center = (w_img / 2.0, h_img / 2.0)
             for angle in [-30, 30]:
@@ -131,7 +129,7 @@ class VisionDetector(BaseDetector):
             # --- Union-Based Bounding Box Merging (Union-NMS) ---
             # Partially covered faces or multi-classifier hits produce several overlapping boxes.
             # To ensure the full face region (including hands or hair covering faces) is completely
-            # redacted, we merge overlapping boxes by taking their coordinate union.
+            # redacted, merge overlapping boxes by taking their coordinate union.
             merged_boxes = []
             for box in raw_boxes:
                 bx, by, bw, bh = box
@@ -139,21 +137,18 @@ class VisionDetector(BaseDetector):
                 for i, m_box in enumerate(merged_boxes):
                     mx, my, mw, mh = m_box
                     
-                    # Calculate overlapping intersection rectangle
                     ix = max(bx, mx)
                     iy = max(by, my)
                     iw = min(bx + bw, mx + mw) - ix
                     ih = min(by + bh, my + mh) - iy
                     
                     if iw > 0 and ih > 0:
-                        # Overlap exists; calculate intersection area ratio
                         intersect_area = iw * ih
                         box_area = bw * bh
                         m_box_area = mw * mh
                         
                         # Merge boxes if they overlap significantly (> 40% of smaller box area)
                         if intersect_area / min(box_area, m_box_area) > 0.40:
-                            # Union coordinates to encompass the entire unified area
                             min_x = min(bx, mx)
                             min_y = min(by, my)
                             max_x = max(bx + bw, mx + mw)
@@ -165,7 +160,6 @@ class VisionDetector(BaseDetector):
                 if not is_merged:
                     merged_boxes.append(box)
                     
-            # Process final merged bounding boxes
             for (x, y, w, h) in merged_boxes:
                 identity = None
                 if self.identity_manager and match_identities:
@@ -202,7 +196,6 @@ class VisionDetector(BaseDetector):
                     pass
 
         elif self.mode == "bodies":
-            # Detect bodies using MediaPipe EfficientDet
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
             fd_val = float(settings.value("model_face_detect", 0.20))
@@ -218,7 +211,7 @@ class VisionDetector(BaseDetector):
                 self.detector = vision.ObjectDetector.create_from_options(options)
                 
             scale = 1
-            # Linear contrast stretch helps with some detections
+            # Apply linear contrast stretch to improve detection of low-contrast features
             adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)
 
             rgb_image = cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)

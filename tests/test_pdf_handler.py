@@ -7,7 +7,7 @@ from src.utils.pdf_handler import PDFHandler
 
 @pytest.fixture
 def sample_pdf_path():
-    # Write a test PDF using PyMuPDF to test text/coord extraction in sandbox
+    # Write a test PDF using PyMuPDF to test text/coord extraction in the sandbox.
     temp_dir = tempfile.mkdtemp()
     pdf_path = os.path.join(temp_dir, "test_doc.pdf")
     

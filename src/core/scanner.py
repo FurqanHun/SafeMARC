@@ -25,7 +25,6 @@ class SafeScanner:
         print("[SafeScanner] Session scan caches cleared.")
         
     def set_vision_mode(self, mode: str):
-        # Re-initialize the vision detector with the new mode
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
         self.detectors = [self.text_detector, self.vision_detector]
         self.clear_cache()
@@ -57,7 +56,6 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
 
-        # Check if we have cached vision hits for this file in the session cache
         use_cached_vision = (ckey in self._vision_cache)
 
         for detector in self.detectors:
@@ -69,7 +67,7 @@ class SafeScanner:
                         print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
                         hits = self._vision_cache[ckey]
                     else:
-                        # Always detect and match identities on first run so we have all names cached
+                        # Detect and match identities on the first run to cache all names.
                         hits = detector.detect(file_path, match_identities=True)
                         self._vision_cache[ckey] = list(hits)
                 else:
@@ -78,32 +76,31 @@ class SafeScanner:
             except Exception as e:
                 print(f"Detector failed: {e}")
 
-        # Filter Face Hits based on mode
+        # Filter face hits according to the active redaction mode.
         final_hits = []
         for hit in all_hits:
             if hit.label.startswith("FACE") or hit.label == "BODY":
                 if self.face_redaction_mode == "ALL":
                     final_hits.append(hit)
                 elif self.face_redaction_mode == "BLACKLIST":
-                    # Only redact faces whose identity is in our target list.
-                    # Unrecognized faces (empty identity) are NOT redacted.
-                    # If target list is empty, nobody gets redacted.
+                    # Redact only the faces whose identity is in the target list.
+                    # Unrecognized faces (empty identity) are not redacted.
+                    # If the target list is empty, no one is redacted.
                     if hit.identity and hit.identity in self.target_identities:
                         final_hits.append(hit)
                         print(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
                     else:
                         print(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
                 elif self.face_redaction_mode == "WHITELIST":
-                    # Redact everyone EXCEPT faces whose identity is in target list.
-                    # Unrecognized faces always get redacted.
-                    # If target list is empty, everyone gets redacted.
+                    # Redact everyone except the faces whose identity is in the target list.
+                    # Unrecognized faces are always redacted.
+                    # If the target list is empty, everyone is redacted.
                     if hit.identity and hit.identity in self.target_identities:
                         print(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
                     else:
                         final_hits.append(hit)
                         print(f"  [WHITELIST] REDACT identity='{hit.identity}'")
             else:
-                # Keep text hits as is
                 final_hits.append(hit)
 
         print(f"[SafeScanner] Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")

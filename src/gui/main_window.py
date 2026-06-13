@@ -1010,10 +1010,10 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Skip Shortcuts (Space or S)
         self.shortcut_skip_space = QShortcut(QKeySequence("Space"), self)
-        self.shortcut_skip_space.activated.connect(self._on_shortcut_skip)
+        self.shortcut_skip_space.activated.connect(self._on_shortcut_skip_space)
 
         self.shortcut_skip_s = QShortcut(QKeySequence("S"), self)
-        self.shortcut_skip_s.activated.connect(self._on_shortcut_skip)
+        self.shortcut_skip_s.activated.connect(self._on_shortcut_skip_s)
 
         # Previous Shortcuts (Backspace or P)
         self.shortcut_prev_bs = QShortcut(QKeySequence("Backspace"), self)
@@ -1058,6 +1058,16 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.shortcut_reset_layout = QShortcut(QKeySequence("Ctrl+Alt+R"), self)
         self.shortcut_reset_layout.activated.connect(self._on_shortcut_reset_layout)
+
+        # Hit Navigation/Toggle Shortcuts
+        self.shortcut_hit_next = QShortcut(QKeySequence("Right"), self)
+        self.shortcut_hit_next.activated.connect(self._on_shortcut_hit_next)
+
+        self.shortcut_hit_prev = QShortcut(QKeySequence("Left"), self)
+        self.shortcut_hit_prev.activated.connect(self._on_shortcut_hit_prev)
+
+        self.shortcut_hit_toggle = QShortcut(QKeySequence("C"), self)
+        self.shortcut_hit_toggle.activated.connect(self._on_shortcut_hit_toggle)
 
         self.current_file_path = None
         self.user_selections_cache = {}
@@ -1179,7 +1189,16 @@ class SafeMARCMainWindow(QMainWindow):
     def _on_shortcut_start_redact(self):
         self.on_return_pressed()
 
-    def _on_shortcut_skip(self):
+    def _on_shortcut_skip_space(self):
+        if self._is_input_focused():
+            return
+        if self.preview_widget.has_focused_hit():
+            self.preview_widget.toggle_focused_hit()
+            return
+        if self.btn_skip.isVisible() and self.btn_skip.isEnabled():
+            self.btn_skip.click()
+
+    def _on_shortcut_skip_s(self):
         if self._is_input_focused():
             return
         if self.btn_skip.isVisible() and self.btn_skip.isEnabled():
@@ -1188,6 +1207,7 @@ class SafeMARCMainWindow(QMainWindow):
     def _on_shortcut_previous(self):
         if self._is_input_focused():
             return
+        self.preview_widget.clear_hit_focus()
         if self.btn_previous.isVisible() and self.btn_previous.isEnabled():
             self.btn_previous.click()
 
@@ -1198,6 +1218,21 @@ class SafeMARCMainWindow(QMainWindow):
             focused.clearFocus()
             return
         self.on_escape_pressed()
+
+    def _on_shortcut_hit_next(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.focus_next_hit()
+
+    def _on_shortcut_hit_prev(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.focus_previous_hit()
+
+    def _on_shortcut_hit_toggle(self):
+        if self._is_input_focused():
+            return
+        self.preview_widget.toggle_focused_hit()
 
     def _on_shortcut_add_file(self):
         if self._is_input_focused():

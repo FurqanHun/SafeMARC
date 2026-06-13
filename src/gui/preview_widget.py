@@ -11,6 +11,7 @@ class SelectableHitItem(QGraphicsRectItem):
         self.hit = hit
         self.on_toggle = on_toggle
         self.is_selected = is_selected
+        self.is_focused = False
         
         self.setAcceptHoverEvents(True)
         
@@ -30,6 +31,17 @@ class SelectableHitItem(QGraphicsRectItem):
         threshold = int(settings.value("model_text_conf", 70))
         is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.confidence < threshold)
         
+        if self.is_focused:
+            # Highlight with a bright blue focus border
+            color = QColor(59, 130, 246) # Bright blue `#3B82F6`
+            self.setPen(QPen(color, 4, Qt.SolidLine))
+            if self.is_selected:
+                self.setBrush(QBrush(QColor(59, 130, 246, 70)))
+            else:
+                self.setBrush(QBrush(QColor(59, 130, 246, 25)))
+            if self.text_item: self.text_item.setVisible(True)
+            return
+
         if is_low_conf_text:
             # Low confidence "Review Suggested" hit -> Amber/Yellow color state
             color = QColor(245, 158, 11, 200) # Amber `#F59E0B`
@@ -401,3 +413,54 @@ class PreviewWidget(QGraphicsView):
             event.accept()
         else:
             super().wheelEvent(event)
+
+    def has_focused_hit(self) -> bool:
+        return any(item.is_focused for item in self.hit_items)
+
+    def focus_next_hit(self):
+        if not self.hit_items:
+            return
+        
+        curr_idx = -1
+        for i, item in enumerate(self.hit_items):
+            if item.is_focused:
+                curr_idx = i
+                item.is_focused = False
+                item.update_style()
+                break
+                
+        next_idx = (curr_idx + 1) % len(self.hit_items)
+        self.hit_items[next_idx].is_focused = True
+        self.hit_items[next_idx].update_style()
+        self.ensureVisible(self.hit_items[next_idx])
+
+    def focus_previous_hit(self):
+        if not self.hit_items:
+            return
+            
+        curr_idx = -1
+        for i, item in enumerate(self.hit_items):
+            if item.is_focused:
+                curr_idx = i
+                item.is_focused = False
+                item.update_style()
+                break
+                
+        prev_idx = (curr_idx - 1) % len(self.hit_items)
+        self.hit_items[prev_idx].is_focused = True
+        self.hit_items[prev_idx].update_style()
+        self.ensureVisible(self.hit_items[prev_idx])
+
+    def toggle_focused_hit(self):
+        for item in self.hit_items:
+            if item.is_focused:
+                item.is_selected = not item.is_selected
+                item.update_style()
+                self.on_hit_toggled(item.hit, item.is_selected)
+                break
+
+    def clear_hit_focus(self):
+        for item in self.hit_items:
+            if item.is_focused:
+                item.is_focused = False
+                item.update_style()

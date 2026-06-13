@@ -25,6 +25,13 @@ Keep this guide handy to navigate and redact your files with high efficiency usi
 | **Scroll Zoom** | `Ctrl` + Mouse Wheel Up/Down | Quick zooming in and out. |
 | **Pan Image** | Mouse Click & Drag | Drag in the preview area to pan when zoomed in. |
 
+## Sensitive Box Navigation
+| Action | Shortcut | Description |
+|---|---|---|
+| **Focus Next Box** | `Right Arrow` | Cycles keyboard focus forward to the next detected sensitive box on the page. |
+| **Focus Previous Box** | `Left Arrow` | Cycles keyboard focus backward to the previous sensitive box on the page. |
+| **Toggle Selected State** | `C` or `Space` (if box is focused) | Toggles the checked/unchecked state of the currently focused sensitive box. |
+
 ## Batch Review Workflow
 | Action | Shortcut | Description |
 |---|---|---|

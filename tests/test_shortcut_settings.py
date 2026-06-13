@@ -38,6 +38,19 @@ class TestShortcutSettings(unittest.TestCase):
         window.update_shortcut_key("toggle_draw", "D")
         self.assertEqual(window.shortcut_draw.key().toString(), "D")
 
+    def test_settings_dialog_instantiation(self):
+        class MockScanner:
+            identity_manager = None
+            def clear_cache(self):
+                pass
+        window = SafeMARCMainWindow()
+        window.scanner = MockScanner()
+        
+        from src.gui.settings_dialog import SettingsDialog
+        dialog = SettingsDialog(window.scanner, window)
+        self.assertIsNotNone(dialog)
+        dialog.deleteLater()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -669,8 +669,11 @@ class SettingsDialog(QDialog):
         self._init_shortcuts_tab()
         self.tabs.addTab(self.tab_shortcuts, "Shortcuts")
         
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
         self.close_btn = QPushButton("Close")
         self.close_btn.clicked.connect(self.accept)
+        self.close_btn.setCursor(Qt.PointingHandCursor)
         btn_layout.addWidget(self.close_btn)
         layout.addLayout(btn_layout)
         

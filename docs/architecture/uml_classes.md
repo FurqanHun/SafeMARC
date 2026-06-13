@@ -139,6 +139,7 @@ classDiagram
         +QLabel lbl_count
         +Dict active_regions
         +Dict user_selections_cache
+        +Dict shortcuts_config
         +str active_pdf_source
         +int active_pdf_index
         +bool is_navigating_backward
@@ -151,6 +152,7 @@ classDiagram
         +add_files() void
         +add_folder() void
         +add_dropped_paths(paths: List) void
+        +update_shortcut_key(action_name: str, new_sequence: str) void
         -_update_face_mode(text: str) void
         -_show_people_selector() void
         -_show_regions_selector() void
@@ -186,7 +188,22 @@ classDiagram
     class SettingsDialog {
         +SafeScanner scanner
         +IdentityManager identity_manager
+        +Dict shortcut_buttons
         +accept() void
+        -_init_shortcuts_tab() void
+        -_check_for_conflicts() void
+        -_on_shortcut_changed(key: str, seq: str) void
+        -_on_shortcut_reset(key: str, default_seq: str) void
+        -_reset_all_shortcuts() void
+    }
+
+    class ShortcutRebindButton {
+        +Signal keySequenceChanged
+        +str current_sequence
+        +bool is_listening
+        +update_style() void
+        +keyPressEvent(event) void
+        +focusOutEvent(event) void
     }
 
     class PersistentRangeDialog {

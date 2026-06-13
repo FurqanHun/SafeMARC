@@ -10,6 +10,7 @@ graph TD
     User --> UC2[Review & Redact Queue]
     User --> UC3[Configure Redaction Options]
     User --> UC4[Manage Identities]
+    User --> UC5[Rebind Keyboard Shortcuts]
     
     subgraph Queue Management
         UC1 --> UC1_A[Add Files via Dialog]
@@ -41,6 +42,13 @@ graph TD
         UC4 --> UC4_B[Quick-Add Identity via Right-Click]
         UC4 --> UC4_C[Remove Identity]
         UC4 --> UC4_D[Session-Only Identity]
+    end
+
+    subgraph Keyboard Shortcut Settings
+        UC5 --> UC5_A[View Active Keyboard Shortcuts]
+        UC5 --> UC5_B[Rebind Action Keyboard Shortcut]
+        UC5 --> UC5_C[Verify Keybinding Conflicts]
+        UC5 --> UC5_D[Reset Individual or All Shortcuts]
     end
 ```
 
@@ -99,3 +107,16 @@ graph TD
   5. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
   6. Session-only identities are automatically deleted on next app launch.
   7. The recognition model retrains immediately after any identity change.
+
+### UC5: Configure Keyboard Shortcuts Rebinding
+- **Actors**: User
+- **Preconditions**: Settings Dialog is open.
+- **Trigger**: User clicks the "Shortcuts" tab inside the Settings Dialog.
+- **Main Workflow**:
+  1. The user views a categorized, scrollable list of all 24 keyboard actions and their current keybindings.
+  2. The user clicks the "Rebind" button next to any action, which starts listening for the next keypress/combination.
+  3. The user presses the new key sequence (including modifiers like `Ctrl`, `Shift`, `Alt`, `Meta`). The button updates its text to show the new sequence.
+  4. The system validates the new shortcut sequence in real time. If the shortcut is already in use by another action, a red warning text is displayed listing all conflicting actions.
+  5. The user can click "Reset" next to any rebound shortcut to revert it to its default, or click "Reset All Shortcuts to Defaults" to reset all shortcuts at once.
+  6. Settings are saved in `QSettings` and dynamically applied to the main window shortcuts instantly without requiring an application restart.
+

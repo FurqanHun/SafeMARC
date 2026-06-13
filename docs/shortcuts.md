@@ -1,6 +1,6 @@
 # SafeMARC Keyboard Shortcuts
 
-SafeMARC's keyboard-driven workflow enables highly efficient document review. All keyboard shortcuts listed below can be fully customized and rebound to your preferred key combinations in **Settings** (`Ctrl` + `,`) under the **Shortcuts** tab. Custom combinations persist across application restarts.
+SafeMARC's keyboard-driven workflow enables highly efficient document review. All keyboard shortcuts listed below are fully customizable and rebindable to your preferred key combinations in **Settings** (`Ctrl` + `,`) under the **Shortcuts** tab. Custom combinations persist across application restarts.
 
 ## General Shortcuts
 | Action | Shortcut | Description |

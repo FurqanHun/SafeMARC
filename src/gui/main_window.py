@@ -67,6 +67,7 @@ SVG_DRAW = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" vie
 SVG_ZOOM_IN = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'''
 
 SVG_ZOOM_OUT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>'''
+SVG_ZOOM_RESET = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/><rect width="10" height="10" x="7" y="7" rx="1"/></svg>'''
 
 SVG_REFRESH = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'''
 SVG_CLIPBOARD = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>'''
@@ -740,6 +741,11 @@ class SafeMARCMainWindow(QMainWindow):
 
         # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
+        draw_layout.setSpacing(8)
+        
+        # Center-align the entire toolbar by placing stretch on both sides
+        draw_layout.addStretch(1)
+        
         self.btn_draw_mode = QPushButton(" Draw Box")
         self.btn_draw_mode.setIcon(svg_to_icon(SVG_DRAW))
         self.btn_draw_mode.setCheckable(True)
@@ -752,19 +758,22 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_persistent_mode.setToolTip("Persist manual custom boxes across pages / files (Shift+D)")
         self.btn_persistent_mode.clicked.connect(self.toggle_persistent_mode)
         
-        self.btn_zoom_in = QPushButton(" Zoom In")
+        self.btn_zoom_in = QPushButton()
         self.btn_zoom_in.setIcon(svg_to_icon(SVG_ZOOM_IN))
+        self.btn_zoom_in.setToolTip("Zoom In (Ctrl++ or Ctrl+=)")
         self.btn_zoom_in.clicked.connect(self.preview_widget.zoom_in)
         
-        self.btn_zoom_out = QPushButton(" Zoom Out")
+        self.btn_zoom_out = QPushButton()
         self.btn_zoom_out.setIcon(svg_to_icon(SVG_ZOOM_OUT))
+        self.btn_zoom_out.setToolTip("Zoom Out (Ctrl+-)")
         self.btn_zoom_out.clicked.connect(self.preview_widget.zoom_out)
         
-        self.btn_reset_zoom = QPushButton(" Reset")
-        self.btn_reset_zoom.setIcon(svg_to_icon(SVG_REFRESH))
+        self.btn_reset_zoom = QPushButton()
+        self.btn_reset_zoom.setIcon(svg_to_icon(SVG_ZOOM_RESET))
+        self.btn_reset_zoom.setToolTip("Reset Zoom (Ctrl+0)")
         self.btn_reset_zoom.clicked.connect(self.preview_widget.reset_zoom)
         
-        self.btn_rescan = QPushButton(" Rescan")
+        self.btn_rescan = QPushButton()
         self.btn_rescan.setIcon(svg_to_icon(SVG_REFRESH))
         self.btn_rescan.setToolTip("Rescan current image (F5)")
         self.btn_rescan.clicked.connect(self._rescan_current)
@@ -775,7 +784,9 @@ class SafeMARCMainWindow(QMainWindow):
                 color: #E5E7EB;
                 border: 1px solid #374151;
                 border-radius: 8px;
-                padding: 8px 10px;
+                padding: 0px 16px;
+                min-height: 36px;
+                max-height: 36px;
                 font-weight: 600;
                 font-size: 12px;
             }
@@ -791,15 +802,55 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """
 
-        for btn in (self.btn_draw_mode, self.btn_persistent_mode, self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom, self.btn_rescan):
-            btn.setStyleSheet(tool_style)
+        icon_only_style = """
+            QPushButton {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                min-width: 36px;
+                max-width: 36px;
+                min-height: 36px;
+                max-height: 36px;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #4B5563;
+            }
+            QPushButton:pressed {
+                background-color: #111827;
+            }
+        """
+
+        self.btn_draw_mode.setStyleSheet(tool_style)
+        self.btn_persistent_mode.setStyleSheet(tool_style)
+        
+        from PySide6.QtCore import QSize
+        for btn in (self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_zoom, self.btn_rescan):
+            btn.setStyleSheet(icon_only_style)
+            btn.setIconSize(QSize(18, 18))
 
         draw_layout.addWidget(self.btn_draw_mode)
         draw_layout.addWidget(self.btn_persistent_mode)
+        
+        from PySide6.QtWidgets import QFrame
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.VLine)
+        sep1.setFrameShadow(QFrame.Sunken)
+        sep1.setStyleSheet("color: #374151; margin: 4px 2px;")
+        draw_layout.addWidget(sep1)
+        
         draw_layout.addWidget(self.btn_zoom_in)
         draw_layout.addWidget(self.btn_zoom_out)
         draw_layout.addWidget(self.btn_reset_zoom)
+        
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setFrameShadow(QFrame.Sunken)
+        sep2.setStyleSheet("color: #374151; margin: 4px 2px;")
+        draw_layout.addWidget(sep2)
+        
         draw_layout.addWidget(self.btn_rescan)
+        draw_layout.addStretch(1)
         preview_layout.addLayout(draw_layout)
         
         # Shortcuts

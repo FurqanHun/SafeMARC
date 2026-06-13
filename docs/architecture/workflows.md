@@ -246,7 +246,7 @@ graph TD
     C --> H[Add Session Identity] --> I[Save to safemarc_temp/session_temp]
     
     C --> J[Click Start Review]
-    J --> K[Clear scanner vision cache]
+    J --> K[Keep session scan cache intact for instant loading]
     
     C --> L[Cancel Batch Review]
     L --> M[cleanup_temp_resources full=False]

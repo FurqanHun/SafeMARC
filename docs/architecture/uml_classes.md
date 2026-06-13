@@ -44,6 +44,7 @@ classDiagram
         +str face_redaction_mode
         +List target_identities
         +Dict _vision_cache
+        +Dict _scan_cache
         +clear_cache() void
         +set_vision_mode(mode: str) void
         +set_face_redaction_mode(mode: str) void
@@ -140,6 +141,7 @@ classDiagram
         +Dict user_selections_cache
         +str active_pdf_source
         +int active_pdf_index
+        +bool is_navigating_backward
         +QShortcut shortcut_rescan
         +start_batch() void
         +redact_current() void
@@ -163,7 +165,7 @@ classDiagram
 
     class PreviewWidget {
         +Signal identityRequested
-        +display_hits(hits: List~SensitiveHit~, is_pdf: bool, pdf_source: str, cached_active_hits: list) void
+        +display_hits(hits: List~SensitiveHit~, is_pdf: bool, pdf_source: str, cached_active_hits: list, reviewed: bool) void
         +get_selected_hits() List~SensitiveHit~
         +toggle_draw_mode() void
         +zoom_in() void

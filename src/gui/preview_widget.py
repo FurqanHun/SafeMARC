@@ -225,7 +225,7 @@ class PreviewWidget(QGraphicsView):
             self.scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
-    def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None, cached_active_hits: list = None):
+    def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None, cached_active_hits: list = None, reviewed: bool = False):
         settings = QSettings("SafeMARC", "SafeMARC")
         threshold = int(settings.value("model_text_conf", 70))
         
@@ -233,7 +233,7 @@ class PreviewWidget(QGraphicsView):
             """Check if two hits refer to the same detection by coordinates and label."""
             return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h and a.label == b.label
         
-        if cached_active_hits is not None and any(ch.label != "MANUAL" for ch in cached_active_hits):
+        if cached_active_hits is not None and reviewed:
             # Full review snapshot: restore user's exact checkbox state
             self.active_hits = []
             for hit in hits:

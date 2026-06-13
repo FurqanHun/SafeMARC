@@ -21,7 +21,7 @@
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
 - [x] **Predefined & Dynamic Regional Patterns**: Pre-configured rules for common entities grouped by country regions. The user can toggle these regions via the UI, instantly re-evaluating matches:
-  - **Global**: Credit Card numbers (Visa, Mastercard, Amex, etc.), Email Addresses, IPv4 Addresses.
+  - **Global**: Credit Card numbers (Visa, Mastercard, Amex, etc.), Email Addresses, IPv4 Addresses, Names (with title prefixes e.g. Mr, Dr, Mrs), and Street Locations/Addresses.
   - **Pakistan**: National Identity Card (CNIC), Phone Numbers, Passports, Driving Licenses, and Vehicle Registration Plates.
   - **United States**: Social Security Numbers (SSN), Phone Numbers, Zip Codes, and Driver's Licenses.
   - **European Union**: IBAN Bank Account numbers, VAT Registration Numbers.

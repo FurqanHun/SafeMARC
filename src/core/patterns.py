@@ -120,6 +120,18 @@ PREDEFINED_PATTERNS = {
         "regex": r"\b(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b",
         "keywords": ["ip", "address", "host", "server", "ipv4", "dns"],
         "regions": ["Global"]
+    },
+    "global_name": {
+        "label": "Name",
+        "regex": r"\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|President|Senator|Representative|Governor|Officer)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b",
+        "keywords": ["name", "named", "patient", "employee", "client", "customer", "contact", "person", "individual"],
+        "regions": ["Global"]
+    },
+    "global_location": {
+        "label": "Location",
+        "regex": r"\b\d+\s+[A-Z][a-zA-Z0-9\s\.,]{2,20}\s+(?:Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Loop|Plaza|Plz|Street\b|St\b|Road\b|Rd\b|Avenue\b|Ave\b|Drive\b|Dr\b|Lane\b|Ln\b|Boulevard\b|Blvd\b)\b",
+        "keywords": ["location", "address", "city", "country", "state", "resident", "residing", "live", "lives", "lived", "born", "birthplace", "destination", "origin"],
+        "regions": ["Global"]
     }
 }
 

@@ -15,12 +15,14 @@ class SafeScanner:
         self.face_redaction_mode = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
         self.target_identities = [] # List of names to filter on
         
-        # Performance session vision cache
+        # Performance session caches
         self._vision_cache = {}  # file_path -> list of SensitiveHit
+        self._scan_cache = {}    # ckey -> list of SensitiveHit
         
     def clear_cache(self):
         self._vision_cache = {}
-        print("[SafeScanner] Vision session cache cleared.")
+        self._scan_cache = {}
+        print("[SafeScanner] Session scan caches cleared.")
         
     def set_vision_mode(self, mode: str):
         # Re-initialize the vision detector with the new mode
@@ -30,6 +32,7 @@ class SafeScanner:
 
     def set_face_redaction_mode(self, mode: str):
         self.face_redaction_mode = mode
+        self.clear_cache()
 
     def set_text_patterns(self, patterns_list):
         self.text_detector.clear_custom_patterns()
@@ -42,14 +45,19 @@ class SafeScanner:
                     is_whole_word=p.get("whole_word", False),
                     keywords=p.get("keywords")
                 )
+        self.clear_cache()
 
     def scan(self, file_path: str, pdf_words: list = None, cache_key: str = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""
+        ckey = cache_key if cache_key else file_path
+        if ckey in self._scan_cache:
+            print(f"  [CACHE] Reusing {len(self._scan_cache[ckey])} cached scan hits for {ckey}.")
+            return list(self._scan_cache[ckey])
+
         all_hits = []
         print(f"Scanning: {file_path}")
 
         # Check if we have cached vision hits for this file in the session cache
-        ckey = cache_key if cache_key else file_path
         use_cached_vision = (ckey in self._vision_cache)
 
         for detector in self.detectors:
@@ -99,6 +107,7 @@ class SafeScanner:
                 final_hits.append(hit)
 
         print(f"[SafeScanner] Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")
+        self._scan_cache[ckey] = list(final_hits)
         return final_hits
 
     def cleanup(self):

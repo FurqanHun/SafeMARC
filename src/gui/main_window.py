@@ -1214,6 +1214,7 @@ class SafeMARCMainWindow(QMainWindow):
                 w.setFocusPolicy(Qt.StrongFocus)
         apply_focus_indicators(self)
         self.update_toolbar_state()
+        self.update_review_button_tooltips()
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -1452,6 +1453,24 @@ class SafeMARCMainWindow(QMainWindow):
                 shortcut_obj = getattr(self, attr_name, None)
                 if shortcut_obj:
                     shortcut_obj.setKey(QKeySequence(new_sequence))
+        self.update_review_button_tooltips()
+
+    def update_review_button_tooltips(self):
+        """Update review action buttons' tooltips dynamically based on active keyboard shortcuts."""
+        redact_shortcut = self.shortcuts_config.get("redact_next", "Shift+Enter")
+        redact_alt = self.shortcuts_config.get("redact_next_alt", "Enter")
+        self.btn_redact_next.setToolTip(f"Redact current document and proceed to the next ({redact_shortcut} or {redact_alt})")
+
+        skip_shortcut = self.shortcuts_config.get("skip_space", "Space")
+        skip_alt = self.shortcuts_config.get("skip_s", "S")
+        self.btn_skip.setToolTip(f"Skip current document without redacting ({skip_shortcut} or {skip_alt})")
+
+        prev_shortcut = self.shortcuts_config.get("previous_bs", "Backspace")
+        prev_alt = self.shortcuts_config.get("previous_p", "P")
+        self.btn_previous.setToolTip(f"Go back to the previous document ({prev_shortcut} or {prev_alt})")
+
+        stop_shortcut = self.shortcuts_config.get("escape", "Esc")
+        self.btn_stop_review.setToolTip(f"Stop the active batch review process ({stop_shortcut})")
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

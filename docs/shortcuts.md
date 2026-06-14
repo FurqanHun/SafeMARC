@@ -35,8 +35,8 @@ SafeMARC's keyboard-driven workflow enables highly efficient document review. Al
 ## Batch Review Workflow
 | Action | Shortcut | Description |
 |---|---|---|
-| **Start Review** | `Return` or `Enter` | Starts the batch review process. |
-| **Redact & Next** | `Return` or `Enter` | Processes redaction on the current file and loads the next item. |
+| **Start Review** | `Shift+Return` or `Shift+Enter` | Starts the batch review process. |
+| **Redact & Next** | `Shift+Return` or `Shift+Enter` | Processes redaction on the current file and loads the next item. |
 | **Skip Item** | `Space` or `S` | Skips the current file and loads the next item. |
 | **Previous Item** | `Backspace` or `P` | Returns to the previous file/page in the queue. |
 | **Stop Review** | `Escape` | Cancels the active batch review without clearing the queue. |

@@ -34,8 +34,8 @@ DEFAULT_SHORTCUTS = {
     "toggle_draw": "D",
     "toggle_persistent": "Shift+D",
     "rescan": "F5",
-    "redact_next": "Return",
-    "redact_next_alt": "Enter",
+    "redact_next": "Shift+Return",
+    "redact_next_alt": "Shift+Enter",
     "skip_s": "S",
     "skip_space": "Space",
     "previous_p": "P",
@@ -64,8 +64,8 @@ SHORTCUT_METADATA = {
     "toggle_persistent": {"label": "Toggle Persistent Draw Mode", "category": "Review Actions", "default": "Shift+D"},
     "rescan": {"label": "Rescan Current File", "category": "Review Actions", "default": "F5"},
     
-    "redact_next": {"label": "Redact & Next (Primary)", "category": "Batch Workflow", "default": "Return"},
-    "redact_next_alt": {"label": "Redact & Next (Alternative)", "category": "Batch Workflow", "default": "Enter"},
+    "redact_next": {"label": "Redact & Next (Primary)", "category": "Batch Workflow", "default": "Shift+Return"},
+    "redact_next_alt": {"label": "Redact & Next (Alternative)", "category": "Batch Workflow", "default": "Shift+Enter"},
     "skip_s": {"label": "Skip Item (Primary Key)", "category": "Batch Workflow", "default": "S"},
     "skip_space": {"label": "Skip / Toggle Box (Space)", "category": "Batch Workflow", "default": "Space"},
     "previous_p": {"label": "Previous Item (Primary Key)", "category": "Batch Workflow", "default": "P"},
@@ -76,6 +76,30 @@ SHORTCUT_METADATA = {
     "hit_prev": {"label": "Focus Previous Box", "category": "Sensitive Box Keyboard Selection", "default": "Left"},
     "hit_toggle": {"label": "Toggle Selected State", "category": "Sensitive Box Keyboard Selection", "default": "C"}
 }
+
+def apply_focus_indicators(parent):
+    from PySide6.QtWidgets import QWidget, QPushButton, QCheckBox, QComboBox, QLineEdit, QListWidget, QSlider, QRadioButton
+    for child in parent.findChildren(QWidget):
+        style = child.styleSheet() or ""
+        focus_style = ""
+        if isinstance(child, QPushButton):
+            focus_style = "\nQPushButton:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QCheckBox):
+            focus_style = "\nQCheckBox:focus { color: #FFFFFF; }\nQCheckBox::indicator:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QComboBox):
+            focus_style = "\nQComboBox:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QLineEdit):
+            focus_style = "\nQLineEdit:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QListWidget):
+            focus_style = "\nQListWidget:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QSlider):
+            focus_style = "\nQSlider:focus { outline: none; }\nQSlider::handle:horizontal:focus { border: 2px solid #FFFFFF; background: #10B981; }"
+        elif isinstance(child, QRadioButton):
+            focus_style = "\nQRadioButton:focus { color: #FFFFFF; }\nQRadioButton::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            
+        if focus_style:
+            child.setStyleSheet(style + focus_style)
+
 
 class ShortcutRebindButton(QPushButton):
     keySequenceChanged = Signal(str)
@@ -296,6 +320,31 @@ class SettingsDialog(QDialog):
             QSlider::handle:horizontal:hover {
                 background: #34D399;
                 border-color: #34D399;
+            }
+            QPushButton:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QCheckBox:focus {
+                color: #FFFFFF !important;
+            }
+            QCheckBox::indicator:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QLineEdit:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QListWidget:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QSlider:focus {
+                outline: none;
+            }
+            QSlider::handle:horizontal:focus {
+                border: 2px solid #FFFFFF !important;
             }
         """)
 
@@ -676,8 +725,30 @@ class SettingsDialog(QDialog):
         self.close_btn.setCursor(Qt.PointingHandCursor)
         btn_layout.addWidget(self.close_btn)
         layout.addLayout(btn_layout)
+
+        # Apply StrongFocus focus policy to all interactive widgets in SettingsDialog for a consistent tabbing experience
+        settings_widgets = [
+            self.tabs,
+            self.chk_global_output,
+            self.btn_browse_dir,
+            self.search_people,
+            self.list_people,
+            self.btn_add_person,
+            self.btn_del_person,
+            self.btn_add_img,
+            self.slider_fd,
+            self.slider_fm,
+            self.slider_tm,
+            self.btn_reset_model,
+            self.btn_reset_all_shortcuts,
+            self.close_btn
+        ]
+        for w in settings_widgets:
+            if hasattr(w, "setFocusPolicy"):
+                w.setFocusPolicy(Qt.StrongFocus)
         
         self._refresh_people_list()
+        apply_focus_indicators(self)
 
     def _refresh_people_list(self):
         self.list_people.clear()
@@ -1007,6 +1078,7 @@ class SettingsDialog(QDialog):
 
                 btn_rebind = ShortcutRebindButton(current_val)
                 btn_rebind.keySequenceChanged.connect(lambda seq, k=key: self._on_shortcut_changed(k, seq))
+                btn_rebind.setFocusPolicy(Qt.StrongFocus)
                 self.shortcut_buttons[key] = btn_rebind
 
                 btn_reset = QPushButton()
@@ -1014,6 +1086,7 @@ class SettingsDialog(QDialog):
                 btn_reset.setIconSize(QSize(12, 12))
                 btn_reset.setToolTip("Reset to Default")
                 btn_reset.setCursor(Qt.PointingHandCursor)
+                btn_reset.setFocusPolicy(Qt.StrongFocus)
                 btn_reset.setStyleSheet("""
                     QPushButton {
                         background-color: #1F2937;
@@ -1357,6 +1430,7 @@ class FaceCropDialog(QDialog):
         layout.addLayout(btn_layout)
         
         self._load_and_detect()
+        apply_focus_indicators(self)
         
     def _load_and_detect(self):
         import cv2
@@ -1490,6 +1564,7 @@ class NewIdentityDialog(QDialog):
         layout.addWidget(lbl)
         layout.addWidget(self.txt_name)
         layout.addLayout(btn_layout)
+        apply_focus_indicators(self)
         
     def _on_save(self):
         name = self.txt_name.text().strip()

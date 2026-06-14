@@ -113,6 +113,30 @@ class ScanWorker(QThread):
             self.error.emit(e)
 
 
+def apply_focus_indicators(parent):
+    from PySide6.QtWidgets import QWidget, QPushButton, QCheckBox, QComboBox, QLineEdit, QListWidget, QSlider, QRadioButton
+    for child in parent.findChildren(QWidget):
+        style = child.styleSheet() or ""
+        focus_style = ""
+        if isinstance(child, QPushButton):
+            focus_style = "\nQPushButton:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QCheckBox):
+            focus_style = "\nQCheckBox:focus { color: #FFFFFF; }\nQCheckBox::indicator:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QComboBox):
+            focus_style = "\nQComboBox:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QLineEdit):
+            focus_style = "\nQLineEdit:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QListWidget):
+            focus_style = "\nQListWidget:focus { border: 2px solid #10B981; outline: none; }"
+        elif isinstance(child, QSlider):
+            focus_style = "\nQSlider:focus { outline: none; }\nQSlider::handle:horizontal:focus { border: 2px solid #FFFFFF; background: #10B981; }"
+        elif isinstance(child, QRadioButton):
+            focus_style = "\nQRadioButton:focus { color: #FFFFFF; }\nQRadioButton::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            
+        if focus_style:
+            child.setStyleSheet(style + focus_style)
+
+
 class SafeMARCMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -150,6 +174,40 @@ class SafeMARCMainWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #0B0F19;
+            }
+            QWidget#centralWidget {
+                background-color: #0B0F19;
+            }
+            QPushButton:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QCheckBox:focus {
+                color: #FFFFFF !important;
+            }
+            QCheckBox::indicator:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QComboBox:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QListWidget:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+            QSlider:focus {
+                outline: none;
+            }
+            QLineEdit:focus {
+                border: 2px solid #10B981 !important;
+                outline: none;
+            }
+        """)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
@@ -663,25 +721,25 @@ class SafeMARCMainWindow(QMainWindow):
         SVG_IMPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'''
         SVG_EXPORT = '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'''
 
-        btn_add_text = QPushButton(" Text")
-        btn_add_text.setIcon(svg_to_icon(SVG_PLUS))
-        btn_add_text.clicked.connect(lambda: self.add_pattern_row(is_regex=False))
+        self.btn_add_text = QPushButton(" Text")
+        self.btn_add_text.setIcon(svg_to_icon(SVG_PLUS))
+        self.btn_add_text.clicked.connect(lambda: self.add_pattern_row(is_regex=False))
         
-        btn_add_regex = QPushButton(" Regex")
-        btn_add_regex.setIcon(svg_to_icon(SVG_PLUS))
-        btn_add_regex.clicked.connect(lambda: self.add_pattern_row(is_regex=True))
+        self.btn_add_regex = QPushButton(" Regex")
+        self.btn_add_regex.setIcon(svg_to_icon(SVG_PLUS))
+        self.btn_add_regex.clicked.connect(lambda: self.add_pattern_row(is_regex=True))
         
-        btn_import = QPushButton()
-        btn_import.setIcon(svg_to_icon(SVG_IMPORT))
-        btn_import.setToolTip("Import Custom Patterns")
-        btn_import.clicked.connect(self.import_custom_patterns)
+        self.btn_import = QPushButton()
+        self.btn_import.setIcon(svg_to_icon(SVG_IMPORT))
+        self.btn_import.setToolTip("Import Custom Patterns")
+        self.btn_import.clicked.connect(self.import_custom_patterns)
         
-        btn_export = QPushButton()
-        btn_export.setIcon(svg_to_icon(SVG_EXPORT))
-        btn_export.setToolTip("Export Custom Patterns")
-        btn_export.clicked.connect(self.export_custom_patterns)
+        self.btn_export = QPushButton()
+        self.btn_export.setIcon(svg_to_icon(SVG_EXPORT))
+        self.btn_export.setToolTip("Export Custom Patterns")
+        self.btn_export.clicked.connect(self.export_custom_patterns)
         
-        for b in (btn_add_text, btn_add_regex):
+        for b in (self.btn_add_text, self.btn_add_regex):
             b.setStyleSheet("""
                 QPushButton {
                     background-color: #1F2937;
@@ -700,7 +758,7 @@ class SafeMARCMainWindow(QMainWindow):
                 }
             """)
             
-        for b in (btn_import, btn_export):
+        for b in (self.btn_import, self.btn_export):
             b.setFixedWidth(28)
             b.setFixedHeight(28)
             b.setStyleSheet("""
@@ -720,10 +778,10 @@ class SafeMARCMainWindow(QMainWindow):
         action_row_layout = QHBoxLayout()
         action_row_layout.setContentsMargins(0, 0, 0, 0)
         action_row_layout.setSpacing(6)
-        action_row_layout.addWidget(btn_add_text, 2)
-        action_row_layout.addWidget(btn_add_regex, 2)
-        action_row_layout.addWidget(btn_import)
-        action_row_layout.addWidget(btn_export)
+        action_row_layout.addWidget(self.btn_add_text, 2)
+        action_row_layout.addWidget(self.btn_add_regex, 2)
+        action_row_layout.addWidget(self.btn_import)
+        action_row_layout.addWidget(self.btn_export)
         
         text_layout.addLayout(action_row_layout)
         
@@ -1097,6 +1155,41 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_outputs = []
         self.active_pdf_source = None
 
+        # Apply StrongFocus focus policy to all interactive widgets for a consistent tabbing experience
+        interactive_widgets = [
+            self.btn_settings,
+            self.file_list,
+            self.btn_add_file,
+            self.btn_add_folder,
+            self.btn_paste,
+            self.btn_remove,
+            self.btn_clear,
+            self.cmb_vision_mode,
+            self.btn_select_people,
+            self.btn_select_regions,
+            self.btn_add_text,
+            self.btn_add_regex,
+            self.btn_import,
+            self.btn_export,
+            self.btn_draw_mode,
+            self.btn_persistent_mode,
+            self.btn_zoom_in,
+            self.btn_zoom_out,
+            self.btn_reset_zoom,
+            self.btn_rescan,
+            self.chk_auto_skip,
+            self.chk_skip_review,
+            self.btn_start_review,
+            self.btn_redact_next,
+            self.btn_skip,
+            self.btn_previous,
+            self.btn_stop_review
+        ]
+        for w in interactive_widgets:
+            if hasattr(w, "setFocusPolicy"):
+                w.setFocusPolicy(Qt.StrongFocus)
+        apply_focus_indicators(self)
+
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
         total = self.splitter.width()
@@ -1408,6 +1501,7 @@ class SafeMARCMainWindow(QMainWindow):
             
             btn_whole.setStyleSheet(get_whole_style(True))
             btn_whole.clicked.connect(lambda checked, b=btn_whole: [b.setStyleSheet(get_whole_style(checked)), self.update_text_patterns()])
+            btn_whole.setFocusPolicy(Qt.StrongFocus)
             row_layout.addWidget(btn_whole)
             
         btn_remove = QPushButton()
@@ -1426,9 +1520,11 @@ class SafeMARCMainWindow(QMainWindow):
             }
         """)
         btn_remove.clicked.connect(lambda checked=False, rw=row_widget: self.remove_pattern_row(rw))
+        btn_remove.setFocusPolicy(Qt.StrongFocus)
         row_layout.addWidget(btn_remove)
         
         self.text_patterns_layout.addWidget(row_widget)
+        apply_focus_indicators(row_widget)
         if hasattr(self, "btn_toggle_search"):
             self.btn_toggle_search.setVisible(True)
         self.update_text_patterns()
@@ -2706,6 +2802,7 @@ class PersistentRangeDialog(QDialog):
             prev_radio = radio
         self.setTabOrder(prev_radio, self.btn_cancel)
         self.setTabOrder(self.btn_cancel, self.btn_save)
+        apply_focus_indicators(self)
         
     def get_selected_scope(self) -> str:
         for val, radio in self.options:

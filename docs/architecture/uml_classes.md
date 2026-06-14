@@ -211,9 +211,14 @@ classDiagram
         +get_selected_scope() str
     }
 
+    class KeyboardFocusFilter {
+        +eventFilter(obj: QObject, event: QEvent) bool
+    }
+
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow ..> SettingsDialog : opens
     SafeMARCMainWindow ..> PersistentRangeDialog : opens
     PreviewWidget *-- SelectableHitItem
     PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
+    KeyboardFocusFilter ..> SafeMARCMainWindow : filters focus events for
 ```

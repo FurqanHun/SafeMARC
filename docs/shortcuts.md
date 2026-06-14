@@ -39,7 +39,7 @@ SafeMARC's keyboard-driven workflow enables highly efficient document review. Al
 | **Redact & Next** | `Shift+Return` or `Shift+Enter` | Processes redaction on the current file and loads the next item. |
 | **Skip Item** | `Space` or `S` | Skips the current file and loads the next item. |
 | **Previous Item** | `Backspace` or `P` | Returns to the previous file/page in the queue. |
-| **Stop Review** | `Escape` | Cancels the active batch review without clearing the queue. |
+| **Stop Review** | `Escape` | Cancels the active batch review. Note: If keyboard focus is active, pressing `Escape` clears the highlight first; pressing it a second time stops the review. |
 
 ## Pattern Input Fields (Text & Regex)
 | Action | Shortcut | Description |

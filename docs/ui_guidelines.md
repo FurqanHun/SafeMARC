@@ -77,3 +77,22 @@ To make manual review of automatic detections perfectly clear and visual, redact
 - **Biometric Known Identity Match**: Solid Emerald Green (`#10B981`, opacity: 50%, thickness: 3) with a floating text label showing the matched person's name.
 - **Low-Confidence / Ambiguous Text Match** (falls below the auto-redact cutoff): Solid Amber (`#F59E0B`, opacity: 50%, thickness: 3) if explicitly checked by the user; otherwise, a dashed Amber border (`#F59E0B`, opacity: 15%, thickness: 2) in the "Review Suggested" unchecked state, requesting user confirmation.
 - **Deselected Hit**: Dashed Grey (`#646464`, opacity: 0% / transparent fill, thickness: 2). Hit is ignored and will not be redacted when saving.
+
+## Keyboard Focus & Accessibility Guidelines
+
+To prevent visual clutter (such as permanent outlines or focus indicators showing up on mouse-click), focus styling must use property-based attribute selectors rather than the default `:focus` pseudo-class.
+
+1. **Property-Based Focus Styling**:
+   Use `[focused_via_keyboard="true"]` in your stylesheet to apply focus indicators (like green borders). Do **not** use the `:focus` selector, which is triggered by mouse clicks:
+   ```css
+   QPushButton[focused_via_keyboard="true"] {
+       border: 2px solid #10B981;
+       outline: none;
+   }
+   ```
+2. **Keyboard Focus Tracking**:
+   The application installs a global `KeyboardFocusFilter` (event filter) which tracks focus reasons. The property `focused_via_keyboard` is set to `"true"` if the widget was focused via keyboard (`Tab`, `Shift+Tab`, or shortcut) and `"false"` otherwise.
+3. **Escaping Focus**:
+   When keyboard focus is active, pressing the `Escape` key clears focus and returns focus back to the top-level main window container. This clears all focus outlines without triggering destructive shortcuts (like stopping the review process).
+4. **Initial Focus Prevention**:
+   To avoid initial buttons (like Settings) stealing focus on window opening, windows call `self.setFocus()` on startup. This ensures that no button is focused by default, and pressing `Enter` initially will not trigger unintended clicks.

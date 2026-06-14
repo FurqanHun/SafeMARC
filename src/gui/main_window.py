@@ -119,19 +119,19 @@ def apply_focus_indicators(parent):
         style = child.styleSheet() or ""
         focus_style = ""
         if isinstance(child, QPushButton):
-            focus_style = "\nQPushButton:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQPushButton[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QCheckBox):
-            focus_style = "\nQCheckBox:focus { color: #FFFFFF; }\nQCheckBox::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQCheckBox[focused_via_keyboard=\"true\"] { color: #FFFFFF; }\nQCheckBox[focused_via_keyboard=\"true\"]::indicator { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QComboBox):
-            focus_style = "\nQComboBox:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQComboBox[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QLineEdit):
-            focus_style = "\nQLineEdit:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQLineEdit[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QListWidget):
-            focus_style = "\nQListWidget:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQListWidget[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QSlider):
-            focus_style = "\nQSlider:focus { outline: none; }\nQSlider::handle:horizontal:focus { border: 2px solid #FFFFFF; background: #10B981; }"
+            focus_style = "\nQSlider[focused_via_keyboard=\"true\"] { outline: none; }\nQSlider[focused_via_keyboard=\"true\"]::handle:horizontal { border: 2px solid #FFFFFF; background: #10B981; }"
         elif isinstance(child, QRadioButton):
-            focus_style = "\nQRadioButton:focus { color: #FFFFFF; }\nQRadioButton::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQRadioButton[focused_via_keyboard=\"true\"] { color: #FFFFFF; }\nQRadioButton[focused_via_keyboard=\"true\"]::indicator { border: 2px solid #10B981; outline: none; }"
             
         if focus_style:
             child.setStyleSheet(style + focus_style)
@@ -1350,9 +1350,14 @@ class SafeMARCMainWindow(QMainWindow):
 
     def _on_shortcut_escape(self):
         focused = QApplication.focusWidget()
+        if focused and focused is not self and focused.property("focused_via_keyboard") == "true":
+            focused.clearFocus()
+            self.setFocus()
+            return
         from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
         if focused and isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
             focused.clearFocus()
+            self.setFocus()
             return
         self.on_escape_pressed()
 
@@ -2739,6 +2744,10 @@ class SafeMARCMainWindow(QMainWindow):
     def closeEvent(self, event):
         self.cleanup_temp_resources(full=True)
         event.accept()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setFocus()
 
 
 

@@ -83,19 +83,19 @@ def apply_focus_indicators(parent):
         style = child.styleSheet() or ""
         focus_style = ""
         if isinstance(child, QPushButton):
-            focus_style = "\nQPushButton:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQPushButton[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QCheckBox):
-            focus_style = "\nQCheckBox:focus { color: #FFFFFF; }\nQCheckBox::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQCheckBox[focused_via_keyboard=\"true\"] { color: #FFFFFF; }\nQCheckBox[focused_via_keyboard=\"true\"]::indicator { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QComboBox):
-            focus_style = "\nQComboBox:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQComboBox[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QLineEdit):
-            focus_style = "\nQLineEdit:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQLineEdit[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QListWidget):
-            focus_style = "\nQListWidget:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQListWidget[focused_via_keyboard=\"true\"] { border: 2px solid #10B981; outline: none; }"
         elif isinstance(child, QSlider):
-            focus_style = "\nQSlider:focus { outline: none; }\nQSlider::handle:horizontal:focus { border: 2px solid #FFFFFF; background: #10B981; }"
+            focus_style = "\nQSlider[focused_via_keyboard=\"true\"] { outline: none; }\nQSlider[focused_via_keyboard=\"true\"]::handle:horizontal { border: 2px solid #FFFFFF; background: #10B981; }"
         elif isinstance(child, QRadioButton):
-            focus_style = "\nQRadioButton:focus { color: #FFFFFF; }\nQRadioButton::indicator:focus { border: 2px solid #10B981; outline: none; }"
+            focus_style = "\nQRadioButton[focused_via_keyboard=\"true\"] { color: #FFFFFF; }\nQRadioButton[focused_via_keyboard=\"true\"]::indicator { border: 2px solid #10B981; outline: none; }"
             
         if focus_style:
             child.setStyleSheet(style + focus_style)
@@ -163,6 +163,13 @@ class ShortcutRebindButton(QPushButton):
     def keyPressEvent(self, event):
         if self.is_listening:
             key = event.key()
+            if key in (Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab):
+                self.setChecked(False)
+                self.is_listening = False
+                self.setText(self.current_sequence)
+                self.update_style()
+                self.releaseKeyboard()
+                return
             if key in (Qt.Key_unknown, Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta):
                 return
 
@@ -235,7 +242,8 @@ class SettingsDialog(QDialog):
             QDialog { background-color: #0B0F19; font-family: 'Segoe UI', Arial, sans-serif; }
             QTabWidget { background-color: #0B0F19; }
             QTabWidget::pane { border: 1px solid #374151; background: #111827; border-radius: 8px; }
-            QTabBar { background-color: #0B0F19; }
+            QTabBar { background-color: #0B0F19; outline: none; }
+            QTabBar:focus { outline: none; }
             QTabBar::tab {
                 background: #1F2937;
                 color: #9CA3AF;
@@ -250,6 +258,7 @@ class SettingsDialog(QDialog):
                 border-bottom: none;
             }
             QTabBar::tab:selected { background: #111827; color: #10B981; font-weight: bold; border: 1px solid #374151; border-bottom: none; }
+            QTabBar[focused_via_keyboard="true"]::tab:selected { border: 1px solid #10B981; border-bottom: none; }
             QListWidget { background-color: #1F2937; border: 1px solid #374151; color: #E5E7EB; border-radius: 8px; outline: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
             QListWidget::item { padding: 8px; border-bottom: 1px solid #374151; }
             QListWidget::item:hover { background-color: #374151; color: #FFFFFF; }
@@ -351,6 +360,8 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         
         self.tabs = QTabWidget()
+        self.tabs.tabBar().setCursor(Qt.PointingHandCursor)
+        self.tabs.tabBar().setFocusPolicy(Qt.TabFocus)
         layout.addWidget(self.tabs)
         
         self.settings = QSettings("SafeMARC", "SafeMARC")
@@ -749,6 +760,7 @@ class SettingsDialog(QDialog):
         
         self._refresh_people_list()
         apply_focus_indicators(self)
+        self.chk_global_output.setFocus()
 
     def _refresh_people_list(self):
         self.list_people.clear()

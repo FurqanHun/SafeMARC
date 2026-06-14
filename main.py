@@ -19,8 +19,26 @@ def run_gui():
 
     import qdarktheme
     from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QCheckBox, QComboBox, QTabBar, QMenu
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QObject, QEvent
     from src.gui.main_window import SafeMARCMainWindow
+
+    class KeyboardFocusFilter(QObject):
+        def eventFilter(self, obj, event):
+            from PySide6.QtWidgets import QWidget
+            if isinstance(obj, QWidget):
+                if event.type() == QEvent.FocusIn:
+                    reason = event.reason()
+                    if reason in (Qt.TabFocusReason, Qt.BacktabFocusReason, Qt.ShortcutFocusReason):
+                        obj.setProperty("focused_via_keyboard", "true")
+                    else:
+                        obj.setProperty("focused_via_keyboard", "false")
+                    obj.style().unpolish(obj)
+                    obj.style().polish(obj)
+                elif event.type() == QEvent.FocusOut:
+                    obj.setProperty("focused_via_keyboard", "false")
+                    obj.style().unpolish(obj)
+                    obj.style().polish(obj)
+            return super().eventFilter(obj, event)
 
     # Monkey patch clickable widgets to default to PointingHandCursor globally
     for widget_class in [QPushButton, QCheckBox, QComboBox, QTabBar, QMenu]:
@@ -40,6 +58,8 @@ def run_gui():
     signal.signal(signal.SIGINT, handle_sigint)
 
     app = QApplication(sys.argv)
+    focus_filter = KeyboardFocusFilter(app)
+    app.installEventFilter(focus_filter)
     custom_style = """
     QMainWindow, QWidget#centralWidget, QSplitter, QSplitter > QWidget {
         background-color: #0B0F19;
@@ -83,6 +103,7 @@ def run_gui():
     app.setStyleSheet(qdarktheme.load_stylesheet() + custom_style)
     window = SafeMARCMainWindow()
     window.show()
+    window.setFocus()
 
     import shutil
     import os

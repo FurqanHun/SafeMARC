@@ -392,6 +392,11 @@ class SafeMARCMainWindow(QMainWindow):
             QPushButton:pressed {
                 background-color: #111827;
             }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border-color: #1F2937;
+            }
         """
         
         for btn in (self.btn_add_file, self.btn_add_folder, self.btn_paste, self.btn_remove, self.btn_clear):
@@ -866,6 +871,11 @@ class SafeMARCMainWindow(QMainWindow):
                 border-color: #0F766E;
                 color: #FFFFFF;
             }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border-color: #1F2937;
+            }
         """
 
         icon_only_style = """
@@ -884,6 +894,10 @@ class SafeMARCMainWindow(QMainWindow):
             }
             QPushButton:pressed {
                 background-color: #111827;
+            }
+            QPushButton:disabled {
+                background-color: #111827;
+                border-color: #1F2937;
             }
         """
 
@@ -965,6 +979,11 @@ class SafeMARCMainWindow(QMainWindow):
                 border-color: #4B5563;
                 color: #FFFFFF;
             }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border-color: #1F2937;
+            }
         """)
         
         self.btn_skip = QPushButton(" Skip")
@@ -985,6 +1004,11 @@ class SafeMARCMainWindow(QMainWindow):
                 background-color: #374151;
                 border-color: #4B5563;
                 color: #FFFFFF;
+            }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border-color: #1F2937;
             }
         """)
         
@@ -1189,6 +1213,7 @@ class SafeMARCMainWindow(QMainWindow):
             if hasattr(w, "setFocusPolicy"):
                 w.setFocusPolicy(Qt.StrongFocus)
         apply_focus_indicators(self)
+        self.update_toolbar_state()
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -1220,6 +1245,15 @@ class SafeMARCMainWindow(QMainWindow):
         else:
             self.preview_widget.set_persistent_mode(False)
 
+    def update_toolbar_state(self):
+        has_file = self.current_file_path is not None
+        self.btn_draw_mode.setEnabled(has_file)
+        self.btn_persistent_mode.setEnabled(has_file)
+        self.btn_zoom_in.setEnabled(has_file)
+        self.btn_zoom_out.setEnabled(has_file)
+        self.btn_reset_zoom.setEnabled(has_file)
+        self.btn_rescan.setEnabled(has_file)
+
     def cancel_batch_mode(self):
         self.is_batch_mode = False
         self.batch_index = -1
@@ -1234,9 +1268,11 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_redact_next.hide()
         self.btn_stop_review.hide()
         self.btn_start_review.show()
-        self.preview_widget.scene.clear()
+        self.preview_widget.clear_preview()
+        self.current_file_path = None
         self.current_hits = []
         self.file_list.setEnabled(True)
+        self.update_toolbar_state()
         
         # Reset draw mode
         if self.btn_draw_mode.isChecked():
@@ -2102,7 +2138,7 @@ class SafeMARCMainWindow(QMainWindow):
             path = item.data(Qt.UserRole)
             # If the removed item is the currently loaded file, clear preview
             if path == self.current_file_path:
-                self.preview_widget.scene.clear()
+                self.preview_widget.clear_preview()
                 self.current_file_path = None
                 self.current_hits = []
                 
@@ -2118,13 +2154,15 @@ class SafeMARCMainWindow(QMainWindow):
                     # If we removed the current batch item, move to the next one
                     self.load_next_batch_item()
         self.update_stats()
+        self.update_toolbar_state()
 
     def clear_queue(self):
         self.file_list.clear()
-        self.preview_widget.scene.clear()
+        self.preview_widget.clear_preview()
         self.current_file_path = None
         self.current_hits = []
         self.user_selections_cache.clear()
+        self.update_toolbar_state()
         
         # Reset batch mode if active
         if self.is_batch_mode:
@@ -2209,6 +2247,7 @@ class SafeMARCMainWindow(QMainWindow):
                 
             if cached_hits:
                 self.preview_widget.display_hits(cached_hits, is_pdf=file_path.lower().endswith('.pdf'), cached_active_hits=cached_hits, reviewed=reviewed)
+        self.update_toolbar_state()
 
     def get_redacted_output_path(self, input_path: str) -> str:
         from PySide6.QtCore import QSettings, QStandardPaths
@@ -2510,6 +2549,7 @@ class SafeMARCMainWindow(QMainWindow):
                 pdf_words = page_data.get("words", None) if isinstance(page_data, dict) else None
                 self.current_file_path = page_path
                 self.current_hits = []
+                self.update_toolbar_state()
                 self.title_label.setText(f"🛡️ SafeMARC - Page {self.active_pdf_index + 1}/{len(self.active_pdf_pages)}")
                 
                 self.preview_widget.load_image(page_path)
@@ -2618,6 +2658,7 @@ class SafeMARCMainWindow(QMainWindow):
         
         self.current_file_path = file_path
         self.current_hits = []
+        self.update_toolbar_state()
         
         # Attempt to load and auto-scan
         if file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):

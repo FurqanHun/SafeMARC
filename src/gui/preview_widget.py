@@ -218,6 +218,14 @@ class PreviewWidget(QGraphicsView):
         else:
             self.persistent_manual_hits = []
 
+    def clear_preview(self):
+        self.scene.clear()
+        self.current_pixmap_item = None
+        self.hit_items = []
+        self.active_hits = []
+        self.zoom_factor = 1.0
+        self.scene.setSceneRect(0, 0, 0, 0)
+
     def load_image(self, file_path: str):
         self.scene.clear()
         self.current_pixmap_item = None

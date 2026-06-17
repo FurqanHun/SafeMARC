@@ -2592,27 +2592,45 @@ class SafeMARCMainWindow(QMainWindow):
             prev_path = prev_item.data(Qt.UserRole)
             
             if prev_path.lower().endswith('.pdf'):
-                # User wants to go back to a finished PDF
                 msg_box = QMessageBox(self)
                 msg_box.setWindowTitle("Finished PDF")
-                msg_box.setText(f"The previous item is a completed PDF.\nRe-entering it will restart from Page 1.\n\nWhat would you like to do?")
+                msg_box.setText("The previous item is a completed PDF. Re-entering it will restart from Page 1 to ensure correct PDF compilation.\n\nWhat would you like to do?")
                 
-                btn_restart = msg_box.addButton("Restart PDF", QMessageBox.AcceptRole)
+                btn_restart = msg_box.addButton("Restart PDF (Page 1)", QMessageBox.AcceptRole)
                 btn_skip = msg_box.addButton("Go Back Further", QMessageBox.ActionRole)
                 btn_cancel = msg_box.addButton("Cancel", QMessageBox.RejectRole)
                 
-                msg_box.exec()
+                msg_box.setStyleSheet("""
+                    QMessageBox { background-color: #0B0F19; }
+                    QMessageBox QLabel { color: #F3F4F6; font-size: 13px; background: transparent; }
+                    QPushButton {
+                        background-color: #1F2937;
+                        color: #E5E7EB;
+                        border: 1px solid #374151;
+                        border-radius: 8px;
+                        padding: 6px 14px;
+                        font-weight: 600;
+                        font-size: 13px;
+                    }
+                    QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+                    QPushButton:focus { background-color: #374151; border-color: #10B981; color: #FFFFFF; }
+                """)
                 
-                if msg_box.clickedButton() == btn_restart:
+                msg_box.exec()
+                clicked_btn = msg_box.clickedButton()
+                
+                if clicked_btn == btn_restart:
+                    self.is_navigating_backward = False  # Reset to ensure we load page 1 and build sequentially
                     self._undo_queue_item(prev_index)
                     self.batch_index = prev_index
                     self.load_next_batch_item()
-                elif msg_box.clickedButton() == btn_skip:
+                elif clicked_btn == btn_skip:
+                    self.is_navigating_backward = True
                     self._undo_queue_item(prev_index)
                     self.batch_index = prev_index
-                    self.go_previous() # Recursive call
+                    self.go_previous()
                 else:
-                    return # Cancel
+                    return
             else:
                 self._undo_queue_item(prev_index)
                 self.batch_index = prev_index

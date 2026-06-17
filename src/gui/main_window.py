@@ -2283,7 +2283,7 @@ class SafeMARCMainWindow(QMainWindow):
         has_scanner_cache = self.scanner and ckey in self.scanner._scan_cache
         has_selection_cache = ckey in self.user_selections_cache
         
-        if has_scanner_cache or has_selection_cache:
+        if has_scanner_cache:
             hits = self.run_scan_with_overlay(file_path, cache_key=ckey)
             self.current_hits = hits
             
@@ -2304,6 +2304,23 @@ class SafeMARCMainWindow(QMainWindow):
                 cached_active_hits=cached_active_hits,
                 reviewed=reviewed
             )
+        elif has_selection_cache:
+            cached_data = self.user_selections_cache[ckey]
+            if isinstance(cached_data, dict):
+                cached_hits = cached_data.get("active_hits", [])
+                reviewed = cached_data.get("reviewed", False)
+            else:
+                cached_hits = cached_data
+                reviewed = False
+            
+            if cached_hits:
+                self.preview_widget.display_hits(
+                    cached_hits,
+                    is_pdf=is_pdf,
+                    pdf_source=self.active_pdf_source if is_pdf else None,
+                    cached_active_hits=cached_hits,
+                    reviewed=reviewed
+                )
         self.update_toolbar_state()
 
     def get_current_cache_key(self, path=None):
@@ -2461,10 +2478,10 @@ class SafeMARCMainWindow(QMainWindow):
             }
 
         self.is_batch_mode = True
-        self.batch_index = self.file_list.currentRow() if self.file_list.currentRow() >= 0 else 0
+        self.batch_index = 0
         self.batch_success_count = 0
 
-        for i in range(self.batch_index, self.file_list.count()):
+        for i in range(self.file_list.count()):
             from PySide6.QtGui import QColor
             self.file_list.item(i).setForeground(QColor("#E5E7EB"))
             

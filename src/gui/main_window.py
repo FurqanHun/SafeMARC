@@ -1283,6 +1283,14 @@ class SafeMARCMainWindow(QMainWindow):
         self.file_list.setEnabled(True)
         self.update_toolbar_state()
         
+        # Re-enable sidebar/toolbar controls when batch review stops
+        self.btn_settings.setEnabled(True)
+        self.btn_add_file.setEnabled(True)
+        self.btn_add_folder.setEnabled(True)
+        self.btn_paste.setEnabled(True)
+        self.btn_remove.setEnabled(True)
+        self.btn_clear.setEnabled(True)
+        
         # Reset draw mode
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
@@ -2491,6 +2499,20 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.file_list.setEnabled(False)
         
+        # Disable sidebar/toolbar controls during batch review
+        self.btn_settings.setEnabled(False)
+        self.btn_add_file.setEnabled(False)
+        self.btn_add_folder.setEnabled(False)
+        self.btn_paste.setEnabled(False)
+        self.btn_remove.setEnabled(False)
+        self.btn_clear.setEnabled(False)
+
+        # Clear any widget focus so no button/control has auto-focus
+        focused = QApplication.focusWidget()
+        if focused:
+            focused.clearFocus()
+        self.setFocus()
+
         # Update UI state
         self.btn_start_review.hide()
         self.btn_previous.show()
@@ -2699,6 +2721,13 @@ class SafeMARCMainWindow(QMainWindow):
                         self.is_navigating_backward = False
                         self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits, reviewed=reviewed)
                         self.btn_redact_next.setEnabled(True)
+                        
+                        # Clear any auto-relocated focus if not focused via keyboard
+                        focused = QApplication.focusWidget()
+                        if not focused or focused.property("focused_via_keyboard") != "true":
+                            if focused:
+                                focused.clearFocus()
+                            self.setFocus()
                 except Exception as e:
                     self.is_navigating_backward = False
                     print(f"Error processing page: {e}")
@@ -2821,6 +2850,13 @@ class SafeMARCMainWindow(QMainWindow):
                     self.is_navigating_backward = False
                     self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits, reviewed=reviewed)
                     self.btn_redact_next.setEnabled(True)
+                    
+                    # Clear any auto-relocated focus if not focused via keyboard
+                    focused = QApplication.focusWidget()
+                    if not focused or focused.property("focused_via_keyboard") != "true":
+                        if focused:
+                            focused.clearFocus()
+                        self.setFocus()
             except Exception as e:
                 self.is_navigating_backward = False
                 item.setForeground(QColor("#d32f2f"))

@@ -79,7 +79,8 @@ graph TD
   7. The user can press `F5` at any point to rescan the current document with the active regional and text pattern filters while preserving custom manual selections.
   8. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
   9. On skipping, the user can choose to skip the active PDF page or skip the entire PDF file.
-  10. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
+  10. On going previous to a completed PDF in the queue, the user is prompted to restart the PDF from Page 1 to ensure a clean compilation stack.
+  11. Redactions are burned directly onto output images or rebuilt into a sanitized PDF.
 
 ### UC3: Configure Redaction Settings & Thresholds
 - **Actors**: User

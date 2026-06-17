@@ -30,6 +30,12 @@ graph TD
     F --> G{User Action}
     G -- Redact Next --> H[Burn redactions & save to output file]
     G -- Skip --> I{Is it a PDF?}
+    G -- Go Previous --> P{Re-entering completed PDF?}
+    
+    P -- Yes --> Q[Prompt User: Restart PDF from Page 1?]
+    Q -- Yes --> E
+    P -- No --> R[Load previous item or page]
+    R --> D1
     
     I -- No --> J[Mark as skipped / grey out in queue]
     I -- Yes --> K[Prompt User: Skip Page or Skip entire PDF?]
@@ -309,4 +315,23 @@ sequenceDiagram
     end
     PW-->>User: Display fully restored selections & manual shapes
 ```
+
+---
+
+## Keyboard Focus & Tabbing Mode Lifecycle Workflow
+
+```mermaid
+graph TD
+    A[Enter Batch Review / Load Next Item] --> B[Clear any auto-relocated focus & setFocus to MainWindow]
+    B --> C{User presses Tab?}
+    C -- No --> D[No widget focused / Pressing Enter does not trigger buttons]
+    C -- Yes --> E[Focus first/next interactive widget & set focused_via_keyboard = true]
+    E --> F[Show green focus indicator border]
+    F --> G{User presses Enter/Return?}
+    G -- Yes --> H[Trigger focused widget action]
+    G -- No --> I{User presses Escape?}
+    I -- Yes --> J[Clear focus & call setFocus to MainWindow / Exit Tabbing Mode]
+    J --> B
+```
+
 

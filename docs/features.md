@@ -65,7 +65,8 @@
 - [x] **Drag and Drop**: Support dragging and dropping files or folders directly into the queue list widget.
 - [x] **Clipboard Integration**: Support pasting images (`Ctrl+V`) directly from the clipboard to auto-generate a temporary review item.
 - [x] **Global Output Folder & Clipboard Safety**: Configuration to specify a custom global folder for all redactions. Clipboard-pasted files automatically redirect here to prevent loss in system temporary directories.
-- [x] **Backwards Navigation**: Full navigation history to step backward to a previous file or PDF page.
+- [x] **Backwards Navigation & PDF Re-entry**: Full navigation history to step backward to a previous file or PDF page. Re-entering a completed PDF prompts the user to restart from Page 1, ensuring a clean sequential compilation stack.
+- [x] **Strict Start-from-First-Item Queue**: Enforces that starting batch reviews always initiates from the first item in the queue (index 0) to guarantee a consistent and predictable review workflow.
 - [x] **State Selections & Checkbox Persistence**: Keeps the exact checked/unchecked state of all AI detections and manually added bounding boxes perfectly synchronized and persistent across queue navigation (back, next, skip) and settings/pattern rescans.
 
 ## Biometric Identity Editor
@@ -78,7 +79,8 @@
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.
 - [x] **Premium UI/UX Polish**: Premium unified deep-dark `#0B0F19` canvas, custom `NewIdentityDialog` with matching aesthetics (including Enter-key Save/Default support), global transparent labels, and tactile `PointingHandCursor` feedback on all interactive components (buttons, checkboxes, comboboxes, menus, and list items).
-- [x] **Keyboard-Driven Workflow**: Fully complete and safety-guarded keyboard navigation. Navigate queue, toggle Draw/Persist modes, and use `Left`/`Right` arrow keys to cycle focus on detected bounding boxes, toggling them with `Space`/`C`. All shortcuts are automatically bypassed when input fields are active or modal dialogs are open to prevent conflicts.
+- [x] **Keyboard-Driven Workflow**: Fully complete and safety-guarded keyboard navigation. Navigate queue, toggle Draw/Persist modes, and use `Left`/`Right` arrow keys to cycle focus on detected bounding boxes, toggling them with `Space`/`C`. All shortcuts are automatically bypassed when input fields are active or modal dialogs are open to prevent conflicts. Keyboard focus/tabbing is cleared by default when starting or navigating in batch reviews, keeping the focus strictly on the window unless explicitly activated by pressing the `Tab` key, and pressing `Escape` on any focused widget exits tabbing mode.
+- [x] **Queue Protection in Batch Mode**: Queue-modifying controls (Add File, Add Folder, Clear Queue, Paste, Remove) and the Settings dialog are automatically disabled while batch review is active to prevent modification during processing, while vision checklists and pattern configuration controls remain fully enabled.
 - [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 24 keyboard shortcuts using QSettings.
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.

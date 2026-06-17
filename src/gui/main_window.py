@@ -2085,6 +2085,7 @@ class SafeMARCMainWindow(QMainWindow):
             return
             
         # Cache manual boxes before rescanning
+        manuals = self.preview_widget.active_hits.copy()
         ckey = self.get_current_cache_key()
         self.user_selections_cache[ckey] = {
             "active_hits": manuals,

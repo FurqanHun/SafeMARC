@@ -57,7 +57,7 @@ class IdentityManager:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         h_img, w_img = gray.shape[:2]
         
-        # Run detections with standard 1.1, 4 parameters and no strict minSize to match previous high recall
+        # Run cascade face detections.
         faces_default = self._local.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
         faces_alt = self._local.face_cascade_alt.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
         faces_profile = self._local.profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
@@ -77,16 +77,16 @@ class IdentityManager:
             all_faces.append((int(orig_x), int(y), int(w), int(h)))
             
         if len(all_faces) > 0:
-            # Safely select the largest face crop based on area
+            # Select largest face crop.
             x, y, w, h = max(all_faces, key=lambda f: f[2] * f[3])
-            # Clip crop coordinates to prevent out-of-bounds slicing crashes
+            # Clip crop coordinates.
             clip_y = max(0, y)
             clip_h = min(h_img - clip_y, h)
             clip_x = max(0, x)
             clip_w = min(w_img - clip_x, w)
             return img[clip_y:clip_y+clip_h, clip_x:clip_x+clip_w]
             
-        return img  # Fallback: assume entire image is a face crop
+        return img  # Fallback to original image.
 
     def reload_identities(self):
         """Loads images from disk and builds recognition data."""
@@ -117,7 +117,7 @@ class IdentityManager:
                     
                     img_path = os.path.join(person_path, img_name)
                     
-                    # 1. Load cached SFace embedding if available
+                    # Load cached SFace embedding.
                     if self.use_sface:
                         npy_path = img_path + ".sface.npy"
                         if os.path.exists(npy_path):
@@ -131,7 +131,7 @@ class IdentityManager:
                             except Exception as e:
                                 print(f"[IdentityManager] Failed to load cached SFace embedding: {e}")
                     else:
-                        # 2. Load cached LBPH grayscale face crop if available
+                        # Load cached LBPH grayscale face crop.
                         crop_path = img_path + ".lbph.png"
                         if os.path.exists(crop_path):
                             try:
@@ -144,7 +144,7 @@ class IdentityManager:
                             except Exception as e:
                                 print(f"[IdentityManager] Failed to load cached LBPH crop: {e}")
 
-                    # 3. Cache Miss: Read raw image and extract/compute
+                    # Extract and compute face data.
                     img = cv2.imread(img_path)
                     if img is None:
                         continue
@@ -234,10 +234,8 @@ class IdentityManager:
                         best_score = score
                         best_name = name
             
-            # SFace cosine similarity:
-            #   Same person: typically 0.4-0.8+
-            #   Different person: typically 0.1-0.35
-            # Dynamic matching similarity threshold loaded from QSettings (default 0.36)
+            # Cosine similarity references.
+            # Dynamic matching similarity threshold.
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
             fm_val = float(settings.value("model_face_match", 0.36))
@@ -279,7 +277,7 @@ class IdentityManager:
         import shutil
         import glob
         
-        # Count existing files to avoid overwriting
+        # Count existing reference files.
         existing_files = glob.glob(os.path.join(person_dir, "ref_*"))
         start_idx = len(existing_files)
         
@@ -298,7 +296,7 @@ class IdentityManager:
         import shutil
         import glob
         
-        # Count existing files to avoid overwriting
+        # Count existing reference files.
         existing_files = glob.glob(os.path.join(session_dir, "temp_ref*"))
         start_idx = len(existing_files)
         

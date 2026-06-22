@@ -63,7 +63,7 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
 
-        # 1. Regex detector (text / OCR)
+        # Text and OCR detection
         if ckey in self._regex_cache:
             print(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
             regex_hits = self._regex_cache[ckey]
@@ -75,7 +75,7 @@ class SafeScanner:
                 regex_hits = []
             self._regex_cache[ckey] = list(regex_hits)
 
-        # 2. Vision detector (faces / bodies)
+        # Face and body detection
         if ckey in self._vision_cache:
             print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
             vision_hits = self._vision_cache[ckey]
@@ -90,25 +90,21 @@ class SafeScanner:
         all_hits.extend(regex_hits)
         all_hits.extend(vision_hits)
 
-        # Filter face hits according to the active redaction mode.
+        # Filter hits by active redaction mode
         final_hits = []
         for hit in all_hits:
             if hit.label.startswith("FACE") or hit.label == "BODY":
                 if self.face_redaction_mode == "ALL":
                     final_hits.append(hit)
                 elif self.face_redaction_mode == "BLACKLIST":
-                    # Redact only the faces whose identity is in the target list.
-                    # Unrecognized faces (empty identity) are not redacted.
-                    # If the target list is empty, no one is redacted.
+                    # Redact recognized target identities
                     if hit.identity and hit.identity in self.target_identities:
                         final_hits.append(hit)
                         print(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
                     else:
                         print(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
                 elif self.face_redaction_mode == "WHITELIST":
-                    # Redact everyone except the faces whose identity is in the target list.
-                    # Unrecognized faces are always redacted.
-                    # If the target list is empty, everyone is redacted.
+                    # Redact all faces except whitelisted identities
                     if hit.identity and hit.identity in self.target_identities:
                         print(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
                     else:

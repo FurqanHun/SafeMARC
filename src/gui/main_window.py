@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QGridLayout,
 )
-from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal, QEvent, QObject
 from PySide6.QtGui import QFont, QIcon, QColor, QKeySequence
 
 from src.core.scanner import SafeScanner
@@ -401,6 +401,25 @@ class QuickAddIdentityDialog(QDialog):
         
     def get_name(self):
         return self.combo_name.currentText().strip()
+
+
+class FocusEventFilter(QObject):
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self.main_window = main_window
+
+    def eventFilter(self, obj, event):
+        if event is not None:
+            if event.type() == QEvent.FocusIn:
+                try:
+                    from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+                    if isinstance(obj, (QLineEdit, QTextEdit, QPlainTextEdit)):
+                        self.main_window.set_shortcuts_enabled(False)
+                    else:
+                        self.main_window.set_shortcuts_enabled(True)
+                except Exception:
+                    pass
+        return super().eventFilter(obj, event)
 
 
 class SafeMARCMainWindow(QMainWindow):
@@ -1522,7 +1541,8 @@ class SafeMARCMainWindow(QMainWindow):
         apply_focus_indicators(self)
         self.update_toolbar_state()
         self.update_review_button_tooltips()
-        QApplication.instance().focusChanged.connect(self.on_focus_changed)
+        self.focus_filter = FocusEventFilter(self)
+        QApplication.instance().installEventFilter(self.focus_filter)
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -1832,17 +1852,7 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception:
                     pass
 
-    def on_focus_changed(self, old, now):
-        """Automatically disable conflicting keyboard shortcuts when editing text, and re-enable them afterwards."""
-        try:
-            from PySide6.QtWidgets import QApplication, QLineEdit, QTextEdit, QPlainTextEdit
-            focused = QApplication.focusWidget()
-            if isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
-                self.set_shortcuts_enabled(False)
-            else:
-                self.set_shortcuts_enabled(True)
-        except Exception:
-            pass
+
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

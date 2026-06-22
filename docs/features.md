@@ -5,6 +5,8 @@
 - [x] **Stable PDF Cache Keys**: Maps randomized temporary PDF extraction paths to stable document/page keys to perfectly track PDF hits inside the zero-lag session cache.
 - [x] **Unified Resource Pooling**: All temporary files (PDF pages, cropped identities, clipboard images, and redacted assets) are securely managed inside a single system-level `safemarc_temp` directory to prevent workspace clutter and bypass Windows permission issues.
 - [x] **Graceful RAII Loop Guard**: PySide6 event loops are protected with a custom `SIGINT` signal handler and a `try-finally` Python RAII guard. This guarantees that `safemarc_temp` is securely and completely purged even if the application is killed forcefully with `Ctrl+C`.
+- [x] **Persistent Diagnostics & Logging**: Automatically initializes Python `faulthandler` to log native C/C++ segmentation faults, paired with a custom `TeeStream` redirection that writes diagnostic outputs to both standard streams and a persistent `safemarc.log` file in the XDG app data directory.
+- [x] **Safety-Focused Keyboard Focus Filter**: Replaces crash-prone PySide6 `focusChanged` signals with a custom `FocusEventFilter` to safely manage keyboard focus shifting, prevent infinite loops, and handle ESC keybindings.
 
 ## Core Vision Features
 - [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
@@ -52,6 +54,7 @@
 ## Document Support & Handling
 - [x] **Images**: Comprehensive support for modern image formats (JPG, JPEG, PNG, WEBP).
 - [x] **PDFs**: Seamless PDF page extraction, individual page review, and rasterized rebuilding to completely eliminate any hidden layers and metadata.
+- [x] **PyMuPDF Rebuilding Engine**: Uses the lightweight PyMuPDF (`fitz`) library to rebuild final sanitized PDFs from redacted page images, resolving Pillow rendering/color-space issues.
 - [ ] **Word Documents (`.docx`)**: Planned for future releases.
 
 ## Non-Destructive Review Workflow
@@ -74,7 +77,7 @@
 - [x] **Real-Time Training Feedback**: Fully tactile status updates (e.g. `"Loading & detecting face..."`, `"Retraining face recognition model..."`) paired with busy override cursors and temporary interface lockouts to provide perfect, seamless transition feedback during batch cropping.
 - [x] **Individual Reference Image Removal**: Delete specific reference images via interactive red corner corner close markers on thumbnails, triggering immediate `.npy` cache cleanups.
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
-- [x] **Live Biometric Threshold Synchronization**: Adjusting the Face Matching Threshold or Text Auto-Redact cutoff in the Settings dialog instantly synchronizes with the deep-learning backend.
+- [x] **Live Biometric & Target Synchronization**: Adjusting the Face Matching Threshold, the Text Auto-Redact cutoff in the Settings dialog, or checking/unchecking target identities instantly re-evaluates and updates matches in the preview canvas in real-time.
 - [x] **Smart Quick-Add Combobox Dropdown**: Right-click to assign a face directly from the preview canvas using a styled autocompleting dropdown combobox. Re-using an existing name directly appends the reference photo to the correct permanent or session folder, while new names prompt the user for save-type preferences.
 
 ## System & Interface
@@ -83,6 +86,7 @@
 - [x] **Keyboard-Driven Workflow**: Fully complete and safety-guarded keyboard navigation. Navigate queue, toggle Draw/Persist modes, and use `Left`/`Right` arrow keys to cycle focus on detected bounding boxes, toggling them with `Space`/`C`. All shortcuts are automatically bypassed when input fields are active or modal dialogs are open to prevent conflicts. Keyboard focus/tabbing is cleared by default when starting or navigating in batch reviews, keeping the focus strictly on the window unless explicitly activated by pressing the `Tab` key, and pressing `Escape` on any focused widget exits tabbing mode.
 - [x] **Queue Protection in Batch Mode**: Queue-modifying controls (Add File, Add Folder, Clear Queue, Paste, Remove) and the Settings dialog are automatically disabled while batch review is active to prevent modification during processing, while vision checklists and pattern configuration controls remain fully enabled.
 - [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 24 keyboard shortcuts using QSettings.
+- [x] **AI Engine & Environment Diagnostics**: A dynamic `ClickableStatusLabel` in the main toolbar providing one-click access to the `EngineStatusDialog`, which validates installation state and path locations of AI engines (SFace face recognition model, MediaPipe body silhouette detector, and Tesseract OCR).
 - [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.

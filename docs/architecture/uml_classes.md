@@ -209,14 +209,33 @@ classDiagram
         +get_selected_scope() str
     }
 
-    class KeyboardFocusFilter {
+    class FocusEventFilter {
         +eventFilter(obj: QObject, event: QEvent) bool
     }
 
+    class ClickableStatusLabel {
+        +Signal clicked
+        +mousePressEvent(event) void
+    }
+
+    class EngineStatusDialog {
+        +SafeScanner scanner
+    }
+
+    class QuickAddIdentityDialog {
+        +QLineEdit name_input
+        +QComboBox save_type_combo
+        +QPushButton btn_save
+        +QPushButton btn_cancel
+    }
+
     SafeMARCMainWindow *-- PreviewWidget
+    SafeMARCMainWindow *-- ClickableStatusLabel
     SafeMARCMainWindow ..> SettingsDialog : opens
     SafeMARCMainWindow ..> PersistentRangeDialog : opens
+    SafeMARCMainWindow ..> EngineStatusDialog : opens
+    SafeMARCMainWindow ..> QuickAddIdentityDialog : opens
     PreviewWidget *-- SelectableHitItem
     PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
-    KeyboardFocusFilter ..> SafeMARCMainWindow : filters focus events for
+    FocusEventFilter ..> SafeMARCMainWindow : filters focus events for
 ```

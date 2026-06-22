@@ -32,7 +32,6 @@ graph TD
         UC3 --> UC3_D[Select Target Identities]
         UC3 --> UC3_E[Toggle Auto-Skip Clean Images]
         UC3 --> UC3_F[Toggle Skip Review / Auto-Redact]
-        UC3 --> UC3_G[Toggle Always Rasterize PDFs]
         UC3 --> UC3_H[Adjust Face Detection Threshold Slider]
         UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
     end

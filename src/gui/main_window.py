@@ -2139,6 +2139,8 @@ class SafeMARCMainWindow(QMainWindow):
                     cb.blockSignals(True)
                     cb.setChecked(True)
                     cb.blockSignals(False)
+                if self.scanner:
+                    self.scanner._scan_cache.clear()
                 self._rescan_current()
             btn_all.clicked.connect(on_select_all)
             
@@ -2164,6 +2166,8 @@ class SafeMARCMainWindow(QMainWindow):
                     cb.blockSignals(True)
                     cb.setChecked(False)
                     cb.blockSignals(False)
+                if self.scanner:
+                    self.scanner._scan_cache.clear()
                 self._rescan_current()
             btn_clear.clicked.connect(on_clear_all)
             
@@ -2185,10 +2189,14 @@ class SafeMARCMainWindow(QMainWindow):
             if name in self.scanner.target_identities:
                 self.scanner.target_identities.remove(name)
         print(f"Target identities: {self.scanner.target_identities}")
+        if self.scanner:
+            self.scanner._scan_cache.clear()
         self._rescan_current()
 
     def _clear_target_identities(self):
         self.scanner.target_identities = []
+        if self.scanner:
+            self.scanner._scan_cache.clear()
         self._rescan_current()
 
     def _rescan_current(self):

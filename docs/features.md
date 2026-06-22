@@ -1,7 +1,7 @@
 # SafeMARC Features
 
 ## Performance & Architecture
-- [x] **Zero-Lag Session Caching**: An advanced memory dictionary cache that saves full biometric and text hits per file/page, ensuring backwards and forwards queue navigation is instantaneous (<10ms latency).
+- [x] **Zero-Lag Session Caching**: An advanced memory dictionary cache that saves full biometric and text hits per file/page, ensuring backwards and forwards queue navigation is instantaneous (<10ms latency). Text/OCR hits are cached separately from vision/face hits so that adding or modifying face identities only invalidates the vision cache, keeping the slow OCR/Tesseract results cached for all session documents.
 - [x] **Stable PDF Cache Keys**: Maps randomized temporary PDF extraction paths to stable document/page keys to perfectly track PDF hits inside the zero-lag session cache.
 - [x] **Unified Resource Pooling**: All temporary files (PDF pages, cropped identities, clipboard images, and redacted assets) are securely managed inside a single system-level `safemarc_temp` directory to prevent workspace clutter and bypass Windows permission issues.
 - [x] **Graceful RAII Loop Guard**: PySide6 event loops are protected with a custom `SIGINT` signal handler and a `try-finally` Python RAII guard. This guarantees that `safemarc_temp` is securely and completely purged even if the application is killed forcefully with `Ctrl+C`.

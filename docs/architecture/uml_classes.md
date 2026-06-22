@@ -44,8 +44,10 @@ classDiagram
         +str face_redaction_mode
         +List target_identities
         +Dict _vision_cache
+        +Dict _regex_cache
         +Dict _scan_cache
         +clear_cache() void
+        +clear_vision_cache() void
         +set_vision_mode(mode: str) void
         +set_face_redaction_mode(mode: str) void
         +set_text_patterns(patterns_list: List) void

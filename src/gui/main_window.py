@@ -874,11 +874,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.chk_skip_review.setStyleSheet(checkbox_style)
         settings_layout.addWidget(self.chk_skip_review)
 
-        self.chk_always_rasterize = QCheckBox("Always Rasterize PDFs")
-        self.chk_always_rasterize.setChecked(False)
-        self.chk_always_rasterize.setToolTip("If unchecked, non-redacted PDFs are copied directly without rasterizing.")
-        self.chk_always_rasterize.setStyleSheet(checkbox_style)
-        settings_layout.addWidget(self.chk_always_rasterize)
+
 
         # === Right Panel (Settings & Redaction Rules) ===
         right_panel_widget = QWidget()
@@ -2886,7 +2882,6 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.file_list.setEnabled(False)
         
-        # Disable sidebar/toolbar controls during batch review
         self.btn_settings.setEnabled(False)
         self.btn_add_file.setEnabled(False)
         self.btn_add_folder.setEnabled(False)
@@ -2894,7 +2889,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_remove.setEnabled(False)
         self.btn_clear.setEnabled(False)
 
-        # Clear any widget focus so no button/control has auto-focus
         focused = QApplication.focusWidget()
         if focused:
             focused.clearFocus()
@@ -3123,20 +3117,10 @@ class SafeMARCMainWindow(QMainWindow):
                     QTimer.singleShot(0, self.load_next_batch_item)
                 return
             else:
-                # Finished PDF, rebuild
                 out_path = self.get_redacted_output_path(
                     self.file_list.item(self.batch_index).data(Qt.UserRole)
                 )
-                if not self.active_pdf_has_redactions and not self.chk_always_rasterize.isChecked():
-                    import shutil
-                    try:
-                        shutil.copy2(self.file_list.item(self.batch_index).data(Qt.UserRole), out_path)
-                        success = True
-                    except Exception as e:
-                        print(f"Error copying original PDF: {e}")
-                        success = False
-                else:
-                    success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
+                success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
 
                 if success:
                     self.batch_success_count += 1

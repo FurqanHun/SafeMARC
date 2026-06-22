@@ -32,6 +32,7 @@ outputs/
 build/
 dist/
 *.spec
+!safemarc.spec
 
 # --- LOGS & DEBUGGING ---
 *.log

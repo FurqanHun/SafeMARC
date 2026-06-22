@@ -4,6 +4,7 @@ from typing import List
 import pytesseract
 from PIL import Image
 
+from src.utils.paths import pytesseract_env
 from src.core.detectors.base import BaseDetector
 from src.core.types import SensitiveHit
 
@@ -98,7 +99,8 @@ class RegexDetector(BaseDetector):
                 img = Image.fromarray(thresh)
                 
                 try:
-                    ocr_data = pytesseract.image_to_data(img, config="--psm 3", output_type=pytesseract.Output.DICT)
+                    with pytesseract_env():
+                        ocr_data = pytesseract.image_to_data(img, config="--psm 3", output_type=pytesseract.Output.DICT)
                     new_cached_list.append((ocr_data, scale))
                     ocr_hits = self._scan_data_dict(ocr_data, scale=scale)
                     hits.extend(ocr_hits)

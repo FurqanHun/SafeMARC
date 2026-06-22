@@ -156,8 +156,10 @@ class EngineStatusDialog(QDialog):
         
         # Tesseract Check
         import pytesseract
+        from src.utils.paths import pytesseract_env
         try:
-            tesseract_version = pytesseract.get_tesseract_version()
+            with pytesseract_env():
+                tesseract_version = pytesseract.get_tesseract_version()
             has_tesseract = True
         except Exception:
             tesseract_version = "Not found"
@@ -439,8 +441,10 @@ class SafeMARCMainWindow(QMainWindow):
             body_exists = os.path.exists(body_model_path)
             
             import pytesseract
+            from src.utils.paths import pytesseract_env
             try:
-                pytesseract.get_tesseract_version()
+                with pytesseract_env():
+                    pytesseract.get_tesseract_version()
                 has_tesseract = True
             except Exception:
                 has_tesseract = False
@@ -1830,11 +1834,15 @@ class SafeMARCMainWindow(QMainWindow):
 
     def on_focus_changed(self, old, now):
         """Automatically disable conflicting keyboard shortcuts when editing text, and re-enable them afterwards."""
-        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
-        if isinstance(now, (QLineEdit, QTextEdit, QPlainTextEdit)):
-            self.set_shortcuts_enabled(False)
-        elif isinstance(old, (QLineEdit, QTextEdit, QPlainTextEdit)) and not isinstance(now, (QLineEdit, QTextEdit, QPlainTextEdit)):
-            self.set_shortcuts_enabled(True)
+        try:
+            from PySide6.QtWidgets import QApplication, QLineEdit, QTextEdit, QPlainTextEdit
+            focused = QApplication.focusWidget()
+            if isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
+                self.set_shortcuts_enabled(False)
+            else:
+                self.set_shortcuts_enabled(True)
+        except Exception:
+            pass
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

@@ -1,14 +1,5 @@
-import os
 import sys
 import signal
-
-# Restore original LD_LIBRARY_PATH for subprocesses if running as a PyInstaller frozen bundle.
-if getattr(sys, 'frozen', False):
-    lp_orig = os.environ.get('LD_LIBRARY_PATH_ORIG')
-    if lp_orig is not None:
-        os.environ['LD_LIBRARY_PATH'] = lp_orig
-    else:
-        os.environ.pop('LD_LIBRARY_PATH', None)
 
 def run_gui():
     import shutil

@@ -32,6 +32,165 @@ from src.core.batch_processor import BatchProcessor, SUPPORTED_EXTENSIONS
 from src.utils.pdf_handler import PDFHandler
 from src.gui.preview_widget import PreviewWidget
 from src.gui.settings_dialog import SettingsDialog
+from src.utils.paths import resource_path
+from PySide6.QtWidgets import QFrame
+import platform
+import sys
+
+class ClickableStatusLabel(QLabel):
+    clicked = Signal()
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+class EngineStatusDialog(QDialog):
+    def __init__(self, scanner, parent=None):
+        super().__init__(parent)
+        import cv2
+        import mediapipe as mp
+        import PySide6
+        
+        self.setWindowTitle("SafeMARC Engine Status")
+        self.resize(500, 480)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #0B0F19;
+                color: #F3F4F6;
+            }
+            QLabel {
+                color: #F3F4F6;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        title_label = QLabel("System & AI Engine Status")
+        title_label.setStyleSheet("font-size: 18px; font-weight: 700; color: #10B981;")
+        layout.addWidget(title_label)
+        
+        def create_card():
+            card = QFrame()
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #111827;
+                    border: 1px solid #374151;
+                    border-radius: 10px;
+                }
+                QLabel {
+                    border: none;
+                    background-color: transparent;
+                }
+            """)
+            return card
+            
+        # Section 1: Application Version & Environment
+        env_card = create_card()
+        env_layout = QVBoxLayout(env_card)
+        env_layout.setContentsMargins(15, 12, 15, 12)
+        env_layout.setSpacing(6)
+        
+        env_title = QLabel("Environment Information")
+        env_title.setStyleSheet("font-weight: 700; color: #9CA3AF; font-size: 12px; text-transform: uppercase;")
+        env_layout.addWidget(env_title)
+        
+        app_ver = "0.1.0"
+        
+        env_layout.addWidget(QLabel(f"<b>Application Version:</b> {app_ver} (DEV)"))
+        env_layout.addWidget(QLabel(f"<b>Python Version:</b> {platform.python_version()}"))
+        env_layout.addWidget(QLabel(f"<b>Platform / OS:</b> {platform.system()} {platform.machine()} ({platform.release()})"))
+        env_layout.addWidget(QLabel(f"<b>PySide6 Version:</b> {PySide6.__version__ if hasattr(PySide6, '__version__') else '6.x'}"))
+        env_layout.addWidget(QLabel(f"<b>OpenCV Version:</b> {cv2.__version__}"))
+        env_layout.addWidget(QLabel(f"<b>MediaPipe Version:</b> {mp.__version__}"))
+        
+        layout.addWidget(env_card)
+        
+        # Section 2: Model & OCR Status
+        status_card = create_card()
+        status_layout = QVBoxLayout(status_card)
+        status_layout.setContentsMargins(15, 12, 15, 12)
+        status_layout.setSpacing(10)
+        
+        status_title = QLabel("Model & Dependency Status")
+        status_title.setStyleSheet("font-weight: 700; color: #9CA3AF; font-size: 12px; text-transform: uppercase;")
+        status_layout.addWidget(status_title)
+        
+        # SFace Check
+        sface_model_path = resource_path("assets/face_recognition_sface_2021dec.onnx")
+        sface_exists = os.path.exists(sface_model_path)
+        sface_active = scanner.identity_manager.use_sface if (scanner and scanner.identity_manager) else False
+        
+        sface_lbl = QLabel()
+        if sface_active:
+            sface_lbl.setText("<span style='color: #10B981;'>✔</span> <b>SFace Recognition Model:</b> Loaded (ONNX)")
+        elif sface_exists:
+            sface_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>SFace Recognition Model:</b> Found, but initialization failed (Fallback to LBPH)")
+        else:
+            sface_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>SFace Recognition Model:</b> Missing (Fallback to LBPH)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download face_recognition_sface_2021dec.onnx into assets/</span>")
+        status_layout.addWidget(sface_lbl)
+        
+        # Body Check
+        body_model_path = resource_path("assets/efficientdet_lite2.tflite")
+        body_exists = os.path.exists(body_model_path)
+        
+        body_lbl = QLabel()
+        if body_exists:
+            body_lbl.setText("<span style='color: #10B981;'>✔</span> <b>Body Silhouette Model:</b> Ready (TFLite)")
+        else:
+            body_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>Body Silhouette Model:</b> Missing (Full Body mode unavailable)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download efficientdet_lite2.tflite into assets/</span>")
+        status_layout.addWidget(body_lbl)
+        
+        # Tesseract Check
+        import pytesseract
+        try:
+            tesseract_version = pytesseract.get_tesseract_version()
+            has_tesseract = True
+        except Exception:
+            tesseract_version = "Not found"
+            has_tesseract = False
+            
+        tess_lbl = QLabel()
+        if has_tesseract:
+            tess_lbl.setText(f"<span style='color: #10B981;'>✔</span> <b>Tesseract OCR:</b> Available (Version: {tesseract_version})")
+        else:
+            tess_lbl.setText("<span style='color: #EF4444;'>✘</span> <b>Tesseract OCR:</b> Executable not found in PATH<br><span style='color: #9CA3AF; font-size: 11px;'>Ensure Tesseract is installed and the system environment PATH variables are set.</span>")
+        status_layout.addWidget(tess_lbl)
+        
+        layout.addWidget(status_card)
+        
+        # Close Button
+        btn_close = QPushButton("Close")
+        btn_close.setCursor(Qt.PointingHandCursor)
+        btn_close.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #4B5563;
+            }
+        """)
+        btn_close.clicked.connect(self.accept)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_close)
+        layout.addLayout(btn_layout)
+
 
 def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
     from PySide6.QtGui import QPainter, QImage, QPixmap
@@ -258,16 +417,39 @@ class SafeMARCMainWindow(QMainWindow):
             self.shortcuts_config[key] = self.settings.value(f"shortcut_{key}", default_seq)
 
         # Core Engines
+        sface_exists = False
+        body_exists = False
+        has_tesseract = False
+        sface_active = False
         try:
             self.scanner = SafeScanner()
             self.processor = BatchProcessor(self.scanner)
-            engine_status = "AI Engine: Online"
-            is_online = True
+            
+            sface_model_path = resource_path("assets/face_recognition_sface_2021dec.onnx")
+            sface_exists = os.path.exists(sface_model_path)
+            sface_active = self.scanner.identity_manager.use_sface if (self.scanner and self.scanner.identity_manager) else False
+            
+            body_model_path = resource_path("assets/efficientdet_lite2.tflite")
+            body_exists = os.path.exists(body_model_path)
+            
+            import pytesseract
+            try:
+                pytesseract.get_tesseract_version()
+                has_tesseract = True
+            except Exception:
+                has_tesseract = False
+                
+            if not sface_active or not body_exists or not has_tesseract:
+                engine_status = "AI Engine: Warning (Click for Info)"
+                status_state = "warning"
+            else:
+                engine_status = "AI Engine: Online"
+                status_state = "online"
         except Exception as e:
             self.scanner = None
             self.processor = None
             engine_status = "AI Engine Error"
-            is_online = False
+            status_state = "error"
 
         # Central Widget & Main Layout
         central_widget = QWidget()
@@ -320,8 +502,9 @@ class SafeMARCMainWindow(QMainWindow):
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
 
-        self.status_label = QLabel(engine_status)
-        if is_online:
+        self.status_label = ClickableStatusLabel(engine_status)
+        self.status_label.clicked.connect(self._show_engine_status_popup)
+        if status_state == "online":
             self.status_label.setStyleSheet("""
                 QLabel {
                     background-color: #064E3B;
@@ -336,12 +519,27 @@ class SafeMARCMainWindow(QMainWindow):
                     margin-right: 8px;
                 }
             """)
-        else:
+        elif status_state == "warning":
             self.status_label.setStyleSheet("""
                 QLabel {
                     background-color: #451A03;
                     color: #FBBF24;
                     border: 1px solid #78350F;
+                    border-radius: 12px;
+                    padding: 4px 12px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-right: 8px;
+                }
+            """)
+        else:
+            self.status_label.setStyleSheet("""
+                QLabel {
+                    background-color: #7F1D1D;
+                    color: #FCA5A5;
+                    border: 1px solid #B91C1C;
                     border-radius: 12px;
                     padding: 4px 12px;
                     font-size: 11px;
@@ -2041,6 +2239,11 @@ class SafeMARCMainWindow(QMainWindow):
         active_count = sum(1 for val in self.active_regions.values() if val)
         self.btn_select_regions.setText(f" Select Regions ({active_count})")
         self.update_text_patterns()
+
+    def _show_engine_status_popup(self):
+        """Displays the detailed Engine & Environment Status dialog."""
+        dialog = EngineStatusDialog(self.scanner, self)
+        dialog.exec()
 
     def _show_people_selector(self):
         if not self.scanner: return

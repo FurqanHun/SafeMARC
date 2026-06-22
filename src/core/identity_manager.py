@@ -19,7 +19,7 @@ class IdentityManager:
         self.is_trained = False
         self._local = threading.local()
         
-        # SFace (deep learning) is preferred for face recognition over LBPH
+        # Prefer SFace for face recognition.
         self.use_sface = False
         self.sface_recognizer = None
         self.sface_embeddings = {}  # name -> list of embeddings
@@ -33,7 +33,7 @@ class IdentityManager:
             except Exception as e:
                 print(f"[IdentityManager] SFace init failed ({e}), falling back to LBPH.")
         if not self.use_sface:
-            # Fallback to LBPH recognizer if SFace ONNX model is missing or fails to initialize
+            # Fallback to LBPH if SFace is unavailable.
             print("[IdentityManager] Using LBPH fallback (less accurate).")
             self.recognizer = cv2.face.LBPHFaceRecognizer_create(
                 radius=2, neighbors=8, grid_x=8, grid_y=8
@@ -234,8 +234,7 @@ class IdentityManager:
                         best_score = score
                         best_name = name
             
-            # Cosine similarity references.
-            # Dynamic matching similarity threshold.
+            # Match threshold evaluation.
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
             fm_val = float(settings.value("model_face_match", 0.36))

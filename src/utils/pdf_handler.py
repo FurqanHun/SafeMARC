@@ -19,7 +19,7 @@ class PDFHandler:
         
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
-            # Increase resolution for better OCR and redaction accuracy
+            # Increase resolution for OCR and redaction.
             zoom = 4.0
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)
@@ -27,9 +27,7 @@ class PDFHandler:
             out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
             pix.save(out_path)
             
-            # Extract word-level bounding boxes directly from the PDF using PyMuPDF.
-            # page.get_text("words") returns a list of tuples formatted as:
-            # (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+            # Extract word bounding boxes: (x0, y0, x1, y1, text, block, line, word).
             words = []
             for w in page.get_text("words"):
                 x0, y0, x1, y1, text, block_no, line_no, word_no = w

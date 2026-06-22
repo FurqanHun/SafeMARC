@@ -27,7 +27,7 @@ class TestQuickAddDialog(unittest.TestCase):
         names = ["Alice", "Bob"]
         dialog = QuickAddIdentityDialog(names)
         dialog.combo_name.setCurrentText("Charlie")
-        # Simulate click save
+        # Simulate save action.
         dialog._on_save()
         self.assertEqual(dialog.get_name(), "Charlie")
         dialog.deleteLater()
@@ -35,7 +35,7 @@ class TestQuickAddDialog(unittest.TestCase):
     def test_quick_add_dialog_empty_name(self):
         dialog = QuickAddIdentityDialog([])
         dialog.combo_name.setCurrentText("   ")
-        # Mock warning dialog to avoid blocking
+        # Mock warning dialog.
         from unittest.mock import patch
         with patch('PySide6.QtWidgets.QMessageBox.warning') as mock_warn:
             dialog._on_save()

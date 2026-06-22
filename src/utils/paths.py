@@ -2,9 +2,9 @@ import sys
 import os
 
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Get absolute path to resource, handling PyInstaller packaging."""
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        # PyInstaller path lookup.
         base_path = sys._MEIPASS
     except AttributeError:
         base_path = os.path.abspath(".")
@@ -21,7 +21,7 @@ def get_app_data_dir(app_name="SafeMARC"):
     elif sys.platform == "darwin":
         base = os.path.expanduser("~/Library/Application Support")
     else:
-        # Linux / Unix XDG standard
+        # Linux/Unix XDG standard.
         base = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
     
     app_dir = os.path.join(base, app_name)

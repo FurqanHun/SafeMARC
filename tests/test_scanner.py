@@ -99,19 +99,19 @@ def test_scanner_face_filtering_modes():
     scanner.vision_detector = mock_vision_detector
     scanner.detectors = [mock_text_detector, mock_vision_detector]
     
-    # Verify ALL mode redacts all detected faces.
+    # Verify ALL mode.
     scanner.set_face_redaction_mode("ALL")
     hits = scanner.scan("dummy.png")
     assert len(hits) == 3
     
-    # Verify BLACKLIST mode only redacts matched targets.
+    # Verify BLACKLIST mode.
     scanner.set_face_redaction_mode("BLACKLIST")
     scanner.target_identities = ["Alice"]
     hits = scanner.scan("dummy.png")
     assert len(hits) == 1
     assert hits[0].identity == "Alice"
     
-    # Verify WHITELIST mode protects matched targets and redacts everyone else.
+    # Verify WHITELIST mode.
     scanner.set_face_redaction_mode("WHITELIST")
     scanner.target_identities = ["Alice"]
     hits = scanner.scan("dummy.png")

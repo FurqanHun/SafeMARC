@@ -1336,7 +1336,7 @@ class SafeMARCMainWindow(QMainWindow):
                 scope = dialog.get_selected_scope()
                 pdf_source = self.active_pdf_source if is_pdf else None
                 self.preview_widget.set_persistent_mode(True, scope=scope, pdf_source=pdf_source)
-                # Automatically activate Draw mode
+                # Automatically activate Draw mode.
                 if not self.btn_draw_mode.isChecked():
                     self.btn_draw_mode.setChecked(True)
                     self.toggle_draw_mode(True)
@@ -1382,7 +1382,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.file_list.setEnabled(True)
         self.update_toolbar_state()
         
-        # Re-enable sidebar/toolbar controls when batch review stops
+        # Re-enable controls when batch review stops.
         self.btn_settings.setEnabled(True)
         self.btn_add_file.setEnabled(True)
         self.btn_add_folder.setEnabled(True)
@@ -1390,12 +1390,12 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_remove.setEnabled(True)
         self.btn_clear.setEnabled(True)
         
-        # Reset draw mode
+        # Reset draw mode.
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
             self.toggle_draw_mode(False)
 
-        # Reset persistent mode
+        # Reset persistent mode.
         if self.btn_persistent_mode.isChecked():
             self.btn_persistent_mode.setChecked(False)
             self.preview_widget.set_persistent_mode(False)
@@ -1731,13 +1731,13 @@ class SafeMARCMainWindow(QMainWindow):
             if not isinstance(data, list):
                 raise ValueError("JSON content must be a list of patterns.")
                 
-            # Clear current custom pattern rows first
+            # Clear current custom pattern rows first.
             while self.text_patterns_layout.count() > 0:
                 item = self.text_patterns_layout.takeAt(0)
                 if item and item.widget():
                     item.widget().deleteLater()
                     
-            # Load imported patterns
+            # Load imported patterns.
             for item in data:
                 pattern_str = item.get("pattern", "").strip()
                 is_regex = item.get("is_regex", False)
@@ -1745,7 +1745,7 @@ class SafeMARCMainWindow(QMainWindow):
                 
                 if pattern_str:
                     self.add_pattern_row(is_regex=is_regex)
-                    # Find the newly added row widget
+                    # Find the newly added row widget.
                     last_idx = self.text_patterns_layout.count() - 1
                     if last_idx >= 0:
                         row_widget = self.text_patterns_layout.itemAt(last_idx).widget()
@@ -1788,7 +1788,7 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", f"Failed to import patterns: {str(e)}")
 
     def export_custom_patterns(self):
-        # Gather custom patterns
+        # Gather custom patterns.
         patterns = []
         for i in range(self.text_patterns_layout.count()):
             item = self.text_patterns_layout.itemAt(i)
@@ -1944,21 +1944,21 @@ class SafeMARCMainWindow(QMainWindow):
             
         from PySide6.QtWidgets import QMessageBox
         
-        # Get existing names from identity manager
+        # Retrieve existing identity names.
         existing_names = sorted(list(set(self.scanner.identity_manager.identity_map.values())))
         
         dialog = QuickAddIdentityDialog(existing_names, self)
         if dialog.exec() == QDialog.Accepted:
             name = dialog.get_name()
             if name:
-                # Check if it already exists
+                # Check if identity exists.
                 if name in existing_names:
-                    # Detect if it's already session or permanent
+                    # Determine if identity is session-specific or permanent.
                     is_session = False
                     if os.path.exists(os.path.join(self.scanner.identity_manager.session_temp, name)):
                         is_session = True
                 else:
-                    # Ask if Permanent or Session Only
+                    # Prompt user to select storage type.
                     msg = QMessageBox(self)
                     msg.setWindowTitle("Save Type")
                     msg.setText(f"How do you want to save '{name}'?")
@@ -1976,7 +1976,7 @@ class SafeMARCMainWindow(QMainWindow):
                 if img is not None:
                     face_crop = img[hit.y:hit.y+hit.h, hit.x:hit.x+hit.w]
                     
-                    # Use a temp file for the add_identity/add_session_identity calls
+                    # Write temporary face crop to file.
                     temp_path = os.path.join(self.scanner.identity_manager.identities_dir, "temp_quick_add.jpg")
                     cv2.imwrite(temp_path, face_crop)
                     
@@ -2051,7 +2051,7 @@ class SafeMARCMainWindow(QMainWindow):
             QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 10px; border-radius: 8px; }
         """)
         
-        # Get all identities (perm + session)
+        # Get all identities.
         all_names = sorted(self.scanner.identity_manager.identity_map.values())
         
         if not all_names:
@@ -2063,7 +2063,7 @@ class SafeMARCMainWindow(QMainWindow):
             layout.setContentsMargins(5, 5, 5, 5)
             layout.setSpacing(8)
             
-            # Header Label
+            # Header label.
             lbl_header = QLabel("Target Selection")
             lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
             layout.addWidget(lbl_header)
@@ -2086,7 +2086,7 @@ class SafeMARCMainWindow(QMainWindow):
             """)
             layout.addWidget(txt_search)
             
-            # Checkboxes
+            # Checkboxes.
             checkboxes = []
             for name in all_names:
                 chk = QCheckBox(name)
@@ -2112,7 +2112,7 @@ class SafeMARCMainWindow(QMainWindow):
                 menu.adjustSize()
             txt_search.textChanged.connect(filter_checkboxes)
                 
-            # Quick Actions Layout (Select All / Clear)
+            # Quick actions layout.
             layout.addSpacing(4)
             btn_layout = QHBoxLayout()
             btn_layout.setSpacing(8)
@@ -2204,7 +2204,7 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.current_file_path:
             return
             
-        # Cache manual boxes before rescanning
+        # Cache manual boxes before rescanning.
         manuals = self.preview_widget.active_hits.copy()
         ckey = self.get_current_cache_key()
         self.user_selections_cache[ckey] = {
@@ -2264,7 +2264,7 @@ class SafeMARCMainWindow(QMainWindow):
     def add_dropped_paths(self, paths):
         for path in paths:
             if os.path.isdir(path):
-                # Recursively add all supported files in directory
+                # Recursively add supported files.
                 for root, _, files in os.walk(path):
                     for f in files:
                         if f.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
@@ -2298,7 +2298,7 @@ class SafeMARCMainWindow(QMainWindow):
             
         for item in selected_items:
             path = item.data(Qt.UserRole)
-            # If the removed item is the currently loaded file, clear preview
+            # Clear preview if removed item is currently loaded.
             if path == self.current_file_path:
                 self.preview_widget.clear_preview()
                 self.current_file_path = None
@@ -2310,12 +2310,12 @@ class SafeMARCMainWindow(QMainWindow):
             for k in keys_to_remove:
                 self.user_selections_cache.pop(k, None)
             
-            # If we remove something during batch mode, we might mess up the index
+            # Handle batch mode index adjustment.
             if self.is_batch_mode:
                 if row < self.batch_index:
                     self.batch_index -= 1
                 elif row == self.batch_index:
-                    # If we removed the current batch item, move to the next one
+                    # Advance batch if current item was removed.
                     self.load_next_batch_item()
         self.update_stats()
         self.update_toolbar_state()

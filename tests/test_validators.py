@@ -40,14 +40,14 @@ def test_luhn_credit_card_validation():
         keywords=pattern_info["keywords"]
     )
 
-    # Use a standard Visa number to verify the Luhn positive match.
+    # Verify Luhn validation with a standard Visa number.
     valid_card_data = make_mock_ocr_data(["My", "card", "is", "4111-1111-1111-1111"])
     hits = detector._scan_data_dict(valid_card_data, scale=1.0)
     assert len(hits) == 1
     assert hits[0].label == "Credit Card"
     assert hits[0].confidence == 95.0
 
-    # Mutate the last digit to trigger a Luhn checksum failure.
+    # Verify failure with an invalid checksum.
     invalid_card_data = make_mock_ocr_data(["My", "card", "is", "4111-1111-1111-1112"])
     hits = detector._scan_data_dict(invalid_card_data, scale=1.0)
     assert len(hits) == 0
@@ -63,14 +63,14 @@ def test_mod97_iban_validation():
         keywords=pattern_info["keywords"]
     )
 
-    # Use a valid German IBAN for the mod-97 check.
+    # Verify valid IBAN validation.
     valid_iban_data = make_mock_ocr_data(["IBAN", "is", "DE89370400440532013000"])
     hits = detector._scan_data_dict(valid_iban_data, scale=1.0)
     assert len(hits) == 1
     assert hits[0].label == "EU IBAN"
     assert hits[0].confidence == 95.0
 
-    # Mutate check digits to verify the rejection.
+    # Verify failure with invalid check digits.
     invalid_iban_data = make_mock_ocr_data(["IBAN", "is", "DE89370400440532013009"])
     hits = detector._scan_data_dict(invalid_iban_data, scale=1.0)
     assert len(hits) == 0
@@ -86,13 +86,13 @@ def test_proximity_keyword_confidence_boost():
         keywords=pattern_info["keywords"]
     )
 
-    # The context window contains 'security', boosting confidence to 90%.
+    # Verify confidence boost with proximity keywords.
     boosted_data = make_mock_ocr_data(["My", "social", "security", "number", "is", "123-45-6789"])
     hits = detector._scan_data_dict(boosted_data, scale=1.0)
     assert len(hits) == 1
     assert hits[0].confidence == 90.0
 
-    # Missing context keywords drop the confidence to the default (25%).
+    # Verify default confidence when keywords are missing.
     unboosted_data = make_mock_ocr_data(["The", "serial", "code", "listed", "is", "123-45-6789"])
     hits = detector._scan_data_dict(unboosted_data, scale=1.0)
     assert len(hits) == 1

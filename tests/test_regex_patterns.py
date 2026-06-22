@@ -109,5 +109,5 @@ def test_predefined_pattern_matching(pattern_id):
     for neg_example in test_cases["neg"]:
         match = compiled.search(neg_example)
         if match is not None:
-            # Recompiling with IGNORECASE can match lowercase variants; verify that the match is not a false positive.
+            # Verify negative match does not yield a false positive.
             assert match.group() != neg_example, f"Incorrect negative match for {pattern_id}: {neg_example}"

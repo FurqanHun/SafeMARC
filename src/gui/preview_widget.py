@@ -31,7 +31,7 @@ class SelectableHitItem(QGraphicsRectItem):
         is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.confidence < threshold)
         
         if self.is_focused:
-            # Highlight with a bright blue focus border
+            # Highlight with bright blue focus border.
             color = QColor(59, 130, 246) # Bright blue `#3B82F6`
             self.setPen(QPen(color, 4, Qt.SolidLine))
             if self.is_selected:
@@ -42,7 +42,7 @@ class SelectableHitItem(QGraphicsRectItem):
             return
 
         if is_low_conf_text:
-            # Low confidence "Review Suggested" hit -> Amber/Yellow color state
+            # Low confidence hit.
             color = QColor(245, 158, 11, 200) # Amber `#F59E0B`
             if self.is_selected:
                 self.setPen(QPen(color, 3))
@@ -79,7 +79,7 @@ class SelectableHitItem(QGraphicsRectItem):
             
             action = menu.exec(event.screenPos())
             if action == add_action:
-                # We need to notify the parent to handle cropping and naming
+                # Notify parent to handle cropping.
                 self.scene().views()[0].on_add_identity_requested(self.hit)
         
         event.accept()
@@ -112,7 +112,7 @@ class LoadingOverlay(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(15)
         
-        # Spacer for the custom drawn spinner (60px height)
+        # Spinner spacer.
         self.spinner_spacer = QWidget()
         self.spinner_spacer.setFixedSize(60, 60)
         self.spinner_spacer.setStyleSheet("background: transparent;")
@@ -125,7 +125,7 @@ class LoadingOverlay(QWidget):
         
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
-        self.timer.start(16) # ~60 FPS smooth rotation
+        self.timer.start(16) # Rotation timer.
         
         self.pulse_timer = QTimer(self)
         self.pulse_timer.timeout.connect(self.update_dots)
@@ -147,7 +147,7 @@ class LoadingOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        # Draw translucent dark glassmorphism background
+        # Draw glassmorphism background.
         painter.fillRect(self.rect(), QColor(11, 15, 25, 210))
         
         spacer_pos = self.spinner_spacer.mapTo(self, self.spinner_spacer.rect().topLeft())
@@ -166,7 +166,7 @@ class LoadingOverlay(QWidget):
 
 
 class PreviewWidget(QGraphicsView):
-    identityRequested = Signal(object) # Passes the SensitiveHit
+    identityRequested = Signal(object) # Emits SensitiveHit.
     
     def __init__(self):
         super().__init__()
@@ -213,7 +213,7 @@ class PreviewWidget(QGraphicsView):
         self.persistent_scope = scope
         self.persistent_pdf_source = pdf_source
         if enabled:
-            # Capture any current manual hits as persistent templates
+            # Capture current manual hits.
             self.persistent_manual_hits = [h for h in self.active_hits if h.label == "MANUAL"]
         else:
             self.persistent_manual_hits = []
@@ -245,35 +245,35 @@ class PreviewWidget(QGraphicsView):
         threshold = int(settings.value("model_text_conf", 70))
         
         def _hits_match(a, b):
-            """Check if two hits refer to the same detection by coordinates and label."""
+            """Check if two hits are identical."""
             return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h and a.label == b.label
         
         if cached_active_hits is not None and reviewed:
-            # Full review snapshot: restore user's exact checkbox state
+            # Restore user review state.
             self.active_hits = []
             for hit in hits:
                 if any(_hits_match(hit, ch) for ch in cached_active_hits):
                     self.active_hits.append(hit)
-            # Inject cached manual hits that aren't in the new AI hits
+            # Inject cached manual hits.
             for ch in cached_active_hits:
                 if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
                     hits.append(ch)
                     self.active_hits.append(ch)
         else:
-            # Default or pre-review cache: use confidence filtering for AI hits
+            # Apply confidence filtering.
             self.active_hits = []
             for hit in hits:
                 is_low_conf = bool("FACE" not in hit.label and "BODY" not in hit.label and hit.label != "MANUAL" and hit.confidence < threshold)
                 if not is_low_conf:
                     self.active_hits.append(hit)
-            # Inject any pre-review manual boxes from cache
+            # Inject manual boxes from cache.
             if cached_active_hits:
                 for ch in cached_active_hits:
                     if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
                         hits.append(ch)
                         self.active_hits.append(ch)
         
-        # Inject persistent manual hits if enabled and scope matches
+        # Inject persistent manual hits.
         if self.persistent_mode:
             should_inject = False
             if is_pdf:
@@ -297,7 +297,7 @@ class PreviewWidget(QGraphicsView):
             self.scene.removeItem(item)
         self.hit_items.clear()
         
-        # Render ALL hits, marking as selected/checked only if they are in self.active_hits
+        # Render all hits.
         for hit in hits:
             is_sel = hit in self.active_hits
             item = SelectableHitItem(hit, self.on_hit_toggled, is_selected=is_sel)
@@ -365,7 +365,7 @@ class PreviewWidget(QGraphicsView):
             self.draw_start_point = None
             
             if rect.width() > 5 and rect.height() > 5:
-                # Constrain to image bounds
+                # Constrain to image bounds.
                 if self.current_pixmap_item:
                     pixmap_rect = self.current_pixmap_item.boundingRect()
                     rect = rect.intersected(pixmap_rect)

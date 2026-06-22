@@ -7,7 +7,7 @@ def run_gui():
     import tempfile
     import atexit
 
-    # Clean up leftover temporary directories from previous crashed or aborted sessions
+    # Clean up leftover temporary directories.
     safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp")
     if os.path.exists(safemarc_temp):
         try:
@@ -40,7 +40,7 @@ def run_gui():
                     obj.style().polish(obj)
             return super().eventFilter(obj, event)
 
-    # Monkey patch clickable widgets to default to PointingHandCursor globally
+    # Monkey patch clickable widgets to default to PointingHandCursor.
     for widget_class in [QPushButton, QCheckBox, QComboBox, QTabBar, QMenu]:
         original_init = widget_class.__init__
         def make_new_init(orig_init):
@@ -50,7 +50,7 @@ def run_gui():
             return new_init
         widget_class.__init__ = make_new_init(original_init)
 
-    # Custom SIGINT handler to explicitly quit the application and trigger RAII cleanup
+    # Handle SIGINT cleanly.
     def handle_sigint(signum, frame):
         print("\n[SafeMARC] Caught Ctrl+C. Quitting event loop to trigger cleanup...")
         QApplication.quit()
@@ -120,7 +120,7 @@ def run_gui():
             "Tesseract OCR is missing.\n\nLinux: sudo dnf install tesseract\nWindows: Download Installer",
         )
 
-    # Let Python interpreter check for signals periodically
+    # Let Python interpreter check for signals periodically.
     from PySide6.QtCore import QTimer
     timer = QTimer()
     timer.start(500)

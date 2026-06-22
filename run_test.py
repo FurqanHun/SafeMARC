@@ -13,8 +13,8 @@ except ImportError as e:
 
 
 def main():
-    # 2. Setup paths
-    input_image = "test_data/test.jpg"  # Make sure this file exists!
+    # Setup paths.
+    input_image = "test_data/test.jpg"  # Input image path.
     output_image = "test_data/test_redacted.jpg"
 
     if not os.path.exists(input_image):
@@ -22,7 +22,7 @@ def main():
         print("Please put a file named 'test.jpg' in this folder.")
         return
 
-    # 3. Initialize the Engine
+    # Initialize the Engine.
     print("Initializing SafeScanner...")
     try:
         scanner = SafeScanner()
@@ -31,7 +31,7 @@ def main():
         print(f"❌ CRASH during init: {e}")
         return
 
-    # 4. RUN SCAN
+    # Run scan.
     print(f"Scanning '{input_image}'...")
     hits = scanner.scan(input_image)
 
@@ -46,7 +46,7 @@ def main():
         print("\n⚠️ No sensitive data found. Try a different image.")
         return
 
-    # 5. RUN REDACTION
+    # Run redaction.
     print("\n🎨 Redacting items...")
     success = scanner.redact(input_image, output_image, hits)
 

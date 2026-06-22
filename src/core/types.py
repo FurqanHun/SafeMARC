@@ -4,13 +4,13 @@ from typing import List, Tuple
 
 @dataclass
 class SensitiveHit:
-    """Represents one found item (text or face)"""
+    """Represents a detected sensitive item."""
 
     x: int
     y: int
     w: int
     h: int
-    label: str  # e.g., "Phone", "CNIC", "Face"
+    label: str  # Category label.
     confidence: float
-    text_content: str = ""  # Only for text hits
-    identity: str = ""      # e.g., "John Doe" (if matched)
+    text_content: str = ""  # Text content associated with the hit.
+    identity: str = ""      # Matched identity name.

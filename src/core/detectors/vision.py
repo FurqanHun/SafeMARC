@@ -47,7 +47,7 @@ class VisionDetector(BaseDetector):
             return []
 
         if self.mode == "faces":
-            # Initialize thread-local cascades
+            # Initialize thread-local cascades.
             if not hasattr(self._local, "face_cascade"):
                 self._local.face_cascade = cv2.CascadeClassifier(
                     cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
@@ -59,7 +59,7 @@ class VisionDetector(BaseDetector):
                     cv2.data.haarcascades + 'haarcascade_profileface.xml'
                 )
             
-            # Detect faces using multi-cascade ensemble with rotational searching and contrast equalization
+            # Detect faces using multi-cascade ensemble.
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             h_img, w_img = gray.shape[:2]
             min_face = max(40, min(h_img, w_img) // 30)
@@ -186,7 +186,7 @@ class VisionDetector(BaseDetector):
                     )
                 )
                 
-                # Keep UI responsive.
+                # Process pending UI events.
                 try:
                     from PySide6.QtWidgets import QApplication
                     if QApplication.instance():

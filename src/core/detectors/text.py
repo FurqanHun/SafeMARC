@@ -10,22 +10,22 @@ from src.core.types import SensitiveHit
 
 class RegexDetector(BaseDetector):
     def __init__(self):
-        # Store list of custom patterns: {"label": str, "pattern": compiled_re}
+        # Custom patterns.
         self.custom_patterns = []
-        # Cache for currently loaded image/page to make real-time updates instantaneous
+        # Cache for currently loaded image/page.
         self.cached_image_path = None
         self.cached_pdf_words = None
         self.cached_data_list = [] # List of tuples: (data_dict, scale)
 
     def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False, keywords: list = None):
         if not is_regex:
-            # Escape literal text so special regex characters don't break
+            # Escape literal text.
             pattern = re.escape(pattern)
             if is_whole_word:
-                # Use lookarounds to ensure it's not surrounded by word characters
+                # Use word-boundary lookarounds.
                 pattern = r'(?<!\w)' + pattern + r'(?!\w)'
             
-        # Compile with re.IGNORECASE for user convenience
+        # Compile with IGNORECASE.
         try:
             compiled = re.compile(pattern, re.IGNORECASE)
             self.custom_patterns.append({
@@ -43,7 +43,7 @@ class RegexDetector(BaseDetector):
         if not self.custom_patterns:
             return []
             
-        # Reuse the cached word-extraction dictionaries if the active page matches
+        # Reuse cached word extraction if page matches.
         if (image_path == self.cached_image_path and 
             (pdf_words is self.cached_pdf_words or 
              (pdf_words is not None and self.cached_pdf_words is not None and len(pdf_words) == len(self.cached_pdf_words)))):
@@ -54,7 +54,7 @@ class RegexDetector(BaseDetector):
             hits = []
             new_cached_list = []
             
-            # --- 1. PyMuPDF Digital Text Layer Scanning ---
+            # Digital text layer scanning.
             if pdf_words:
                 data = {
                     "text": [],
@@ -79,13 +79,13 @@ class RegexDetector(BaseDetector):
                     data["top"].append(int(y0))
                     data["width"].append(int(x1 - x0))
                     data["height"].append(int(y1 - y0))
-                    data["conf"].append(100.0) # Native text has 100% confidence
+                    data["conf"].append(100.0) # Native text has 100% confidence.
                 
                 new_cached_list.append((data, 1.0))
                 digital_hits = self._scan_data_dict(data, scale=1.0)
                 hits.extend(digital_hits)
 
-            # --- 2. Tesseract OCR Image Layer Scanning (Best of Both Worlds) ---
+            # OCR image layer scanning.
             import cv2
             import numpy as np
             from PIL import Image
@@ -109,7 +109,7 @@ class RegexDetector(BaseDetector):
             self.cached_pdf_words = pdf_words
             self.cached_data_list = new_cached_list
 
-        # --- 3. Near-Duplicate Box Deduplication with Coordinate Tolerance ---
+        # Box deduplication.
         def boxes_overlap_heavily(b1, b2) -> bool:
             x_left = max(b1.x, b2.x)
             y_top = max(b1.y, b2.y)
@@ -229,7 +229,7 @@ class RegexDetector(BaseDetector):
                         
                         match_text = match.group()
                         
-                        # Hybrid confidence calculation based on context keyword proximity and algorithmic heuristics
+                        # Calculate confidence based on context and heuristics.
                         final_confidence = avg_conf
                         
                         if label == "Credit Card":
@@ -250,7 +250,7 @@ class RegexDetector(BaseDetector):
                                 continue
                         
                         elif label == "EU IBAN":
-                            # IBAN mod-97 checksum validation (ISO 7064)
+                            # IBAN mod-97 checksum validation.
                             iban_clean = match_text.replace(" ", "").replace("-", "").upper()
                             if len(iban_clean) >= 15:
                                 rearranged = iban_clean[4:] + iban_clean[:4]
@@ -271,7 +271,7 @@ class RegexDetector(BaseDetector):
                                 continue
                         
                         elif label in ("US SSN", "IN Aadhaar"):
-                            # High-value patterns require keyword proximity strictly
+                            # Perform keyword proximity check.
                             window_start = max(0, start_char - 35)
                             window_end = min(len(line_text), match.end() + 35)
                             context_window = line_text.lower()[window_start:window_end]
@@ -279,7 +279,7 @@ class RegexDetector(BaseDetector):
                             final_confidence = 90.0 if has_keyword else 25.0
                         
                         elif keywords:
-                            # Scan a context window of ~35 characters around the match to prevent false positives in long paragraphs
+                            # Scan context window around match.
                             window_start = max(0, start_char - 35)
                             window_end = min(len(line_text), match.end() + 35)
                             context_window = line_text.lower()[window_start:window_end]

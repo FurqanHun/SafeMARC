@@ -34,7 +34,7 @@ def main(args: List[str] = None):
         
     parsed_args = parse_args(args)
     
-    # Configure scanner based on args (if both are false, default to faces)
+    # Configure detectors.
     enable_faces = parsed_args.faces
     enable_text = parsed_args.text
     enable_body = parsed_args.redact_body
@@ -44,7 +44,6 @@ def main(args: List[str] = None):
         
     vision_mode = "bodies" if enable_body else "faces"
         
-    # TODO: Pass enable_text to SafeScanner when it supports configuring text detectors
     scanner = SafeScanner(vision_mode=vision_mode) 
     processor = BatchProcessor(scanner)
     

@@ -41,10 +41,10 @@ class TestUICaching(unittest.TestCase):
             "reviewed": True
         }
         
-        # Manually select the item
+        # Select item.
         window.on_file_selected(item1)
         
-        # Verify that the hits are loaded from the cache and populated
+        # Verify hits are loaded and populated from cache.
         self.assertEqual(window.current_file_path, "test1.jpg")
         self.assertEqual(len(window.current_hits), 1)
         self.assertEqual(window.current_hits[0].x, 10)
@@ -75,10 +75,10 @@ class TestUICaching(unittest.TestCase):
             "reviewed": True
         }
         
-        # Manually select the item
+        # Select item.
         window.on_file_selected(item1)
         
-        # Verify that the selection is restored, but NO scan hits are populated
+        # Verify selection is restored without scan hits.
         self.assertEqual(window.current_file_path, "test1.jpg")
         self.assertEqual(len(window.current_hits), 0)
         self.assertEqual(window.preview_widget.active_hits, [hit])

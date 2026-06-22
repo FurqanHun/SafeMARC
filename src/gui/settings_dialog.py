@@ -723,7 +723,7 @@ class SettingsDialog(QDialog):
         model_layout.addStretch()
         self.tabs.addTab(self.tab_model, "Model Settings")
 
-        # Tab 4: Shortcuts
+        # Shortcuts tab initialization.
         self.tab_shortcuts = QWidget()
         self.tab_shortcuts.setStyleSheet("background-color: #111827; border: none;")
         self._init_shortcuts_tab()
@@ -737,7 +737,7 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(self.close_btn)
         layout.addLayout(btn_layout)
 
-        # Apply StrongFocus focus policy to all interactive widgets in SettingsDialog for a consistent tabbing experience
+        # Apply StrongFocus focus policy.
         settings_widgets = [
             self.tabs,
             self.chk_global_output,
@@ -769,7 +769,7 @@ class SettingsDialog(QDialog):
         self._clear_grid()
         if not self.identity_manager: return
         
-        # Permanent identities
+        # Permanent identities.
         identities_dir = self.identity_manager.identities_dir
         if os.path.exists(identities_dir):
             for name in sorted(os.listdir(identities_dir)):
@@ -780,7 +780,7 @@ class SettingsDialog(QDialog):
                     item.setData(Qt.UserRole, {"name": name, "is_session": False})
                     self.list_people.addItem(item)
                     
-        # Session identities
+        # Session identities.
         session_dir = os.path.join(identities_dir, "session_temp")
         if os.path.exists(session_dir):
             for name in sorted(os.listdir(session_dir)):
@@ -977,7 +977,7 @@ class SettingsDialog(QDialog):
         if folder:
             self.txt_output_dir.setText(folder)
             self.settings.setValue("global_output_dir", folder)
-            # Create the directory if it doesn't exist
+            # Create the directory if it does not exist.
             os.makedirs(folder, exist_ok=True)
             if self.parent():
                 if hasattr(self.parent(), "update_global_output_settings"):
@@ -1071,12 +1071,12 @@ class SettingsDialog(QDialog):
             cat_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981;")
             cat_layout.addWidget(cat_title)
 
-            # Grid for shortcuts in this category
+            # Grid layout for shortcuts.
             grid = QGridLayout()
             grid.setSpacing(8)
-            grid.setColumnStretch(0, 1) # Action label takes all space
-            grid.setColumnStretch(1, 0) # Button takes min space
-            grid.setColumnStretch(2, 0) # Reset button takes min space
+            grid.setColumnStretch(0, 1) # Action label layout sizing.
+            grid.setColumnStretch(1, 0) # Button layout sizing.
+            grid.setColumnStretch(2, 0) # Reset button layout sizing.
 
             row = 0
             for key, meta in SHORTCUT_METADATA.items():
@@ -1148,7 +1148,7 @@ class SettingsDialog(QDialog):
         self.btn_reset_all_shortcuts.clicked.connect(self._reset_all_shortcuts)
         layout.addWidget(self.btn_reset_all_shortcuts, 0, Qt.AlignLeft)
 
-        # Check for initial conflicts
+        # Check for conflicts.
         self._check_for_conflicts()
 
     def _on_shortcut_changed(self, key: str, new_seq: str):
@@ -1161,7 +1161,7 @@ class SettingsDialog(QDialog):
         self._check_for_conflicts()
 
     def _on_shortcut_reset(self, key: str, default_seq: str):
-        self.settings.remove(f"shortcut_{key}") # Removes custom setting, returning to default
+        self.settings.remove(f"shortcut_{key}") # Remove custom setting.
         btn = self.shortcut_buttons[key]
         btn.current_sequence = default_seq
         btn.setText(default_seq)
@@ -1192,7 +1192,7 @@ class SettingsDialog(QDialog):
             self._check_for_conflicts()
 
     def _check_for_conflicts(self):
-        # Scan self.shortcut_buttons for duplicates
+        # Scan buttons for duplicates.
         seq_to_keys = {}
         for key, btn in self.shortcut_buttons.items():
             seq = btn.current_sequence.strip()

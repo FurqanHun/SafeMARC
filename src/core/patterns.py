@@ -1,4 +1,4 @@
-# Predefined pattern definitions for SafeMARC curated regular expression library
+# Regular expression patterns for sensitive data detection.
 
 PREDEFINED_PATTERNS = {
     "pk_cnic": {

@@ -13,12 +13,12 @@ class SafeScanner:
         self.detectors = [self.text_detector, self.vision_detector]
         self.redactor = Redactor()
         self.face_redaction_mode = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
-        self.target_identities = [] # List of names to filter on
+        self.target_identities = [] # Names to filter on.
         
-        # Performance session caches
-        self._vision_cache = {}  # file_path -> list of SensitiveHit
-        self._regex_cache = {}   # file_path -> list of SensitiveHit
-        self._scan_cache = {}    # ckey -> list of SensitiveHit
+        # Performance session caches.
+        self._vision_cache = {}  # Map of file path to SensitiveHit list.
+        self._regex_cache = {}   # Map of file path to SensitiveHit list.
+        self._scan_cache = {}    # Map of cache key to SensitiveHit list.
         
     def clear_cache(self):
         self._vision_cache = {}
@@ -35,11 +35,11 @@ class SafeScanner:
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
         self.detectors = [self.text_detector, self.vision_detector]
         self.clear_cache()
-
+ 
     def set_face_redaction_mode(self, mode: str):
         self.face_redaction_mode = mode
         self.clear_cache()
-
+ 
     def set_text_patterns(self, patterns_list):
         self.text_detector.clear_custom_patterns()
         for p in patterns_list:
@@ -52,18 +52,18 @@ class SafeScanner:
                     keywords=p.get("keywords")
                 )
         self.clear_cache()
-
+ 
     def scan(self, file_path: str, pdf_words: list = None, cache_key: str = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""
         ckey = cache_key if cache_key else file_path
         if ckey in self._scan_cache:
             print(f"  [CACHE] Reusing {len(self._scan_cache[ckey])} cached scan hits for {ckey}.")
             return list(self._scan_cache[ckey])
-
+ 
         all_hits = []
         print(f"Scanning: {file_path}")
-
-        # Text and OCR detection
+ 
+        # Text and OCR detection.
         if ckey in self._regex_cache:
             print(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
             regex_hits = self._regex_cache[ckey]
@@ -74,8 +74,8 @@ class SafeScanner:
                 print(f"RegexDetector failed: {e}")
                 regex_hits = []
             self._regex_cache[ckey] = list(regex_hits)
-
-        # Face and body detection
+ 
+        # Face and body detection.
         if ckey in self._vision_cache:
             print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
             vision_hits = self._vision_cache[ckey]
@@ -86,25 +86,25 @@ class SafeScanner:
                 print(f"VisionDetector failed: {e}")
                 vision_hits = []
             self._vision_cache[ckey] = list(vision_hits)
-
+ 
         all_hits.extend(regex_hits)
         all_hits.extend(vision_hits)
-
-        # Filter hits by active redaction mode
+ 
+        # Filter hits by active redaction mode.
         final_hits = []
         for hit in all_hits:
             if hit.label.startswith("FACE") or hit.label == "BODY":
                 if self.face_redaction_mode == "ALL":
                     final_hits.append(hit)
                 elif self.face_redaction_mode == "BLACKLIST":
-                    # Redact recognized target identities
+                    # Redact recognized target identities.
                     if hit.identity and hit.identity in self.target_identities:
                         final_hits.append(hit)
                         print(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
                     else:
                         print(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
                 elif self.face_redaction_mode == "WHITELIST":
-                    # Redact all faces except whitelisted identities
+                    # Redact unrecognized faces.
                     if hit.identity and hit.identity in self.target_identities:
                         print(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
                     else:

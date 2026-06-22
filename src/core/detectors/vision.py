@@ -15,7 +15,7 @@ from src.utils.paths import resource_path
 
 class VisionDetector(BaseDetector):
     def __init__(self, mode: str = "faces", identity_manager=None):
-        self.mode = mode  # "faces", "bodies", or "text"
+        self.mode = mode
         self.identity_manager = identity_manager
         self._local = threading.local()
         
@@ -47,7 +47,6 @@ class VisionDetector(BaseDetector):
             return []
 
         if self.mode == "faces":
-            # Initialize thread-local cascades.
             if not hasattr(self._local, "face_cascade"):
                 self._local.face_cascade = cv2.CascadeClassifier(
                     cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
@@ -59,7 +58,6 @@ class VisionDetector(BaseDetector):
                     cv2.data.haarcascades + 'haarcascade_profileface.xml'
                 )
             
-            # Detect faces using multi-cascade ensemble.
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             h_img, w_img = gray.shape[:2]
             min_face = max(40, min(h_img, w_img) // 30)
@@ -67,25 +65,20 @@ class VisionDetector(BaseDetector):
             if h_img < min_face or w_img < min_face:
                 return []
             
-            # Frontal alternate cascade detection.
             faces_alt = self._local.face_cascade_alt.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
-            # Frontal default cascade detection.
             faces_default = self._local.face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
-            # Profile cascade detection.
             faces_profile = self._local.profile_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
-            # Profile flipped cascade detection.
             flipped_gray = cv2.flip(gray, 1)
             faces_profile_flipped = self._local.profile_cascade.detectMultiScale(
                 flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             
-            # Contrast-equalized cascade detection.
             clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
             clahe_gray = clahe.apply(gray)
             faces_alt_clahe = self._local.face_cascade_alt.detectMultiScale(
@@ -105,7 +98,6 @@ class VisionDetector(BaseDetector):
             for (x, y, w, h) in faces_alt_clahe:
                 raw_boxes.append([int(x), int(y), int(w), int(h)])
                 
-            # Rotated image cascade detection.
             center = (w_img / 2.0, h_img / 2.0)
             for angle in [-30, 30]:
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
@@ -128,7 +120,6 @@ class VisionDetector(BaseDetector):
                     orig_y = int(orig_cy - h / 2.0)
                     raw_boxes.append([orig_x, orig_y, int(w), int(h)])
                 
-            # Overlapping bounding box merge.
             merged_boxes = []
             for box in raw_boxes:
                 bx, by, bw, bh = box
@@ -146,7 +137,6 @@ class VisionDetector(BaseDetector):
                         box_area = bw * bh
                         m_box_area = mw * mh
                         
-                        # Merge significantly overlapping boxes.
                         if intersect_area / min(box_area, m_box_area) > 0.40:
                             min_x = min(bx, mx)
                             min_y = min(by, my)
@@ -162,7 +152,6 @@ class VisionDetector(BaseDetector):
             for (x, y, w, h) in merged_boxes:
                 identity = None
                 if self.identity_manager and match_identities:
-                    # Clip coordinates to image boundaries.
                     clip_y = max(0, y)
                     clip_h = min(h_img - clip_y, h)
                     clip_x = max(0, x)
@@ -203,7 +192,6 @@ class VisionDetector(BaseDetector):
                 self.detector = vision.ObjectDetector.create_from_options(options)
                 
             scale = 1
-            # Enhance image contrast.
             adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)
 
             rgb_image = cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)

@@ -32,7 +32,7 @@ a = Analysis(
     cipher=block_cipher,
 )
 
-# Filter binaries to prevent cross-distro library mismatches on Linux (GTK/glib/DBus/xkbcommon)
+# Exclude system-native libraries on Linux to prevent ABI/symbol mismatches in cross-distribution environments.
 import platform
 if platform.system() == "Linux":
     excluded_binaries = {

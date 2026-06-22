@@ -25,20 +25,17 @@ class TeeStream:
         except Exception:
             pass
 
-# Initialize logging and faulthandler
 try:
     log_dir = get_app_data_dir()
     log_path = os.path.join(log_dir, "safemarc.log")
     log_file_obj = open(log_path, "w", encoding="utf-8", buffering=1)
     
-    # Enable faulthandler to write directly to the log file on segfault
+    # Write C-level segfaults directly to the log file.
     faulthandler.enable(file=log_file_obj)
     
-    # Redirect stdout and stderr to both console and the log file
     sys.stdout = TeeStream(sys.stdout, log_file_obj)
     sys.stderr = TeeStream(sys.stderr, log_file_obj)
     
-    # Capture uncaught exceptions in main thread
     def uncaught_exception_handler(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -48,7 +45,6 @@ try:
         sys.stderr.write("".join(tb_lines) + "\n")
     sys.excepthook = uncaught_exception_handler
 
-    # Capture uncaught exceptions in background threads
     import threading
     def thread_exception_handler(args):
         import traceback
@@ -67,7 +63,6 @@ def run_gui():
     import tempfile
     import atexit
 
-    # Clean up leftover temporary directories.
     safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp")
     if os.path.exists(safemarc_temp):
         try:
@@ -100,7 +95,6 @@ def run_gui():
                     obj.style().polish(obj)
             return super().eventFilter(obj, event)
 
-    # Monkey patch clickable widgets to default to PointingHandCursor.
     for widget_class in [QPushButton, QCheckBox, QComboBox, QTabBar, QMenu]:
         original_init = widget_class.__init__
         def make_new_init(orig_init):
@@ -110,7 +104,6 @@ def run_gui():
             return new_init
         widget_class.__init__ = make_new_init(original_init)
 
-    # Handle SIGINT cleanly.
     def handle_sigint(signum, frame):
         print("\n[SafeMARC] Caught Ctrl+C. Quitting event loop to trigger cleanup...")
         QApplication.quit()
@@ -180,7 +173,7 @@ def run_gui():
             "Tesseract OCR is missing.\n\nLinux: sudo dnf install tesseract\nWindows: Download Installer",
         )
 
-    # Let Python interpreter check for signals periodically.
+    # Periodically wake event loop to process system signals.
     from PySide6.QtCore import QTimer
     timer = QTimer()
     timer.start(500)

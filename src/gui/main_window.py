@@ -92,7 +92,6 @@ class EngineStatusDialog(QDialog):
             """)
             return card
             
-        # Section 1: Application Version & Environment
         env_card = create_card()
         env_layout = QVBoxLayout(env_card)
         env_layout.setContentsMargins(15, 12, 15, 12)
@@ -119,7 +118,6 @@ class EngineStatusDialog(QDialog):
         
         layout.addWidget(env_card)
         
-        # Section 2: Model & OCR Status
         status_card = create_card()
         status_layout = QVBoxLayout(status_card)
         status_layout.setContentsMargins(15, 12, 15, 12)
@@ -129,7 +127,6 @@ class EngineStatusDialog(QDialog):
         status_title.setStyleSheet("font-weight: 700; color: #9CA3AF; font-size: 12px; text-transform: uppercase;")
         status_layout.addWidget(status_title)
         
-        # SFace Check
         sface_model_path = resource_path("assets/face_recognition_sface_2021dec.onnx")
         sface_exists = os.path.exists(sface_model_path)
         sface_active = scanner.identity_manager.use_sface if (scanner and scanner.identity_manager) else False
@@ -143,7 +140,6 @@ class EngineStatusDialog(QDialog):
             sface_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>SFace Recognition Model:</b> Missing (Fallback to LBPH)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download face_recognition_sface_2021dec.onnx into assets/</span>")
         status_layout.addWidget(sface_lbl)
         
-        # Body Check
         body_model_path = resource_path("assets/efficientdet_lite2.tflite")
         body_exists = os.path.exists(body_model_path)
         
@@ -154,7 +150,6 @@ class EngineStatusDialog(QDialog):
             body_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>Body Silhouette Model:</b> Missing (Full Body mode unavailable)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download efficientdet_lite2.tflite into assets/</span>")
         status_layout.addWidget(body_lbl)
         
-        # Tesseract Check
         import pytesseract
         from src.utils.paths import pytesseract_env
         try:
@@ -174,7 +169,6 @@ class EngineStatusDialog(QDialog):
         
         layout.addWidget(status_card)
         
-        # Close Button
         btn_close = QPushButton("Close")
         btn_close.setCursor(Qt.PointingHandCursor)
         btn_close.setStyleSheet("""

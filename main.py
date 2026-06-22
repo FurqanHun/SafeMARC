@@ -38,6 +38,24 @@ try:
     sys.stdout = TeeStream(sys.stdout, log_file_obj)
     sys.stderr = TeeStream(sys.stderr, log_file_obj)
     
+    # Capture uncaught exceptions in main thread
+    def uncaught_exception_handler(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        import traceback
+        tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        sys.stderr.write("".join(tb_lines) + "\n")
+    sys.excepthook = uncaught_exception_handler
+
+    # Capture uncaught exceptions in background threads
+    import threading
+    def thread_exception_handler(args):
+        import traceback
+        tb_lines = traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+        sys.stderr.write(f"Uncaught exception in thread {args.thread.name}:\n" + "".join(tb_lines) + "\n")
+    threading.excepthook = thread_exception_handler
+    
     print(f"[SafeMARC] Logging initialized. Logs are saved persistently to: {log_path}")
 except Exception as e:
     faulthandler.enable()

@@ -1512,6 +1512,7 @@ class SafeMARCMainWindow(QMainWindow):
         apply_focus_indicators(self)
         self.update_toolbar_state()
         self.update_review_button_tooltips()
+        QApplication.instance().focusChanged.connect(self.on_focus_changed)
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -1784,6 +1785,50 @@ class SafeMARCMainWindow(QMainWindow):
 
         stop_shortcut = self.shortcuts_config.get("escape", "Esc")
         self.btn_stop_review.setToolTip(f"Stop the active batch review process ({stop_shortcut})")
+
+    def set_shortcuts_enabled(self, enabled: bool):
+        """Enable or disable all window-level QShortcut instances to prevent interception during text entry."""
+        shortcut_attrs = [
+            "shortcut_draw",
+            "shortcut_persistent",
+            "shortcut_zoom_in",
+            "shortcut_zoom_in2",
+            "shortcut_zoom_out",
+            "shortcut_zoom_reset",
+            "shortcut_rescan",
+            "shortcut_start_redact",
+            "shortcut_start_redact_ent",
+            "shortcut_skip_space",
+            "shortcut_skip_s",
+            "shortcut_prev_bs",
+            "shortcut_prev_p",
+            "shortcut_escape",
+            "shortcut_add_file",
+            "shortcut_add_folder",
+            "shortcut_remove_file",
+            "shortcut_settings",
+            "shortcut_clear_queue",
+            "shortcut_paste",
+            "shortcut_reset_layout",
+            "shortcut_hit_next",
+            "shortcut_hit_prev",
+            "shortcut_hit_toggle"
+        ]
+        for attr in shortcut_attrs:
+            shortcut = getattr(self, attr, None)
+            if shortcut:
+                try:
+                    shortcut.setEnabled(enabled)
+                except Exception:
+                    pass
+
+    def on_focus_changed(self, old, now):
+        """Automatically disable conflicting keyboard shortcuts when editing text, and re-enable them afterwards."""
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        if isinstance(now, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            self.set_shortcuts_enabled(False)
+        elif isinstance(old, (QLineEdit, QTextEdit, QPlainTextEdit)) and not isinstance(now, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            self.set_shortcuts_enabled(True)
 
     def on_return_pressed(self):
         focused_widget = QApplication.focusWidget()

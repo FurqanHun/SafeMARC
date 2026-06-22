@@ -185,14 +185,7 @@ class VisionDetector(BaseDetector):
                         identity=identity or ""
                     )
                 )
-                
-                # Process pending UI events.
-                try:
-                    from PySide6.QtWidgets import QApplication
-                    if QApplication.instance():
-                        QApplication.processEvents()
-                except ImportError:
-                    pass
+
 
         elif self.mode == "bodies":
             from PySide6.QtCore import QSettings

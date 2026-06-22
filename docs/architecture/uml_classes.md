@@ -16,9 +16,7 @@ classDiagram
     class VisionDetector {
         +str mode
         +IdentityManager identity_manager
-        +CascadeClassifier face_cascade
-        +CascadeClassifier face_cascade_alt
-        +CascadeClassifier profile_cascade
+        +local _local
         +ObjectDetector detector
         +detect(image_path: str, match_identities: bool) List~SensitiveHit~
         +cleanup() void
@@ -75,9 +73,7 @@ classDiagram
     class IdentityManager {
         +str identities_dir
         +str session_temp
-        +CascadeClassifier face_cascade
-        +CascadeClassifier face_cascade_alt
-        +CascadeClassifier profile_cascade
+        +local _local
         +FaceRecognizerSF sface_recognizer
         +LBPHFaceRecognizer recognizer
         +bool use_sface

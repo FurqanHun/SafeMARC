@@ -1,4 +1,5 @@
 import os
+import threading
 from typing import List
 
 import cv2
@@ -16,19 +17,9 @@ class VisionDetector(BaseDetector):
     def __init__(self, mode: str = "faces", identity_manager=None):
         self.mode = mode  # "faces", "bodies", or "text"
         self.identity_manager = identity_manager
+        self._local = threading.local()
         
-        if self.mode == "faces":
-            # Initialize ensemble of face cascades for maximum coverage of angles, tilts, and side profiles
-            self.face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            )
-            self.face_cascade_alt = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-            )
-            self.profile_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_profileface.xml'
-            )
-        elif self.mode == "bodies":
+        if self.mode == "bodies":
             model_path = resource_path("assets/efficientdet_lite2.tflite")
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Missing body model: {model_path}")
@@ -56,26 +47,41 @@ class VisionDetector(BaseDetector):
             return []
 
         if self.mode == "faces":
+            # Lazy initialize thread-local cascades to ensure thread-safety
+            if not hasattr(self._local, "face_cascade"):
+                self._local.face_cascade = cv2.CascadeClassifier(
+                    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                )
+                self._local.face_cascade_alt = cv2.CascadeClassifier(
+                    cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+                )
+                self._local.profile_cascade = cv2.CascadeClassifier(
+                    cv2.data.haarcascades + 'haarcascade_profileface.xml'
+                )
+            
             # Detect faces using a multi-cascade ensemble with rotational searching and contrast equalization
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             h_img, w_img = gray.shape[:2]
             min_face = max(40, min(h_img, w_img) // 30)
             
+            if h_img < min_face or w_img < min_face:
+                return []
+            
             # 1. Standard raw grayscale for all core detections (restores perfect default detections and matching accuracy)
-            faces_alt = self.face_cascade_alt.detectMultiScale(
+            faces_alt = self._local.face_cascade_alt.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             # 2. Default Frontal Cascade (Guarantees classic upright frontal face coverage)
-            faces_default = self.face_cascade.detectMultiScale(
+            faces_default = self._local.face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             # 3. Profile Face Cascade (Detects turned heads and side-profiles. Primarily left-facing)
-            faces_profile = self.profile_cascade.detectMultiScale(
+            faces_profile = self._local.profile_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             # 4. Profile Flip: Horizontally flip image to detect right-facing profiles
             flipped_gray = cv2.flip(gray, 1)
-            faces_profile_flipped = self.profile_cascade.detectMultiScale(
+            faces_profile_flipped = self._local.profile_cascade.detectMultiScale(
                 flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
             )
             
@@ -83,7 +89,7 @@ class VisionDetector(BaseDetector):
             # to capture faces in tricky lighting without distorting the raw gray used by other core cascades.
             clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
             clahe_gray = clahe.apply(gray)
-            faces_alt_clahe = self.face_cascade_alt.detectMultiScale(
+            faces_alt_clahe = self._local.face_cascade_alt.detectMultiScale(
                 clahe_gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_face, min_face)
             )
             
@@ -108,7 +114,7 @@ class VisionDetector(BaseDetector):
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
                 rotated_gray = cv2.warpAffine(gray, M, (w_img, h_img))
                 
-                faces_rot = self.face_cascade_alt.detectMultiScale(
+                faces_rot = self._local.face_cascade_alt.detectMultiScale(
                     rotated_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
                 )
                 

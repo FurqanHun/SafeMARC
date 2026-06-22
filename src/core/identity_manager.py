@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import threading
 from typing import List, Dict, Optional
 from src.utils.paths import resource_path, get_app_data_dir
 
@@ -16,17 +17,7 @@ class IdentityManager:
         
         self.identity_map = {}  # int id -> str Name
         self.is_trained = False
-        
-        # Face cascades for robust ensemble auto-cropping of reference images
-        self.face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        )
-        self.face_cascade_alt = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-        )
-        self.profile_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_profileface.xml'
-        )
+        self._local = threading.local()
         
         # SFace (deep learning) is preferred for face recognition over LBPH
         self.use_sface = False
@@ -52,16 +43,27 @@ class IdentityManager:
 
     def _extract_face_crop(self, img):
         """Extract the largest face crop from an image using a robust high-recall multi-cascade ensemble. Returns BGR crop."""
+        if not hasattr(self._local, "face_cascade"):
+            self._local.face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            )
+            self._local.face_cascade_alt = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+            )
+            self._local.profile_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_profileface.xml'
+            )
+            
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         h_img, w_img = gray.shape[:2]
         
         # Run detections with standard 1.1, 4 parameters and no strict minSize to match previous high recall
-        faces_default = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-        faces_alt = self.face_cascade_alt.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-        faces_profile = self.profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        faces_default = self._local.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        faces_alt = self._local.face_cascade_alt.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+        faces_profile = self._local.profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
         
         flipped_gray = cv2.flip(gray, 1)
-        faces_profile_flipped = self.profile_cascade.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=4)
+        faces_profile_flipped = self._local.profile_cascade.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=4)
         
         all_faces = []
         for (x, y, w, h) in faces_default:

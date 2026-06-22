@@ -102,9 +102,15 @@ class EngineStatusDialog(QDialog):
         env_title.setStyleSheet("font-weight: 700; color: #9CA3AF; font-size: 12px; text-transform: uppercase;")
         env_layout.addWidget(env_title)
         
-        app_ver = "0.1.0"
+        try:
+            from src.version import __version__ as app_ver
+        except ImportError:
+            app_ver = "0.1.0"
+            
+        is_dev = "dev" in app_ver.lower() or app_ver == "0.1.0"
+        ver_suffix = " (DEV)" if is_dev else ""
         
-        env_layout.addWidget(QLabel(f"<b>Application Version:</b> {app_ver} (DEV)"))
+        env_layout.addWidget(QLabel(f"<b>Application Version:</b> {app_ver}{ver_suffix}"))
         env_layout.addWidget(QLabel(f"<b>Python Version:</b> {platform.python_version()}"))
         env_layout.addWidget(QLabel(f"<b>Platform / OS:</b> {platform.system()} {platform.machine()} ({platform.release()})"))
         env_layout.addWidget(QLabel(f"<b>PySide6 Version:</b> {PySide6.__version__ if hasattr(PySide6, '__version__') else '6.x'}"))

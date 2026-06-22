@@ -72,6 +72,22 @@ jobs:
           curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
           curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
 
+      - name: Set Release Version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG_NAME#v}"
+          else
+            VERSION="0.1.0"
+          fi
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Patch version files
+        shell: bash
+        run: |
+          python scripts/patch_version.py "${{ env.RELEASE_VERSION }}"
+
       - name: Build with PyInstaller
         shell: bash
         run: |

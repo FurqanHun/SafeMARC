@@ -68,15 +68,10 @@ jobs:
           python scripts/generate_version.py > dev_version.txt
           echo "DEV_VERSION=$(cat dev_version.txt)" >> $GITHUB_ENV
 
-      - name: Patch setup.py with dev version (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Patch version files
+        shell: bash
         run: |
-          sed -i "s/version=\"[^\"]*\"/version=\"${DEV_VERSION}\"/" setup.py
-
-      - name: Patch setup.py with dev version (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          (Get-Content setup.py) -replace 'version="[^"]*"', "version=`"$env:DEV_VERSION`"" | Set-Content setup.py
+          python scripts/patch_version.py "${{ env.DEV_VERSION }}"
 
       - name: Download Model Assets
         run: |

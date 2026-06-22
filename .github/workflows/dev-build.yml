@@ -64,6 +64,7 @@ jobs:
 
       - name: Generate dev version
         id: gen_version
+        shell: bash
         run: |
           python scripts/generate_version.py > dev_version.txt
           echo "DEV_VERSION=$(cat dev_version.txt)" >> $GITHUB_ENV

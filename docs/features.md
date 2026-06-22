@@ -75,6 +75,7 @@
 - [x] **Individual Reference Image Removal**: Delete specific reference images via interactive red corner corner close markers on thumbnails, triggering immediate `.npy` cache cleanups.
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
 - [x] **Live Biometric Threshold Synchronization**: Adjusting the Face Matching Threshold or Text Auto-Redact cutoff in the Settings dialog instantly synchronizes with the deep-learning backend.
+- [x] **Smart Quick-Add Combobox Dropdown**: Right-click to assign a face directly from the preview canvas using a styled autocompleting dropdown combobox. Re-using an existing name directly appends the reference photo to the correct permanent or session folder, while new names prompt the user for save-type preferences.
 
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.

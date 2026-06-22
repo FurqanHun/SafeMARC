@@ -137,6 +137,105 @@ def apply_focus_indicators(parent):
             child.setStyleSheet(style + focus_style)
 
 
+class QuickAddIdentityDialog(QDialog):
+    def __init__(self, existing_names, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add Identity")
+        self.setFixedSize(360, 180)
+        self.setStyleSheet("""
+            QDialog { background-color: #0B0F19; }
+            QLabel { color: #E5E7EB; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; }
+            QComboBox {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QComboBox:focus { border-color: #10B981; }
+            QComboBox QAbstractItemView {
+                background-color: #1F2937;
+                color: #F3F4F6;
+                selection-background-color: #10B981;
+                selection-color: #FFFFFF;
+                border: 1px solid #374151;
+            }
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+            }
+            QPushButton:hover { background-color: #374151; border-color: #4B5563; color: #FFFFFF; }
+            QPushButton#btnSave { background-color: #10B981; color: white; border: none; }
+            QPushButton#btnSave:hover { background-color: #059669; }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        
+        lbl = QLabel("Select or enter name for this face:")
+        
+        self.combo_name = QComboBox()
+        self.combo_name.setEditable(True)
+        self.combo_name.addItems(existing_names)
+        self.combo_name.setCurrentText("")
+        
+        from PySide6.QtWidgets import QCompleter
+        completer = QCompleter(existing_names, self)
+        completer.setFilterMode(Qt.MatchContains)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.combo_name.setCompleter(completer)
+        
+        # Ensure the line edit styling matches
+        if self.combo_name.lineEdit():
+            self.combo_name.lineEdit().setStyleSheet("""
+                background-color: #1F2937;
+                color: #F3F4F6;
+                border: none;
+            """)
+            self.combo_name.lineEdit().setPlaceholderText("e.g. John Doe")
+            self.combo_name.lineEdit().returnPressed.connect(self._on_save)
+            
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(self.reject)
+        
+        self.btn_save = QPushButton("Save")
+        self.btn_save.setObjectName("btnSave")
+        self.btn_save.setDefault(True)
+        self.btn_save.clicked.connect(self._on_save)
+        
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_save)
+        
+        layout.addWidget(lbl)
+        layout.addWidget(self.combo_name)
+        layout.addLayout(btn_layout)
+        
+        apply_focus_indicators(self)
+        
+    def _on_save(self):
+        name = self.get_name()
+        if not name:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Invalid Name", "Please enter or select a valid identity name.")
+            return
+        self.accept()
+        
+    def get_name(self):
+        return self.combo_name.currentText().strip()
+
+
 class SafeMARCMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1843,42 +1942,55 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.current_file_path or not self.scanner:
             return
             
-        from PySide6.QtWidgets import QInputDialog, QMessageBox
-        name, ok = QInputDialog.getText(self, "Add Identity", f"Enter name for this face:")
-        if ok and name.strip():
-            # Ask if Permanent or Session Only
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Save Type")
-            msg.setText(f"How do you want to save '{name}'?")
-            btn_perm = msg.addButton("Permanently", QMessageBox.ActionRole)
-            btn_session = msg.addButton("This Session Only", QMessageBox.ActionRole)
-            msg.addButton("Cancel", QMessageBox.RejectRole)
-            msg.exec()
-            
-            is_session = msg.clickedButton() == btn_session
-            if msg.clickedButton() not in [btn_perm, btn_session]:
-                return
-
-            import cv2
-            img = cv2.imread(self.current_file_path)
-            if img is not None:
-                face_crop = img[hit.y:hit.y+hit.h, hit.x:hit.x+hit.w]
-                
-                # Use a temp file for the add_identity/add_session_identity calls
-                temp_path = os.path.join(self.scanner.identity_manager.identities_dir, "temp_quick_add.jpg")
-                cv2.imwrite(temp_path, face_crop)
-                
-                if is_session:
-                    self.scanner.identity_manager.add_session_identity(name.strip(), temp_path)
-                    QMessageBox.information(self, "Success", f"Added '{name}' (Session Only).")
+        from PySide6.QtWidgets import QMessageBox
+        
+        # Get existing names from identity manager
+        existing_names = sorted(list(set(self.scanner.identity_manager.identity_map.values())))
+        
+        dialog = QuickAddIdentityDialog(existing_names, self)
+        if dialog.exec() == QDialog.Accepted:
+            name = dialog.get_name()
+            if name:
+                # Check if it already exists
+                if name in existing_names:
+                    # Detect if it's already session or permanent
+                    is_session = False
+                    if os.path.exists(os.path.join(self.scanner.identity_manager.session_temp, name)):
+                        is_session = True
                 else:
-                    self.scanner.identity_manager.add_identity(name.strip(), [temp_path])
-                    QMessageBox.information(self, "Success", f"Added '{name}' permanently.")
-                
-                os.remove(temp_path)
-                if self.scanner:
-                    self.scanner.clear_cache()
-                self.load_next_batch_item() # Trigger rescan
+                    # Ask if Permanent or Session Only
+                    msg = QMessageBox(self)
+                    msg.setWindowTitle("Save Type")
+                    msg.setText(f"How do you want to save '{name}'?")
+                    btn_perm = msg.addButton("Permanently", QMessageBox.ActionRole)
+                    btn_session = msg.addButton("This Session Only", QMessageBox.ActionRole)
+                    msg.addButton("Cancel", QMessageBox.RejectRole)
+                    msg.exec()
+                    
+                    is_session = msg.clickedButton() == btn_session
+                    if msg.clickedButton() not in [btn_perm, btn_session]:
+                        return
+
+                import cv2
+                img = cv2.imread(self.current_file_path)
+                if img is not None:
+                    face_crop = img[hit.y:hit.y+hit.h, hit.x:hit.x+hit.w]
+                    
+                    # Use a temp file for the add_identity/add_session_identity calls
+                    temp_path = os.path.join(self.scanner.identity_manager.identities_dir, "temp_quick_add.jpg")
+                    cv2.imwrite(temp_path, face_crop)
+                    
+                    if is_session:
+                        self.scanner.identity_manager.add_session_identity(name, temp_path)
+                        QMessageBox.information(self, "Success", f"Added '{name}' (Session Only).")
+                    else:
+                        self.scanner.identity_manager.add_identity(name, [temp_path])
+                        QMessageBox.information(self, "Success", f"Added '{name}' permanently.")
+                    
+                    os.remove(temp_path)
+                    if self.scanner:
+                        self.scanner.clear_cache()
+                    self.load_next_batch_item() # Trigger rescan
 
     def _show_regions_selector(self):
         from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout, QWidget, QLabel

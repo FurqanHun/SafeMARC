@@ -60,6 +60,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate dev version
+        id: gen_version
+        run: |
+          python scripts/generate_version.py > dev_version.txt
+          echo "DEV_VERSION=$(cat dev_version.txt)" >> $GITHUB_ENV
+
+      - name: Patch setup.py with dev version
+        run: |
+          sed -i "s/version=\"[^\"]*\"/version=\"${DEV_VERSION}\"/" setup.py
+
       - name: Download Model Assets
         run: |
           mkdir -p assets

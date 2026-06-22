@@ -68,14 +68,15 @@ class PDFHandler:
             output_dir = os.path.dirname(output_pdf_path)
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
-                
-            images = [Image.open(img_path).convert('RGB') for img_path in image_paths]
-            if images:
-                images[0].save(
-                    output_pdf_path, 
-                    save_all=True, 
-                    append_images=images[1:]
-                )
+
+            doc = fitz.open()
+            for img_path in image_paths:
+                with Image.open(img_path) as img:
+                    width, height = img.size
+                page = doc.new_page(width=width, height=height)
+                page.insert_image(page.rect, filename=img_path)
+            doc.save(output_pdf_path)
+            doc.close()
             return True
         except Exception as e:
             print(f"Failed to build PDF: {e}")

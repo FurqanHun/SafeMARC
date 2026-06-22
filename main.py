@@ -1,5 +1,47 @@
 import sys
 import signal
+import faulthandler
+import os
+import logging
+from src.utils.paths import get_app_data_dir
+
+class TeeStream:
+    def __init__(self, original_stream, log_file):
+        self.original_stream = original_stream
+        self.log_file = log_file
+
+    def write(self, data):
+        self.original_stream.write(data)
+        try:
+            self.log_file.write(data)
+            self.log_file.flush()
+        except Exception:
+            pass
+
+    def flush(self):
+        self.original_stream.flush()
+        try:
+            self.log_file.flush()
+        except Exception:
+            pass
+
+# Initialize logging and faulthandler
+try:
+    log_dir = get_app_data_dir()
+    log_path = os.path.join(log_dir, "safemarc.log")
+    log_file_obj = open(log_path, "w", encoding="utf-8", buffering=1)
+    
+    # Enable faulthandler to write directly to the log file on segfault
+    faulthandler.enable(file=log_file_obj)
+    
+    # Redirect stdout and stderr to both console and the log file
+    sys.stdout = TeeStream(sys.stdout, log_file_obj)
+    sys.stderr = TeeStream(sys.stderr, log_file_obj)
+    
+    print(f"[SafeMARC] Logging initialized. Logs are saved persistently to: {log_path}")
+except Exception as e:
+    faulthandler.enable()
+    print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
 
 def run_gui():
     import shutil

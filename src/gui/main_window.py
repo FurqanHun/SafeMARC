@@ -1989,8 +1989,8 @@ class SafeMARCMainWindow(QMainWindow):
                     
                     os.remove(temp_path)
                     if self.scanner:
-                        self.scanner.clear_cache()
-                    self.load_next_batch_item() # Trigger rescan
+                        self.scanner.clear_vision_cache()
+                    self._rescan_current()
 
     def _show_regions_selector(self):
         from PySide6.QtWidgets import QMenu, QWidgetAction, QCheckBox, QVBoxLayout, QWidget, QLabel

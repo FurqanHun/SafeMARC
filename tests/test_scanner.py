@@ -17,11 +17,26 @@ def test_scanner_initialization():
 def test_scanner_clear_cache():
     scanner = SafeScanner()
     scanner._vision_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "FACE", 0.9)]
+    scanner._regex_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "TEXT", 0.9)]
     scanner._scan_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "FACE", 0.9)]
     
     scanner.clear_cache()
     
     assert scanner._vision_cache == {}
+    assert scanner._regex_cache == {}
+    assert scanner._scan_cache == {}
+
+
+def test_scanner_clear_vision_cache():
+    scanner = SafeScanner()
+    scanner._vision_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "FACE", 0.9)]
+    scanner._regex_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "TEXT", 0.9)]
+    scanner._scan_cache["test_key"] = [SensitiveHit(1, 2, 3, 4, "FACE", 0.9)]
+    
+    scanner.clear_vision_cache()
+    
+    assert scanner._vision_cache == {}
+    assert scanner._regex_cache == {"test_key": [SensitiveHit(1, 2, 3, 4, "TEXT", 0.9)]}
     assert scanner._scan_cache == {}
 
 

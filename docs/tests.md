@@ -41,7 +41,7 @@ During test collection, the system path is automatically resolved to include the
 
 To prevent host machine pollution, SafeMARC implements an automated garbage collection routine. 
 
-Once pytest finishes collecting and running all 44 tests, the session hook `pytest_sessionfinish` inside `tests/conftest.py` executes:
+Once pytest finishes collecting and running all 45 tests, the session hook `pytest_sessionfinish` inside `tests/conftest.py` executes:
 1. It locates the system-level temporary directory `/tmp/safemarc_temp` used for sandbox PDF and face crop outputs.
 2. It deletes `/tmp/safemarc_temp` recursively.
 3. It bypasses standard stdout capture to print a clean confirmation directly in your terminal:

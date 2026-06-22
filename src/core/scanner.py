@@ -17,12 +17,19 @@ class SafeScanner:
         
         # Performance session caches
         self._vision_cache = {}  # file_path -> list of SensitiveHit
+        self._regex_cache = {}   # file_path -> list of SensitiveHit
         self._scan_cache = {}    # ckey -> list of SensitiveHit
         
     def clear_cache(self):
         self._vision_cache = {}
+        self._regex_cache = {}
         self._scan_cache = {}
         print("[SafeScanner] Session scan caches cleared.")
+        
+    def clear_vision_cache(self):
+        self._vision_cache = {}
+        self._scan_cache = {}
+        print("[SafeScanner] Vision caches cleared.")
         
     def set_vision_mode(self, mode: str):
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
@@ -56,25 +63,32 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
 
-        use_cached_vision = (ckey in self._vision_cache)
-
-        for detector in self.detectors:
+        # 1. Regex detector (text / OCR)
+        if ckey in self._regex_cache:
+            print(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
+            regex_hits = self._regex_cache[ckey]
+        else:
             try:
-                if isinstance(detector, RegexDetector):
-                    hits = detector.detect(file_path, pdf_words=pdf_words)
-                elif isinstance(detector, VisionDetector):
-                    if use_cached_vision:
-                        print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
-                        hits = self._vision_cache[ckey]
-                    else:
-                        # Detect and match identities on the first run to cache all names.
-                        hits = detector.detect(file_path, match_identities=True)
-                        self._vision_cache[ckey] = list(hits)
-                else:
-                    hits = detector.detect(file_path)
-                all_hits.extend(hits)
+                regex_hits = self.text_detector.detect(file_path, pdf_words=pdf_words)
             except Exception as e:
-                print(f"Detector failed: {e}")
+                print(f"RegexDetector failed: {e}")
+                regex_hits = []
+            self._regex_cache[ckey] = list(regex_hits)
+
+        # 2. Vision detector (faces / bodies)
+        if ckey in self._vision_cache:
+            print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
+            vision_hits = self._vision_cache[ckey]
+        else:
+            try:
+                vision_hits = self.vision_detector.detect(file_path, match_identities=True)
+            except Exception as e:
+                print(f"VisionDetector failed: {e}")
+                vision_hits = []
+            self._vision_cache[ckey] = list(vision_hits)
+
+        all_hits.extend(regex_hits)
+        all_hits.extend(vision_hits)
 
         # Filter face hits according to the active redaction mode.
         final_hits = []

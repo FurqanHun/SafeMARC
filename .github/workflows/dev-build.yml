@@ -34,6 +34,8 @@ jobs:
           curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
 
       - name: Run PyTest
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           xvfb-run pytest
 

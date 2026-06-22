@@ -30,8 +30,23 @@ a = Analysis(
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
-    noarchive=False,
 )
+
+# Filter binaries to prevent cross-distro library mismatches on Linux (GTK/glib/DBus/xkbcommon)
+import platform
+if platform.system() == "Linux":
+    excluded_binaries = {
+        'libxkbcommon.so.0',
+        'libxkbcommon-x11.so.0',
+        'libdbus-1.so.3',
+        'libglib-2.0.so.0',
+        'libgobject-2.0.so.0',
+        'libgio-2.0.so.0',
+        'libgthread-2.0.so.0',
+        'libgmodule-2.0.so.0',
+        'libz.so.1',
+    }
+    a.binaries = [x for x in a.binaries if x[0] not in excluded_binaries]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

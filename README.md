@@ -14,28 +14,44 @@ The goal of SafeMARC is to provide a practical, efficient, and user-configurable
 ## Setup for Windows
 
 1. **Install Python 3.12**: Make sure "Add to PATH" is checked.
-2. **Install Tesseract OCR**:
-   - Download the installer here: https://github.com/UB-Mannheim/tesseract/wiki
-   - **IMPORTANT:** During install, copy the path (usually `C:\Program Files\Tesseract-OCR`).
-   - You might need to add this path to your System Environment Variables.
-3. **Create Virtual Environment (CRITICAL)**:
+2. **Create Virtual Environment (CRITICAL)**:
    Open your terminal in the project folder and run:
-  ```
+   ```
    python -m venv .venv
    .venv\Scripts\activate
-  ```
-
-4. **Install Dependencies**:
+   ```
+3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
-    ```
-  
-5. **Run the app**:
-  ```bash
-  python main.py
-  ```
+   ```
+4. **Run the app**:
+   ```bash
+   python main.py
+   ```
+
+## Required System Dependencies
+
+### Tesseract OCR (Required for all modes)
+Tesseract OCR is required for the text extraction and OCR features of the application on all platforms, whether you run the app from Python source code, build it yourself, or run the pre-compiled standalone executable.
+- **Windows**: Download and run the installer from the [UB-Mannheim Wiki](https://github.com/UB-Mannheim/tesseract/wiki). Copy the installation path (usually `C:\Program Files\Tesseract-OCR`) and add it to your system Environment Variables (PATH).
+- **Linux**:
+  - **Fedora**: `sudo dnf install tesseract`
+  - **Ubuntu / Debian**: `sudo apt install tesseract-ocr`
+
+## Linux Standalone Binary Dependencies
+
+If you are running the pre-compiled standalone Linux executable, please note that core desktop system libraries are **not bundled** inside the package. Bundling them causes dynamic library ABI and symbol mismatches across different Linux distributions, resulting in segmentation faults on startup or during keyboard shortcut interactions.
+
+Instead, the executable dynamically loads the system-native versions. While most desktop environments have these pre-installed, ensure the following libraries are installed on your host system if they are missing:
+- `libxkbcommon` & `libxkbcommon-x11` (keyboard and shortcut event mapping)
+- `glib2` / `glib-2.0` (specifically `libglib-2.0`, `libgobject-2.0`, `libgio-2.0`, `libgthread-2.0`, and `libgmodule-2.0` for core desktop service bindings)
+- `dbus` / `libdbus` (specifically `libdbus-1` for system D-Bus communication and native portal integration)
+- `libz` (standard compression library)
 
 ## Required Models
+
+> [!NOTE]
+> These models are **only required if you clone the repository and run the app from Python source code**. The pre-compiled standalone binaries (executable packages) already bundle these models.
 
 ### Body Detection (Full Body mode)
 Download into `assets/` directory as `efficientdet_lite2.tflite`:

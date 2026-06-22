@@ -61,65 +61,6 @@ except Exception as e:
     faulthandler.enable()
     print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
 
-# QFileDialog to avoid native dialog segmentation faults in frozen Linux environment
-try:
-    import platform
-    if getattr(sys, 'frozen', False) and platform.system() == "Linux":
-        from PySide6.QtWidgets import QFileDialog
-        
-        _orig_getOpenFileName = QFileDialog.getOpenFileName
-        _orig_getOpenFileNames = QFileDialog.getOpenFileNames
-        _orig_getSaveFileName = QFileDialog.getSaveFileName
-        _orig_getExistingDirectory = QFileDialog.getExistingDirectory
-
-        def safe_getOpenFileName(*args, **kwargs):
-            args = list(args)
-            if 'options' in kwargs:
-                kwargs['options'] |= QFileDialog.DontUseNativeDialog
-            elif len(args) >= 6:
-                args[5] |= QFileDialog.DontUseNativeDialog
-            else:
-                kwargs['options'] = QFileDialog.DontUseNativeDialog
-            return _orig_getOpenFileName(*args, **kwargs)
-
-        def safe_getOpenFileNames(*args, **kwargs):
-            args = list(args)
-            if 'options' in kwargs:
-                kwargs['options'] |= QFileDialog.DontUseNativeDialog
-            elif len(args) >= 6:
-                args[5] |= QFileDialog.DontUseNativeDialog
-            else:
-                kwargs['options'] = QFileDialog.DontUseNativeDialog
-            return _orig_getOpenFileNames(*args, **kwargs)
-
-        def safe_getSaveFileName(*args, **kwargs):
-            args = list(args)
-            if 'options' in kwargs:
-                kwargs['options'] |= QFileDialog.DontUseNativeDialog
-            elif len(args) >= 6:
-                args[5] |= QFileDialog.DontUseNativeDialog
-            else:
-                kwargs['options'] = QFileDialog.DontUseNativeDialog
-            return _orig_getSaveFileName(*args, **kwargs)
-
-        def safe_getExistingDirectory(*args, **kwargs):
-            args = list(args)
-            if 'options' in kwargs:
-                kwargs['options'] |= QFileDialog.DontUseNativeDialog
-            elif len(args) >= 4:
-                args[3] |= QFileDialog.DontUseNativeDialog
-            else:
-                kwargs['options'] = QFileDialog.DontUseNativeDialog
-            return _orig_getExistingDirectory(*args, **kwargs)
-
-        QFileDialog.getOpenFileName = safe_getOpenFileName
-        QFileDialog.getOpenFileNames = safe_getOpenFileNames
-        QFileDialog.getSaveFileName = safe_getSaveFileName
-        QFileDialog.getExistingDirectory = safe_getExistingDirectory
-        print("[SafeMARC] Forced non-native QFileDialog to prevent GNOME/GTK/DBus library conflicts.")
-except Exception as e:
-    print(f"[SafeMARC] Failed to apply QFileDialog monkey-patch: {e}")
-
 def run_gui():
     import shutil
     import os
@@ -159,7 +100,7 @@ def run_gui():
                     obj.style().polish(obj)
             return super().eventFilter(obj, event)
 
-    # patch clickable widgets to default to PointingHandCursor.
+    # Monkey patch clickable widgets to default to PointingHandCursor.
     for widget_class in [QPushButton, QCheckBox, QComboBox, QTabBar, QMenu]:
         original_init = widget_class.__init__
         def make_new_init(orig_init):

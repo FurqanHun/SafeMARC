@@ -1,0 +1,120 @@
+name: Release Build (Linux & Windows)
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download Model Assets
+        run: |
+          mkdir -p assets
+          curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
+          curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+
+      - name: Run PyTest
+        run: |
+          xvfb-run pytest
+
+  build-and-upload:
+    name: Build & Release (${{ matrix.os }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download Model Assets
+        run: |
+          mkdir -p assets
+          curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
+          curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller safemarc.spec
+
+      - name: Package Artifacts
+        shell: bash
+        run: |
+          VERSION=$(python -c "import re; print(re.search(r'version\s*=\s*[\"\']([^\"\']+)[\"\']', open('setup.py').read()).group(1))")
+          OS_NAME="${{ matrix.os }}"
+          
+          if [[ "$OS_NAME" == *"windows"* ]]; then
+            BINARY_NAME="SafeMARC.exe"
+            ARCHIVE_NAME="safemarc-v$VERSION-windows-x64.zip"
+            
+            # Use 7z (available on Windows runners) to create zip
+            cd dist
+            7z a "../$ARCHIVE_NAME" "$BINARY_NAME"
+            cd ..
+          else
+            BINARY_NAME="SafeMARC"
+            ARCHIVE_NAME="safemarc-v$VERSION-linux-x64.tar.gz"
+            
+            cd dist
+            tar -czvf "../$ARCHIVE_NAME" "$BINARY_NAME"
+            cd ..
+          fi
+          
+          echo "ASSET=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Upload Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="v$(python -c "import re; print(re.search(r'version\s*=\s*[\"\']([^\"\']+)[\"\']', open('setup.py').read()).group(1))")"
+          fi
+
+          if ! gh release view "$TAG_NAME" &>/dev/null; then
+            gh release create "$TAG_NAME" --draft=true --prerelease=false --title "Release $TAG_NAME" --notes "Automated release build."
+          fi
+
+          gh release upload "$TAG_NAME" ${{ env.ASSET }} --clobber

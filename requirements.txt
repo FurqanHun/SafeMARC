@@ -13,3 +13,4 @@ mediapipe
 pytesseract
 
 pyinstaller
+pytest

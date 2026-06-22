@@ -68,9 +68,16 @@ jobs:
           python scripts/generate_version.py > dev_version.txt
           echo "DEV_VERSION=$(cat dev_version.txt)" >> $GITHUB_ENV
 
-      - name: Patch setup.py with dev version
+      - name: Patch setup.py with dev version (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sed -i "s/version=\"[^\"]*\"/version=\"${DEV_VERSION}\"/" setup.py
+
+      - name: Patch setup.py with dev version (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          (Get-Content setup.py) -replace 'version="[^"]*"', "version=\"$env:DEV_VERSION\"" | Set-Content setup.py
 
       - name: Download Model Assets
         run: |
@@ -86,7 +93,7 @@ jobs:
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SafeMARC-${{ matrix.os }}
+          name: SafeMARC-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'windows' }}
           path: |
             dist/SafeMARC
             dist/SafeMARC.exe

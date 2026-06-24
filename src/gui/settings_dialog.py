@@ -1403,15 +1403,33 @@ class SettingsDialog(QDialog):
                         cropped_paths.append(temp_file_path)
                         
             if cropped_paths:
+                import time
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 self.setEnabled(False)
-                self.lbl_status.setText("Retraining face recognition model...")
+                self.progress_bar.setValue(10)
+                self.progress_bar.setVisible(True)
+                
+                total_images = len(cropped_paths)
+                if self.identity_manager.use_sface:
+                    rebuild_eta = max(2, int(total_images * 3.0))
+                else:
+                    rebuild_eta = max(1, int(total_images * 1.5))
+                
+                self.lbl_status.setText(f"Adding {total_images} reference image(s) to '{data['name']}'...")
                 QApplication.processEvents()
+                time.sleep(0.3)
+                
                 try:
                     if data["is_session"]:
-                        for cp in cropped_paths:
+                        for idx, cp in enumerate(cropped_paths):
+                            self.lbl_status.setText(f"Saving image {idx+1}/{total_images}...")
+                            self.progress_bar.setValue(10 + int(70 * (idx + 1) / total_images))
+                            QApplication.processEvents()
                             self.identity_manager.add_session_identity(data["name"], cp)
                     else:
+                        self.lbl_status.setText(f"Rebuilding biometric recognition model (ETA: ~{rebuild_eta}s)...")
+                        self.progress_bar.setValue(80)
+                        QApplication.processEvents()
                         self.identity_manager.add_identity(data["name"], cropped_paths)
                     
                     for cp in cropped_paths:
@@ -1421,9 +1439,15 @@ class SettingsDialog(QDialog):
                         except Exception:
                             pass
                     
+                    self.progress_bar.setValue(100)
+                    QApplication.processEvents()
+                    time.sleep(0.2)
+                    self.progress_bar.setVisible(False)
+                    self.lbl_status.setText(f"Successfully added {total_images} reference image(s) to '{data['name']}'.")
+                    
                     self._load_person_images(data["name"], data["is_session"])
                 finally:
-                    self.lbl_status.setText("")
+                    self.progress_bar.setVisible(False)
                     self.setEnabled(True)
                     QApplication.restoreOverrideCursor()
 

@@ -1976,25 +1976,53 @@ class SafeMARCMainWindow(QMainWindow):
         self.update_text_patterns()
 
     def import_custom_patterns(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Import Custom Patterns", "", "SafeMARC Patterns (*.json)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Custom Patterns",
+            "",
+            "SafeMARC Pattern Files (*.smpat *.json);;Encrypted Patterns (*.smpat);;Unencrypted JSON (*.json)"
+        )
         if not file_path:
             return
             
         import json
+        from PySide6.QtWidgets import QInputDialog
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
+            if file_path.endswith(".smpat"):
+                password, ok = QInputDialog.getText(
+                    self,
+                    "Import Password",
+                    "Enter the password for this pattern package:",
+                    QLineEdit.Password
+                )
+                if not ok:
+                    return
+                if not password:
+                    QMessageBox.warning(self, "Import Error", "Password cannot be empty. Import cancelled.")
+                    return
+                    
+                from src.utils.crypto import decrypt_data
+                with open(file_path, 'rb') as f:
+                    encrypted_bytes = f.read()
+                    
+                plaintext_bytes = decrypt_data(encrypted_bytes, password)
+                try:
+                    plaintext_str = plaintext_bytes.decode('utf-8')
+                    data = json.loads(plaintext_str)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    raise ValueError("Incorrect password or corrupted file.")
+            else:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
             if not isinstance(data, list):
-                raise ValueError("JSON content must be a list of patterns.")
+                raise ValueError("Pattern content must be a list of patterns.")
                 
-            # Clear current custom pattern rows first.
             while self.text_patterns_layout.count() > 0:
                 item = self.text_patterns_layout.takeAt(0)
                 if item and item.widget():
                     item.widget().deleteLater()
                     
-            # Load imported patterns.
             for item in data:
                 pattern_str = item.get("pattern", "").strip()
                 is_regex = item.get("is_regex", False)
@@ -2002,7 +2030,6 @@ class SafeMARCMainWindow(QMainWindow):
                 
                 if pattern_str:
                     self.add_pattern_row(is_regex=is_regex)
-                    # Find the newly added row widget.
                     last_idx = self.text_patterns_layout.count() - 1
                     if last_idx >= 0:
                         row_widget = self.text_patterns_layout.itemAt(last_idx).widget()
@@ -2045,7 +2072,6 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", f"Failed to import patterns: {str(e)}")
 
     def export_custom_patterns(self):
-        # Gather custom patterns.
         patterns = []
         for i in range(self.text_patterns_layout.count()):
             item = self.text_patterns_layout.itemAt(i)
@@ -2067,17 +2093,60 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.warning(self, "Export", "No custom patterns found to export.")
             return
             
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export Custom Patterns", "", "SafeMARC Patterns (*.json)")
-        if not file_path:
+        from PySide6.QtWidgets import QInputDialog
+        options = ["Password-Protected (*.smpat)", "Unencrypted JSON (*.json)"]
+        choice, ok = QInputDialog.getItem(
+            self,
+            "Export Format",
+            "Choose export format:",
+            options,
+            0,
+            False
+        )
+        if not ok:
             return
             
         import json
-        try:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(patterns, f, indent=4)
-            QMessageBox.information(self, "Success", f"Successfully exported {len(patterns)} patterns!")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export patterns: {str(e)}")
+        if choice == options[0]:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Export Custom Patterns", "", "SafeMARC Patterns (*.smpat)")
+            if not file_path:
+                return
+            if not file_path.endswith(".smpat"):
+                file_path += ".smpat"
+                
+            password, ok = QInputDialog.getText(
+                self,
+                "Export Password",
+                "Set a password to encrypt and lock the exported patterns:",
+                QLineEdit.Password
+            )
+            if not ok:
+                return
+            if not password:
+                QMessageBox.warning(self, "Export Error", "Password cannot be empty. Export cancelled.")
+                return
+                
+            from src.utils.crypto import encrypt_data
+            try:
+                plaintext_bytes = json.dumps(patterns, indent=4).encode('utf-8')
+                encrypted_bytes = encrypt_data(plaintext_bytes, password)
+                with open(file_path, 'wb') as f:
+                    f.write(encrypted_bytes)
+                QMessageBox.information(self, "Success", f"Successfully exported {len(patterns)} patterns!")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to export patterns: {str(e)}")
+        else:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Export Custom Patterns", "", "SafeMARC Patterns (*.json)")
+            if not file_path:
+                return
+            if not file_path.endswith(".json"):
+                file_path += ".json"
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(patterns, f, indent=4)
+                QMessageBox.information(self, "Success", f"Successfully exported {len(patterns)} patterns!")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to export patterns: {str(e)}")
 
     def focus_last_pattern_field(self):
         count = self.text_patterns_layout.count()

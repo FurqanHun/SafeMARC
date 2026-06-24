@@ -34,6 +34,8 @@ graph TD
         UC3 --> UC3_F[Toggle Skip Review / Auto-Redact]
         UC3 --> UC3_H[Adjust Face Detection Threshold Slider]
         UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
+        UC3_B --> UC3_B_1[Import Custom Patterns from .json/.smpat]
+        UC3_B --> UC3_B_2[Export Custom Patterns to .json/.smpat]
     end
 
     subgraph Identity Management
@@ -41,6 +43,8 @@ graph TD
         UC4 --> UC4_B[Quick-Add Identity via Right-Click]
         UC4 --> UC4_C[Remove Identity]
         UC4 --> UC4_D[Session-Only Identity]
+        UC4 --> UC4_E[Import Identities from .smid Package]
+        UC4 --> UC4_F[Export Identities to .smid Package]
     end
 
     subgraph Keyboard Shortcut Settings
@@ -94,6 +98,9 @@ graph TD
     - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
     - **Face Detection Sensitivity Slider**: Adjusts the MediaPipe ObjectDetector score threshold (10-90%) for body silhouettes, preventing false body matches or allowing faint body detections.
 - **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
+- **Custom Patterns Import/Export**:
+  - **Export**: User clicks the Export button next to custom patterns and chooses the format: password-protected `.smpat` or unencrypted `.json`. The `.smpat` format encrypts the patterns list with a password-derived key.
+  - **Import**: User clicks the Import button and selects a `.smpat` or `.json` file. The `.smpat` format prompts for the password to decrypt the pattern definitions, whereas `.json` imports them directly.
 
 ### UC4: Manage Identities
 - **Actors**: User
@@ -106,7 +113,9 @@ graph TD
   4. User can multi-select several identities on the left pane (Ctrl+Click, Shift+Click, or Drag) and delete them in a single batch click.
   5. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
   6. Session-only identities are automatically deleted on next app launch.
-  7. The recognition model retrains immediately after any identity change.
+  7. Export: User can select specific identities (or none to select all) and click the **Export** icon to package reference photos into a password-protected, encrypted `.smid` file.
+  8. Import: User can click the **Import** icon, select a `.smid` archive, type the password, and restore the identities. The import checks entry paths to prevent path traversal (Zip Slip protection).
+  9. The recognition model retrains immediately after any identity change, addition, or successful import.
 
 ### UC5: Configure Keyboard Shortcuts Rebinding
 - **Actors**: User

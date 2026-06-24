@@ -335,3 +335,98 @@ graph TD
 ```
 
 
+---
+
+## Identity Export & Import Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant SD as SettingsDialog
+    participant CRYP as crypto.py (Standard Library)
+    participant IM as IdentityManager
+    
+    rect rgb(20, 30, 45)
+        Note over User, CRYP: Export Workflow
+        User->>SD: Click Export Button
+        SD->>SD: Get permanent identities list (filtered/selected)
+        SD->>User: Prompt for Save File Path (.smid)
+        SD->>User: Prompt for password (QInputDialog)
+        SD->>SD: Zip raw reference photos to in-memory bytes
+        SD->>CRYP: encrypt_data(zip_bytes, password)
+        CRYP->>CRYP: Derive key via PBKDF2-HMAC-SHA256 (100k iter)
+        CRYP->>CRYP: XOR encrypt via SHA-256 CTR Mode
+        CRYP-->>SD: return salt + ciphertext bytes
+        SD->>SD: Save encrypted bytes to disk
+        SD-->>User: Show Export Success dialog
+    end
+
+    rect rgb(30, 20, 45)
+        Note over User, IM: Import Workflow
+        User->>SD: Click Import Button
+        SD->>User: Prompt to select .smid file
+        SD->>User: Prompt for password
+        SD->>CRYP: decrypt_data(file_bytes, password)
+        CRYP->>CRYP: Extract salt & derive key
+        CRYP->>CRYP: XOR decrypt ciphertext
+        CRYP-->>SD: return decrypted bytes
+        SD->>SD: Verify ZIP magic header PK\x03\x04
+        SD->>SD: Extract ZIP to temp directory (Zip Slip path validation)
+        SD->>IM: For each folder, call add_identity(name, image_paths)
+        IM->>IM: Copy images and reload/retrain recognition models
+        SD->>SD: Refresh identities list view
+        SD-->>User: Show Import Success dialog
+    end
+
+---
+
+## Custom Patterns Export & Import Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant MW as MainWindow
+    participant CRYP as crypto.py (Standard Library)
+    
+    rect rgb(20, 30, 45)
+        Note over User, CRYP: Export Workflow
+        User->>MW: Click Export Button
+        MW->>MW: Gather custom patterns from text_patterns_layout
+        MW->>User: Prompt for Export Format (smpat / json)
+        alt Encrypted Format (.smpat)
+            MW->>User: Prompt for Save File Path (.smpat)
+            MW->>User: Prompt for Password (QInputDialog)
+            MW->>MW: Serialize patterns to JSON & encode to UTF-8
+            MW->>CRYP: encrypt_data(json_bytes, password)
+            CRYP->>CRYP: Derive key via PBKDF2-HMAC-SHA256 (100k iter)
+            CRYP->>CRYP: XOR encrypt via SHA-256 CTR Mode
+            CRYP-->>MW: return salt + ciphertext bytes
+            MW->>MW: Save encrypted bytes to disk
+        else Unencrypted Format (.json)
+            MW->>User: Prompt for Save File Path (.json)
+            MW->>MW: Write raw serialized JSON to disk
+        end
+        MW-->>User: Show Export Success dialog
+    end
+
+    rect rgb(30, 20, 45)
+        Note over User, CRYP: Import Workflow
+        User->>MW: Click Import Button
+        MW->>User: Prompt to select .smpat or .json file
+        alt Selected Encrypted (.smpat)
+            MW->>User: Prompt for Password
+            MW->>CRYP: decrypt_data(file_bytes, password)
+            CRYP->>CRYP: Extract salt & derive key
+            CRYP->>CRYP: XOR decrypt ciphertext
+            CRYP-->>MW: return decrypted bytes
+            MW->>MW: UTF-8 decode & parse JSON (validates password correct)
+        else Selected Unencrypted (.json)
+            MW->>MW: Read & parse raw JSON file directly
+        end
+        MW->>MW: Clear existing layout & recreate pattern rows
+        MW-->>User: Show Import Success dialog
+    end
+```
+```

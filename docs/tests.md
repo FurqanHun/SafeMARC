@@ -18,6 +18,7 @@ The test modules are located in the `tests/` directory:
 | **`test_shortcut_settings.py`** | `src/gui/settings_dialog.py` | Verifies default keybindings registration and dynamic shortcut updates to `QShortcut` objects inside `SafeMARCMainWindow` on rebinding. |
 | **`test_ui_caching.py`** | `src/gui/main_window.py` | Verifies correct cache handling and selection restoration behavior for manually selected files in the queue without triggering redundant background scans. |
 | **`test_quick_add_dialog.py`** | `src/gui/main_window.py` | Verifies instantiation, autocomplete population, save/cancel actions, and empty name handling of the QuickAddIdentityDialog. |
+| **`test_import_export.py`** | `src/utils/crypto.py` / `src/gui/settings_dialog.py` / `src/gui/main_window.py` | Verifies standard PBKDF2 + SHA-256 CTR encryption/decryption roundtrips, secure Zip Slip path traversal defenses, package zip/unzip restore routines, and custom text/regex patterns encrypted export and backward-compatible JSON import. |
 
 ---
 
@@ -41,7 +42,7 @@ During test collection, the system path is automatically resolved to include the
 
 To prevent host machine pollution, SafeMARC implements an automated garbage collection routine. 
 
-Once pytest finishes collecting and running all 45 tests, the session hook `pytest_sessionfinish` inside `tests/conftest.py` executes:
+Once pytest finishes collecting and running all 49 tests, the session hook `pytest_sessionfinish` inside `tests/conftest.py` executes:
 1. It locates the system-level temporary directory `/tmp/safemarc_temp` used for sandbox PDF and face crop outputs.
 2. It deletes `/tmp/safemarc_temp` recursively.
 3. It bypasses standard stdout capture to print a clean confirmation directly in your terminal:

@@ -31,7 +31,7 @@
   - **United Kingdom**: National Insurance Numbers (NINO), Phone Numbers.
 - [x] **Algorithmic Verification & Mod-97 Checksum**: Employs mathematical structural validation (e.g. ISO 7064 mod-97 checksum checks for IBAN accounts) to immediately discard invalid OCR text matches.
 - [x] **Context Proximity & Review Suggested State**: Matches found near context keywords are boosted to 90% or 95% confidence. Isolated ambiguous matches (like Zip Codes, IPs) default to 30% confidence, while high-value targets (SSN, Aadhaar) lacking surrounding context keywords drop to 25% confidence, keeping them review-suggested and hidden from automatic selection by default.
-- [x] **Custom Pattern Import/Export**: User can add multiple custom strings or complex Regular Expressions to redact sensitive text lines, with seamless serialization/deserialization to `.json` files.
+- [x] **Custom Pattern Import/Export**: Export custom strings or complex Regular Expressions as password-protected, encrypted `.smpat` (SafeMARC Patterns) packages. Uses standard cryptographic primitives (PBKDF2-HMAC-SHA256 with 100,000 iterations for key derivation and SHA-256 CTR mode for data encryption) with a random salt to lock the package. Users can also choose to export in unencrypted JSON (`.json`) format. Importing accepts both formats, asking for a password when loading `.smpat` packages to decrypt and restore pattern configurations.
   * **Example Custom Pattern JSON Format**:
     ```json
     [

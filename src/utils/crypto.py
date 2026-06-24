@@ -2,7 +2,10 @@ import os
 import hashlib
 
 def encrypt_data(data: bytes, password: str) -> bytes:
-    """Encrypt data using PBKDF2-HMAC-SHA256 and SHA-256 in CTR mode (zero dependencies)."""
+    """
+    Encrypts arbitrary binary payload using PBKDF2-HMAC-SHA256 key derivation
+    and a custom Counter (CTR) mode stream cipher driven by SHA-256.
+    """
     salt = os.urandom(16)
     key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
     
@@ -22,7 +25,10 @@ def encrypt_data(data: bytes, password: str) -> bytes:
     return salt + bytes(ciphertext)
 
 def decrypt_data(encrypted_data: bytes, password: str) -> bytes:
-    """Decrypt data encrypted with PBKDF2-HMAC-SHA256 and SHA-256 CTR (zero dependencies)."""
+    """
+    Decrypts a binary payload encrypted via PBKDF2-HMAC-SHA256 key derivation
+    and a Counter (CTR) mode stream cipher.
+    """
     if len(encrypted_data) < 16:
         raise ValueError("Invalid encrypted data length.")
         

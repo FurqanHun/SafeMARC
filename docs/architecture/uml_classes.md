@@ -151,6 +151,8 @@ classDiagram
         +add_folder() void
         +add_dropped_paths(paths: List) void
         +update_shortcut_key(action_name: str, new_sequence: str) void
+        +import_custom_patterns() void
+        +export_custom_patterns() void
         -_update_face_mode(text: str) void
         -_show_people_selector() void
         -_show_regions_selector() void

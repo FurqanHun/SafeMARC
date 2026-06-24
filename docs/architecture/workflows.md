@@ -347,7 +347,7 @@ sequenceDiagram
     participant CRYP as crypto.py (Standard Library)
     participant IM as IdentityManager
     
-    rect rgb(20, 30, 45)
+    group Export Process
         Note over User, CRYP: Export Workflow
         User->>SD: Click Export Button
         SD->>SD: Get permanent identities list (filtered/selected)
@@ -362,7 +362,7 @@ sequenceDiagram
         SD-->>User: Show Export Success dialog
     end
 
-    rect rgb(30, 20, 45)
+    group Import Process
         Note over User, IM: Import Workflow
         User->>SD: Click Import Button
         SD->>User: Prompt to select .smid file
@@ -391,7 +391,7 @@ sequenceDiagram
     participant MW as MainWindow
     participant CRYP as crypto.py (Standard Library)
     
-    rect rgb(20, 30, 45)
+    group Export Process
         Note over User, CRYP: Export Workflow
         User->>MW: Click Export Button
         MW->>MW: Gather custom patterns from text_patterns_layout
@@ -412,7 +412,7 @@ sequenceDiagram
         MW-->>User: Show Export Success dialog
     end
 
-    rect rgb(30, 20, 45)
+    group Import Process
         Note over User, CRYP: Import Workflow
         User->>MW: Click Import Button
         MW->>User: Prompt to select .smpat or .json file

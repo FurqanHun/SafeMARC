@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView, QSlider
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView, QSlider, QProgressBar
 from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint, Signal
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
 from src.core.identity_manager import IdentityManager
@@ -634,6 +634,26 @@ class SettingsDialog(QDialog):
         self.lbl_status.setAlignment(Qt.AlignCenter)
         right_panel.addWidget(self.lbl_status)
         
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #374151;
+                border-radius: 6px;
+                text-align: center;
+                background-color: #1F2937;
+                color: #FFFFFF;
+                font-weight: bold;
+                font-size: 11px;
+                height: 16px;
+            }
+            QProgressBar::chunk {
+                background-color: #10B981;
+                border-radius: 5px;
+            }
+        """)
+        right_panel.addWidget(self.progress_bar)
+        
         self.btn_add_img = QPushButton("Add Image")
         self.btn_add_img.setCursor(Qt.PointingHandCursor)
         self.btn_add_img.setStyleSheet("""
@@ -1087,9 +1107,12 @@ class SettingsDialog(QDialog):
         import shutil
         import io
         
+        import time
         QApplication.setOverrideCursor(Qt.WaitCursor)
         self.setEnabled(False)
-        self.lbl_status.setText("Importing identities...")
+        self.lbl_status.setText("Decrypting archive...")
+        self.progress_bar.setValue(5)
+        self.progress_bar.setVisible(True)
         QApplication.processEvents()
         
         try:
@@ -1104,6 +1127,11 @@ class SettingsDialog(QDialog):
             temp_extract_dir = tempfile.mkdtemp(prefix="safemarc_import_")
             
             try:
+                time.sleep(0.3)
+                self.lbl_status.setText("Extracting package...")
+                self.progress_bar.setValue(15)
+                QApplication.processEvents()
+                
                 zip_buffer = io.BytesIO(plaintext_bytes)
                 with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
                     for member in zip_ref.namelist():
@@ -1113,19 +1141,80 @@ class SettingsDialog(QDialog):
                     
                     zip_ref.extractall(temp_extract_dir)
                 
-                imported_count = 0
-                for entry in sorted(os.listdir(temp_extract_dir)):
+                candidate_entries = sorted(os.listdir(temp_extract_dir))
+                valid_identities = []
+                for entry in candidate_entries:
                     entry_path = os.path.join(temp_extract_dir, entry)
                     if os.path.isdir(entry_path):
                         image_files = []
                         for filename in os.listdir(entry_path):
                             if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.bmp')):
                                 image_files.append(os.path.join(entry_path, filename))
-                                
                         if image_files:
-                            self.identity_manager.add_identity(entry, image_files)
-                            imported_count += 1
+                            valid_identities.append((entry, image_files))
                             
+                total_identities = len(valid_identities)
+                time.sleep(0.3)
+                self.lbl_status.setText(f"Found {total_identities} identities to import.")
+                self.progress_bar.setValue(25)
+                QApplication.processEvents()
+                time.sleep(0.6)
+                
+                import glob
+                imported_count = 0
+                start_loop_time = time.time()
+                
+                total_images = sum(len(paths) for _, paths in valid_identities)
+                if self.identity_manager.use_sface:
+                    rebuild_eta = max(2, int(total_images * 3.0))
+                else:
+                    rebuild_eta = max(1, int(total_images * 1.5))
+                
+                for idx, (name, image_paths) in enumerate(valid_identities):
+                    elapsed = time.time() - start_loop_time
+                    if idx > 0:
+                        avg_time = elapsed / idx
+                        remaining = total_identities - idx
+                        eta_seconds = (avg_time * remaining) + rebuild_eta
+                        if eta_seconds < 1:
+                            eta_str = " (ETA: <1s)"
+                        elif eta_seconds < 60:
+                            eta_str = f" (ETA: {int(eta_seconds)}s)"
+                        else:
+                            eta_str = f" (ETA: {int(eta_seconds // 60)}m {int(eta_seconds % 60)}s)"
+                    else:
+                        eta_seconds = (0.4 * total_identities) + rebuild_eta
+                        eta_str = f" (ETA: {int(eta_seconds)}s)"
+                        
+                    self.lbl_status.setText(f"Importing identity {idx+1}/{total_identities}: {name}{eta_str}...")
+                    progress_val = 25 + int(60 * idx / total_identities)
+                    self.progress_bar.setValue(progress_val)
+                    QApplication.processEvents()
+                    time.sleep(0.4)
+                    
+                    person_dir = os.path.join(self.identity_manager.identities_dir, name)
+                    os.makedirs(person_dir, exist_ok=True)
+                    
+                    existing_files = glob.glob(os.path.join(person_dir, "ref_*"))
+                    start_idx = len(existing_files)
+                    
+                    for i, path in enumerate(image_paths):
+                        ext = os.path.splitext(path)[1]
+                        target = os.path.join(person_dir, f"ref_{start_idx + i}{ext}")
+                        shutil.copy2(path, target)
+                        
+                    imported_count += 1
+                    
+                if imported_count > 0:
+                    time.sleep(0.3)
+                    self.lbl_status.setText(f"Rebuilding biometric recognition model (ETA: ~{rebuild_eta}s)...")
+                    self.progress_bar.setValue(90)
+                    QApplication.processEvents()
+                    self.identity_manager.reload_identities()
+                    
+                self.progress_bar.setValue(100)
+                time.sleep(0.2)
+                self.progress_bar.setVisible(False)
                 self._refresh_people_list()
                 
                 if imported_count > 0:
@@ -1153,6 +1242,7 @@ class SettingsDialog(QDialog):
             QMessageBox.critical(self, "Import Error", f"Failed to import identities: {e}")
         finally:
             self.lbl_status.setText("")
+            self.progress_bar.setVisible(False)
             self.setEnabled(True)
             QApplication.restoreOverrideCursor()
 

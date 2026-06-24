@@ -373,8 +373,11 @@ sequenceDiagram
         CRYP-->>SD: return decrypted bytes
         SD->>SD: Verify ZIP magic header PK\x03\x04
         SD->>SD: Extract ZIP to temp directory (Zip Slip path validation)
-        SD->>IM: For each folder, call add_identity(name, image_paths)
-        IM->>IM: Copy images and reload/retrain recognition models
+        loop For each valid identity folder
+            SD->>SD: Copy reference images to identities storage
+        end
+        SD->>IM: reload_identities()
+        IM->>IM: Reload & retrain recognition models (SFace/LBPH)
         SD->>SD: Refresh identities list view
         SD-->>User: Show Import Success dialog
     end

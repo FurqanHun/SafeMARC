@@ -79,6 +79,7 @@
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
 - [x] **Live Biometric & Target Synchronization**: Adjusting the Face Matching Threshold, the Text Auto-Redact cutoff in the Settings dialog, or checking/unchecking target identities instantly re-evaluates and updates matches in the preview canvas in real-time.
 - [x] **Smart Quick-Add Combobox Dropdown**: Right-click to assign a face directly from the preview canvas using a styled autocompleting dropdown combobox. Re-using an existing name directly appends the reference photo to the correct permanent or session folder, while new names prompt the user for save-type preferences.
+- [x] **Secure & Locked Import/Export**: Export selected or all permanent biometric reference photos into a password-protected, encrypted archive in the proprietary `.smid` (SafeMARC Identity) format. Uses standard cryptographic primitives (PBKDF2-HMAC-SHA256 with 100,000 iterations for key derivation and SHA-256 CTR mode for data encryption) with a random salt to lock the package. Importing requires the password, extracts the archive securely with path traversal guards (Zip Slip protection), and automatically runs face detection to rebuild the SFace/LBPH recognition embeddings.
 
 ## System & Interface
 - [x] **Interactive GUI**: Sleek modern interface built using PySide6.

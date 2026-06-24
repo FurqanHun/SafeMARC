@@ -193,6 +193,8 @@ classDiagram
         -_on_shortcut_changed(key: str, seq: str) void
         -_on_shortcut_reset(key: str, default_seq: str) void
         -_reset_all_shortcuts() void
+        -_import_identities() void
+        -_export_identities() void
     }
 
     class ShortcutRebindButton {

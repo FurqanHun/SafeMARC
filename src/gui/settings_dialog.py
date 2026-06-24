@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLa
 from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint, Signal
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
 from src.core.identity_manager import IdentityManager
+from src.utils.crypto import encrypt_data, decrypt_data
 import os
 
 def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
@@ -544,6 +545,59 @@ class SettingsDialog(QDialog):
         btn_people_layout.addWidget(self.btn_del_person)
         left_panel.addLayout(btn_people_layout)
         
+        import_export_layout = QHBoxLayout()
+        self.btn_import_identities = QPushButton("Import")
+        self.btn_import_identities.setCursor(Qt.PointingHandCursor)
+        self.btn_import_identities.setToolTip("Import identities from a .smid package")
+        self.btn_import_identities.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #3B82F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #3B82F6;
+                color: white;
+                border-color: #3B82F6;
+            }
+            QPushButton:pressed {
+                background-color: #2563EB;
+            }
+        """)
+        self.btn_import_identities.clicked.connect(self._import_identities)
+
+        self.btn_export_identities = QPushButton("Export")
+        self.btn_export_identities.setCursor(Qt.PointingHandCursor)
+        self.btn_export_identities.setToolTip("Export identities as a .smid package")
+        self.btn_export_identities.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #F59E0B;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #F59E0B;
+                color: white;
+                border-color: #F59E0B;
+            }
+            QPushButton:pressed {
+                background-color: #D97706;
+            }
+        """)
+        self.btn_export_identities.clicked.connect(self._export_identities)
+
+        import_export_layout.addWidget(self.btn_import_identities)
+        import_export_layout.addWidget(self.btn_export_identities)
+        left_panel.addLayout(import_export_layout)
+        
         id_layout.addLayout(left_panel, 1)
         
         right_panel = QVBoxLayout()
@@ -746,6 +800,8 @@ class SettingsDialog(QDialog):
             self.list_people,
             self.btn_add_person,
             self.btn_del_person,
+            self.btn_import_identities,
+            self.btn_export_identities,
             self.btn_add_img,
             self.slider_fd,
             self.slider_fm,
@@ -914,6 +970,209 @@ class SettingsDialog(QDialog):
                 self.lbl_status.setText("")
                 self.setEnabled(True)
                 QApplication.restoreOverrideCursor()
+
+    def _export_identities(self):
+        selected_items = self.list_people.selectedItems()
+        if selected_items:
+            names_to_export = [item.data(Qt.UserRole)["name"] for item in selected_items]
+        else:
+            names_to_export = [self.list_people.item(i).data(Qt.UserRole)["name"] for i in range(self.list_people.count())]
+            
+        # Filter out session_temp or any other non-existent directory
+        names_to_export = [name for name in names_to_export if name != "session_temp"]
+        
+        # We only export permanent identities (filter out is_session = True)
+        permanent_names = []
+        for i in range(self.list_people.count()):
+            item = self.list_people.item(i)
+            data = item.data(Qt.UserRole)
+            if data and not data.get("is_session") and data["name"] in names_to_export:
+                permanent_names.append(data["name"])
+                
+        if not permanent_names:
+            QMessageBox.warning(self, "Export Identities", "No permanent identities selected/available to export.")
+            return
+            
+        from PySide6.QtCore import QDir
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Identities",
+            QDir.homePath(),
+            "SafeMARC Identity Packages (*.smid)"
+        )
+        if not file_path:
+            return
+            
+        if not file_path.endswith(".smid"):
+            file_path += ".smid"
+            
+        from PySide6.QtWidgets import QInputDialog, QLineEdit, QApplication
+        password, ok = QInputDialog.getText(
+            self,
+            "Export Password",
+            "Set a password to encrypt and lock the exported archive:",
+            QLineEdit.Password
+        )
+        if not ok:
+            return
+            
+        if not password:
+            QMessageBox.warning(self, "Export Identities", "Password cannot be empty. Export cancelled.")
+            return
+            
+        import zipfile
+        import io
+        
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.setEnabled(False)
+        self.lbl_status.setText("Exporting identities...")
+        QApplication.processEvents()
+        
+        try:
+            # 1. Create a zip file in memory
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+                for name in permanent_names:
+                    person_dir = os.path.join(self.identity_manager.identities_dir, name)
+                    if not os.path.isdir(person_dir):
+                        continue
+                    # Add all files except SFace/LBPH caches to keep zip small/clean
+                    for filename in os.listdir(person_dir):
+                        if filename.endswith(".npy") or ".lbph.png" in filename:
+                            continue
+                        full_path = os.path.join(person_dir, filename)
+                        if os.path.isfile(full_path):
+                            # Store in zip as PersonName/filename
+                            zip_ref.write(full_path, arcname=os.path.join(name, filename))
+            
+            # 2. Encrypt the zip bytes
+            plaintext_bytes = zip_buffer.getvalue()
+            encrypted_bytes = encrypt_data(plaintext_bytes, password)
+            
+            # 3. Save encrypted bytes to disk
+            with open(file_path, 'wb') as f:
+                f.write(encrypted_bytes)
+                
+            self.lbl_status.setText("Export complete.")
+            QMessageBox.information(
+                self,
+                "Export Success",
+                f"Successfully exported {len(permanent_names)} identities to:\n{file_path}"
+            )
+        except Exception as e:
+            self.lbl_status.setText("Export failed.")
+            QMessageBox.critical(self, "Export Error", f"Failed to export identities: {e}")
+        finally:
+            self.lbl_status.setText("")
+            self.setEnabled(True)
+            QApplication.restoreOverrideCursor()
+
+    def _import_identities(self):
+        from PySide6.QtCore import QDir
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Identities",
+            QDir.homePath(),
+            "SafeMARC Identity Packages (*.smid)"
+        )
+        if not file_path:
+            return
+            
+        from PySide6.QtWidgets import QInputDialog, QLineEdit, QApplication
+        password, ok = QInputDialog.getText(
+            self,
+            "Import Password",
+            "Enter the password for this identity package:",
+            QLineEdit.Password
+        )
+        if not ok:
+            return
+            
+        if not password:
+            QMessageBox.warning(self, "Import Identities", "Password cannot be empty. Import cancelled.")
+            return
+            
+        import zipfile
+        import tempfile
+        import shutil
+        import io
+        
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.setEnabled(False)
+        self.lbl_status.setText("Importing identities...")
+        QApplication.processEvents()
+        
+        try:
+            # 1. Read and decrypt file
+            with open(file_path, 'rb') as f:
+                encrypted_bytes = f.read()
+                
+            plaintext_bytes = decrypt_data(encrypted_bytes, password)
+            
+            # Quick magic check to verify ZIP format
+            if not plaintext_bytes.startswith(b"PK\x03\x04"):
+                raise zipfile.BadZipFile("Incorrect password or corrupted file.")
+                
+            # 2. Extract ZIP contents safely
+            temp_extract_dir = tempfile.mkdtemp(prefix="safemarc_import_")
+            
+            try:
+                zip_buffer = io.BytesIO(plaintext_bytes)
+                with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
+                    # Security check for path traversal (zip slip vulnerability)
+                    for member in zip_ref.namelist():
+                        normalized_path = os.path.normpath(member)
+                        if os.path.isabs(normalized_path) or normalized_path.startswith("..") or "/.." in normalized_path or "\\.." in normalized_path:
+                            raise ValueError(f"Malicious path detected in archive: {member}")
+                    
+                    zip_ref.extractall(temp_extract_dir)
+                
+                # 3. Import each identity
+                imported_count = 0
+                for entry in sorted(os.listdir(temp_extract_dir)):
+                    entry_path = os.path.join(temp_extract_dir, entry)
+                    if os.path.isdir(entry_path):
+                        # Filter to import only valid image files
+                        image_files = []
+                        for filename in os.listdir(entry_path):
+                            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.bmp')):
+                                image_files.append(os.path.join(entry_path, filename))
+                                
+                        if image_files:
+                            # Use existing add_identity method to handle copying, sequential naming, and model retraining
+                            self.identity_manager.add_identity(entry, image_files)
+                            imported_count += 1
+                            
+                self._refresh_people_list()
+                
+                if imported_count > 0:
+                    self.lbl_status.setText(f"Successfully imported {imported_count} identities.")
+                    QMessageBox.information(
+                        self,
+                        "Import Success",
+                        f"Successfully imported {imported_count} identities from package."
+                    )
+                else:
+                    self.lbl_status.setText("No identities imported.")
+                    QMessageBox.warning(
+                        self,
+                        "Import",
+                        "The package did not contain any valid identities with reference images."
+                    )
+            finally:
+                # Clean up the temp extract directory
+                shutil.rmtree(temp_extract_dir, ignore_errors=True)
+                
+        except zipfile.BadZipFile:
+            self.lbl_status.setText("Import failed: incorrect password.")
+            QMessageBox.critical(self, "Import Error", "Incorrect password or corrupted archive.")
+        except Exception as e:
+            self.lbl_status.setText("Import failed.")
+            QMessageBox.critical(self, "Import Error", f"Failed to import identities: {e}")
+        finally:
+            self.lbl_status.setText("")
+            self.setEnabled(True)
+            QApplication.restoreOverrideCursor()
 
     def _add_image(self):
         selected_items = self.list_people.selectedItems()

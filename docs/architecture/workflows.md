@@ -378,6 +378,7 @@ sequenceDiagram
         SD->>SD: Refresh identities list view
         SD-->>User: Show Import Success dialog
     end
+```
 
 ---
 
@@ -428,5 +429,4 @@ sequenceDiagram
         MW->>MW: Clear existing layout & recreate pattern rows
         MW-->>User: Show Import Success dialog
     end
-```
 ```

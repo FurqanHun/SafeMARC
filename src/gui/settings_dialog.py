@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTabWidget, QListWidget, QListWidgetItem, QScrollArea, QFrame, QFileDialog, QMessageBox, QInputDialog, QGridLayout, QCheckBox, QLineEdit, QAbstractItemView, QSlider, QProgressBar
 from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint, Signal
-from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen
+from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen, QShortcut, QKeySequence
 from src.core.identity_manager import IdentityManager
 from src.utils.crypto import encrypt_data, decrypt_data
 import os
@@ -47,7 +47,13 @@ DEFAULT_SHORTCUTS = {
     "escape": "Escape",
     "hit_next": "Right",
     "hit_prev": "Left",
-    "hit_toggle": "C"
+    "hit_toggle": "C",
+    "id_add_person": "Ctrl+Shift+N",
+    "id_rename_person": "F2",
+    "id_del_person": "Ctrl+D",
+    "id_import_identities": "Ctrl+I",
+    "id_export_identities": "Ctrl+E",
+    "id_add_image": "Ctrl+Shift+A"
 }
 
 SHORTCUT_METADATA = {
@@ -78,7 +84,14 @@ SHORTCUT_METADATA = {
     
     "hit_next": {"label": "Focus Next Box", "category": "Sensitive Box Keyboard Selection", "default": "Right"},
     "hit_prev": {"label": "Focus Previous Box", "category": "Sensitive Box Keyboard Selection", "default": "Left"},
-    "hit_toggle": {"label": "Toggle Selected State", "category": "Sensitive Box Keyboard Selection", "default": "C"}
+    "hit_toggle": {"label": "Toggle Selected State", "category": "Sensitive Box Keyboard Selection", "default": "C"},
+
+    "id_add_person": {"label": "Add New Person", "category": "Identities Management", "default": "Ctrl+Shift+N"},
+    "id_rename_person": {"label": "Rename Selected Person", "category": "Identities Management", "default": "F2"},
+    "id_del_person": {"label": "Delete Selected Person", "category": "Identities Management", "default": "Ctrl+D"},
+    "id_import_identities": {"label": "Import Identities Package", "category": "Identities Management", "default": "Ctrl+I"},
+    "id_export_identities": {"label": "Export Selected Identities", "category": "Identities Management", "default": "Ctrl+E"},
+    "id_add_image": {"label": "Add Image to Person", "category": "Identities Management", "default": "Ctrl+Shift+A"}
 }
 
 def apply_focus_indicators(parent):
@@ -865,9 +878,27 @@ class SettingsDialog(QDialog):
             if hasattr(w, "setFocusPolicy"):
                 w.setFocusPolicy(Qt.StrongFocus)
         
+        # Initialize local keyboard shortcuts for the Identities page.
+        self.local_shortcuts = {}
+        for key in ["id_add_person", "id_rename_person", "id_del_person", "id_import_identities", "id_export_identities", "id_add_image"]:
+            val = self.settings.value(f"shortcut_{key}", DEFAULT_SHORTCUTS[key])
+            shortcut = QShortcut(QKeySequence(val), self)
+            self.local_shortcuts[key] = shortcut
+            
+        self.local_shortcuts["id_add_person"].activated.connect(lambda: self._trigger_identity_shortcut(self._add_person))
+        self.local_shortcuts["id_rename_person"].activated.connect(lambda: self._trigger_identity_shortcut(self._rename_person))
+        self.local_shortcuts["id_del_person"].activated.connect(lambda: self._trigger_identity_shortcut(self._del_person))
+        self.local_shortcuts["id_import_identities"].activated.connect(lambda: self._trigger_identity_shortcut(self._import_identities))
+        self.local_shortcuts["id_export_identities"].activated.connect(lambda: self._trigger_identity_shortcut(self._export_identities))
+        self.local_shortcuts["id_add_image"].activated.connect(lambda: self._trigger_identity_shortcut(self._add_image))
+
         self._refresh_people_list()
         apply_focus_indicators(self)
         self.chk_global_output.setFocus()
+
+    def _trigger_identity_shortcut(self, callback):
+        if self.tabs.currentIndex() == 1:
+            callback()
 
     def _refresh_people_list(self):
         self.list_people.clear()
@@ -1479,7 +1510,7 @@ class SettingsDialog(QDialog):
         scroll_layout.setContentsMargins(10, 10, 10, 10)
         scroll_layout.setSpacing(15)
 
-        categories = ["General", "Review Actions", "Zoom & Navigation", "Batch Workflow", "Sensitive Box Keyboard Selection"]
+        categories = ["General", "Review Actions", "Zoom & Navigation", "Batch Workflow", "Sensitive Box Keyboard Selection", "Identities Management"]
         
         self.shortcut_buttons = {}
 
@@ -1584,6 +1615,8 @@ class SettingsDialog(QDialog):
 
     def _on_shortcut_changed(self, key: str, new_seq: str):
         self.settings.setValue(f"shortcut_{key}", new_seq)
+        if hasattr(self, "local_shortcuts") and key in self.local_shortcuts:
+            self.local_shortcuts[key].setKey(QKeySequence(new_seq))
         
         # Propagate to MainWindow if it has the update method
         if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
@@ -1597,6 +1630,8 @@ class SettingsDialog(QDialog):
         btn.current_sequence = default_seq
         btn.setText(default_seq)
         btn.update_style()
+        if hasattr(self, "local_shortcuts") and key in self.local_shortcuts:
+            self.local_shortcuts[key].setKey(QKeySequence(default_seq))
         
         if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
             self.parent().update_shortcut_key(key, default_seq)
@@ -1616,6 +1651,8 @@ class SettingsDialog(QDialog):
                 btn.current_sequence = meta["default"]
                 btn.setText(meta["default"])
                 btn.update_style()
+                if hasattr(self, "local_shortcuts") and key in self.local_shortcuts:
+                    self.local_shortcuts[key].setKey(QKeySequence(meta["default"]))
                 
                 if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
                     self.parent().update_shortcut_key(key, meta["default"])

@@ -69,3 +69,44 @@ def test_settings_dialog_rename(qapp, temp_dirs):
     assert dialog.list_people.item(0).text() == "Robert"
     
     dialog.deleteLater()
+
+
+def test_settings_dialog_shortcuts(qapp, temp_dirs):
+    identities_dir = os.path.join(temp_dirs, "identities_storage")
+    os.makedirs(identities_dir, exist_ok=True)
+    
+    im = IdentityManager(identities_dir=identities_dir)
+    scanner = MockScanner(im)
+    dialog = SettingsDialog(scanner)
+    
+    # 1. Verify local_shortcuts contains the new identity shortcuts
+    expected_keys = [
+        "id_add_person",
+        "id_rename_person",
+        "id_del_person",
+        "id_import_identities",
+        "id_export_identities",
+        "id_add_image"
+    ]
+    for key in expected_keys:
+        assert key in dialog.local_shortcuts
+        
+    # 2. Verify _trigger_identity_shortcut logic (calls callback only on tab index 1)
+    called = False
+    def mock_callback():
+        nonlocal called
+        called = True
+        
+    dialog.tabs.setCurrentIndex(0) # General tab
+    dialog._trigger_identity_shortcut(mock_callback)
+    assert not called
+    
+    dialog.tabs.setCurrentIndex(1) # Identities tab
+    dialog._trigger_identity_shortcut(mock_callback)
+    assert called
+    
+    # 3. Verify _on_shortcut_changed updates key sequence
+    dialog._on_shortcut_changed("id_add_person", "Ctrl+Alt+N")
+    assert dialog.local_shortcuts["id_add_person"].key().toString() == "Ctrl+Alt+N"
+    
+    dialog.deleteLater()

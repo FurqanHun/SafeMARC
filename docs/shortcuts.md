@@ -52,3 +52,9 @@ SafeMARC's keyboard-driven workflow enables highly efficient document review. Al
 |---|---|---|
 | **Multi-Select** | `Ctrl` + Mouse Click / `Shift` + Mouse Click | Selects multiple identities inside the left pane. |
 | **Select All** | `Ctrl` + `A` | Selects all identities inside the left pane. |
+| **Add New Person** | `Ctrl` + `Shift` + `N` | Prompts to add a new biometric identity. |
+| **Rename Selected Person** | `F2` | Prompts to rename the currently selected identity. |
+| **Delete Selected Person** | `Ctrl` + `D` | Deletes the currently selected identity/identities and rebuilds the model. |
+| **Import Identities Package** | `Ctrl` + `I` | Imports a zip/package of encrypted identities. |
+| **Export Selected Identities** | `Ctrl` + `E` | Exports the selected identities as an encrypted zip archive. |
+| **Add Image to Person** | `Ctrl` + `Shift` + `A` | Prompts to add reference photos to the selected identity. |

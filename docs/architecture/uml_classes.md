@@ -189,6 +189,7 @@ classDiagram
         +SafeScanner scanner
         +IdentityManager identity_manager
         +Dict shortcut_buttons
+        +Dict local_shortcuts
         +accept() void
         -_init_shortcuts_tab() void
         -_check_for_conflicts() void
@@ -197,6 +198,11 @@ classDiagram
         -_reset_all_shortcuts() void
         -_import_identities() void
         -_export_identities() void
+        -_add_person() void
+        -_del_person() void
+        -_rename_person(item: QListWidgetItem) void
+        -_add_image() void
+        -_trigger_identity_shortcut(callback) void
     }
 
     class ShortcutRebindButton {

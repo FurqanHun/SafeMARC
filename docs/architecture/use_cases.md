@@ -45,6 +45,8 @@ graph TD
         UC4 --> UC4_D[Session-Only Identity]
         UC4 --> UC4_E[Import Identities from .smid Package]
         UC4 --> UC4_F[Export Identities to .smid Package]
+        UC4 --> UC4_G[Rename Identity with Validation]
+        UC4 --> UC4_H[Trigger Management Actions via Keyboard Shortcuts]
     end
 
     subgraph Keyboard Shortcut Settings
@@ -105,17 +107,19 @@ graph TD
 ### UC4: Manage Identities
 - **Actors**: User
 - **Preconditions**: Application is open.
-- **Trigger**: User opens Settings > Identities tab, or right-clicks a detected face.
+- **Trigger**: User opens Settings > Identities tab, right-clicks a detected face, or uses hotkeys.
 - **Main Workflow**:
-  1. User can add a new identity by providing a name and uploading reference images.
+  1. User can add a new identity (via the `+` button or `Ctrl+Shift+N`) by providing a name and uploading reference images.
   2. If the added image contains a face, the AI automatically detects and focuses on it. If not, or to refine it, the user can adjust a 1:1 aspect-ratio-locked interactive crop bounding box.
   3. User can view all reference image thumbnails on the right panel. Clicking the "X" on the top corner of any thumbnail deletes that specific image and immediately sweeps its biometric `.npy` cache embeddings.
-  4. User can multi-select several identities on the left pane (Ctrl+Click, Shift+Click, or Drag) and delete them in a single batch click.
-  5. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
-  6. Session-only identities are automatically deleted on next app launch.
-  7. Export: User can select specific identities (or none to select all) and click the **Export** icon to package reference photos into a password-protected, encrypted `.smid` file.
-  8. Import: User can click the **Import** icon, select a `.smid` archive, type the password, and restore the identities. The import checks entry paths to prevent path traversal (Zip Slip protection).
-  9. The recognition model retrains immediately after any identity change, addition, or successful import.
+  4. User can rename any identity (via the `✎` rename button, double-clicking the name in the list, or pressing `F2`) with sanitization checks to prevent path traversal and folder collisions.
+  5. User can multi-select several identities on the left pane (Ctrl+Click, Shift+Click, or Drag) and delete them (via the `-` button or `Ctrl+D`) in a single batch.
+  6. Quick-add: Right-click a detected face in preview → name it → save permanently or for session only.
+  7. Session-only identities are automatically deleted on next app launch.
+  8. Export: User can select specific identities and click the **Export** icon (or press `Ctrl+E`) to package reference photos into a password-protected, encrypted `.smid` file.
+  9. Import: User can click the **Import** icon (or press `Ctrl+I`), select a `.smid` archive, type the password, and restore the identities. The import checks entry paths to prevent path traversal (Zip Slip protection).
+  10. Keyboard Shortcuts: When focusing the Identities tab, the user can trigger these actions directly via keyboard shortcuts (`Ctrl+Shift+N`, `F2`, `Ctrl+D`, `Ctrl+I`, `Ctrl+E`, `Ctrl+Shift+A`).
+  11. The recognition model retrains immediately after any identity change, addition, or successful import.
 
 ### UC5: Configure Keyboard Shortcuts Rebinding
 - **Actors**: User

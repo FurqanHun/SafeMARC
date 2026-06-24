@@ -335,6 +335,34 @@ graph TD
 ```
 
 
+## Identity Renaming Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant SD as SettingsDialog
+    participant IM as IdentityManager
+
+    User->>SD: Double-click name OR press F2 / click ✎ button
+    SD->>User: Prompt for new name (QInputDialog)
+    alt User clicks Cancel or enters empty/whitespace name
+        SD-->>User: Exit without changes
+    else User enters valid name
+        SD->>SD: Sanitize name & strip path characters
+        alt New name matches old name
+            SD-->>User: Exit without changes
+        else New name already exists in list (collision)
+            SD->>User: Show warning dialog (Name already exists)
+        end
+        SD->>SD: Move old identity directory to new path
+        SD->>IM: reload_identities()
+        IM->>IM: Retrain face recognition model
+        SD->>SD: _refresh_people_list()
+        SD->>SD: Select new name in list & set focus
+    end
+```
+
 ---
 
 ## Identity Export & Import Workflow

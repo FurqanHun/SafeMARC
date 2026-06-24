@@ -239,6 +239,17 @@ classDiagram
         +QPushButton btn_cancel
     }
 
+    class TeeStream {
+        +original_stream: stream
+        +log_file: file
+        +write(data: str) void
+        +flush() void
+    }
+
+    class KeyboardFocusFilter {
+        +eventFilter(obj: QObject, event: QEvent) bool
+    }
+
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow *-- ClickableStatusLabel
     SafeMARCMainWindow ..> SettingsDialog : opens
@@ -248,4 +259,5 @@ classDiagram
     PreviewWidget *-- SelectableHitItem
     PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
     FocusEventFilter ..> SafeMARCMainWindow : filters focus events for
+    KeyboardFocusFilter ..> SafeMARCMainWindow : globally filters focus events
 ```

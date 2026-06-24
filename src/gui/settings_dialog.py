@@ -465,6 +465,7 @@ class SettingsDialog(QDialog):
         self.list_people.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.list_people.setCursor(Qt.PointingHandCursor)
         self.list_people.itemSelectionChanged.connect(self._on_selection_changed)
+        self.list_people.itemDoubleClicked.connect(self._rename_person)
         lbl_people = QLabel("People / Identities")
         lbl_people.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981; font-family: 'Segoe UI', Arial, sans-serif; margin-bottom: 2px;")
         left_panel.addWidget(lbl_people)
@@ -544,7 +545,39 @@ class SettingsDialog(QDialog):
         """)
         self.btn_del_person.setEnabled(False)
         self.btn_del_person.clicked.connect(self._del_person)
+        
+        self.btn_rename_person = QPushButton("✎")
+        self.btn_rename_person.setToolTip("Rename Person")
+        self.btn_rename_person.setCursor(Qt.PointingHandCursor)
+        self.btn_rename_person.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #3B82F6;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: #3B82F6;
+                color: white;
+                border-color: #3B82F6;
+            }
+            QPushButton:pressed {
+                background-color: #2563EB;
+            }
+            QPushButton:disabled {
+                background-color: #111827;
+                color: #4B5563;
+                border: 1px solid #1F2937;
+            }
+        """)
+        self.btn_rename_person.setEnabled(False)
+        self.btn_rename_person.clicked.connect(self._rename_person)
+        
         btn_people_layout.addWidget(self.btn_add_person)
+        btn_people_layout.addWidget(self.btn_rename_person)
         btn_people_layout.addWidget(self.btn_del_person)
         left_panel.addLayout(btn_people_layout)
         
@@ -816,6 +849,7 @@ class SettingsDialog(QDialog):
             self.search_people,
             self.list_people,
             self.btn_add_person,
+            self.btn_rename_person,
             self.btn_del_person,
             self.btn_import_identities,
             self.btn_export_identities,
@@ -838,6 +872,7 @@ class SettingsDialog(QDialog):
     def _refresh_people_list(self):
         self.list_people.clear()
         self.btn_del_person.setEnabled(False)
+        self.btn_rename_person.setEnabled(False)
         self.btn_add_img.setEnabled(False)
         self._clear_grid()
         if not self.identity_manager: return
@@ -875,6 +910,7 @@ class SettingsDialog(QDialog):
         num_selected = len(selected_items)
         
         self.btn_del_person.setEnabled(num_selected > 0)
+        self.btn_rename_person.setEnabled(num_selected == 1)
         
         if num_selected == 1:
             item = selected_items[0]
@@ -987,6 +1023,70 @@ class SettingsDialog(QDialog):
                 self.lbl_status.setText("")
                 self.setEnabled(True)
                 QApplication.restoreOverrideCursor()
+
+    def _rename_person(self, item=None):
+        if not item or isinstance(item, bool):
+            selected_items = self.list_people.selectedItems()
+            if len(selected_items) != 1:
+                return
+            item = selected_items[0]
+            
+        data = item.data(Qt.UserRole)
+        if not data:
+            return
+            
+        old_name = data["name"]
+        is_session = data["is_session"]
+        
+        from PySide6.QtWidgets import QInputDialog
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Rename Identity",
+            f"Enter new name for '{old_name}':",
+            text=old_name
+        )
+        if not ok or not new_name.strip():
+            return
+            
+        new_name = new_name.strip()
+        if new_name == old_name:
+            return
+            
+        if "/" in new_name or "\\" in new_name or ".." in new_name:
+            QMessageBox.warning(self, "Invalid Name", "Name cannot contain slashes or dot-dot path traversal.")
+            return
+            
+        base_dir = os.path.join(self.identity_manager.identities_dir, "session_temp") if is_session else self.identity_manager.identities_dir
+        old_dir = os.path.join(base_dir, old_name)
+        new_dir = os.path.join(base_dir, new_name)
+        
+        if os.path.exists(new_dir):
+            QMessageBox.warning(self, "Rename Error", f"An identity named '{new_name}' already exists.")
+            return
+            
+        try:
+            from PySide6.QtWidgets import QApplication
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            self.setEnabled(False)
+            self.lbl_status.setText("Renaming identity...")
+            QApplication.processEvents()
+            
+            os.rename(old_dir, new_dir)
+            self.identity_manager.reload_identities()
+            self._refresh_people_list()
+            
+            for i in range(self.list_people.count()):
+                list_item = self.list_people.item(i)
+                item_data = list_item.data(Qt.UserRole)
+                if item_data and item_data["name"] == new_name and item_data["is_session"] == is_session:
+                    self.list_people.setCurrentItem(list_item)
+                    break
+        except Exception as e:
+            QMessageBox.critical(self, "Rename Failed", f"Failed to rename identity: {e}")
+        finally:
+            self.lbl_status.setText("")
+            self.setEnabled(True)
+            QApplication.restoreOverrideCursor()
 
     def _export_identities(self):
         selected_items = self.list_people.selectedItems()

@@ -5,6 +5,19 @@ import contextlib
 @contextlib.contextmanager
 def pytesseract_env():
     """Context manager to temporarily restore the original LD_LIBRARY_PATH for Tesseract subprocesses."""
+    import shutil
+    import pytesseract
+    
+    if sys.platform == "win32" and not shutil.which("tesseract"):
+        default_paths = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        ]
+        for path in default_paths:
+            if os.path.exists(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                break
+
     is_frozen = getattr(sys, 'frozen', False)
     original_env = os.environ.copy()
     try:

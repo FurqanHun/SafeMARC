@@ -11,7 +11,11 @@ class TeeStream:
         self.log_file = log_file
 
     def write(self, data):
-        self.original_stream.write(data)
+        if self.original_stream is not None:
+            try:
+                self.original_stream.write(data)
+            except Exception:
+                pass
         try:
             self.log_file.write(data)
             self.log_file.flush()
@@ -19,11 +23,31 @@ class TeeStream:
             pass
 
     def flush(self):
-        self.original_stream.flush()
+        if self.original_stream is not None:
+            try:
+                self.original_stream.flush()
+            except Exception:
+                pass
         try:
             self.log_file.flush()
         except Exception:
             pass
+
+    def fileno(self):
+        if self.original_stream is not None and hasattr(self.original_stream, 'fileno'):
+            try:
+                return self.original_stream.fileno()
+            except Exception:
+                pass
+        if self.log_file is not None and hasattr(self.log_file, 'fileno'):
+            try:
+                return self.log_file.fileno()
+            except Exception:
+                pass
+        raise AttributeError("TeeStream object has no attribute 'fileno'")
+
+original_stdout = sys.stdout
+original_stderr = sys.stderr
 
 try:
     log_dir = get_app_data_dir()
@@ -54,8 +78,17 @@ try:
     
     print(f"[SafeMARC] Logging initialized. Logs are saved persistently to: {log_path}")
 except Exception as e:
-    faulthandler.enable()
-    print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
+    sys.stdout = original_stdout
+    sys.stderr = original_stderr
+    try:
+        faulthandler.enable()
+    except Exception:
+        pass
+    if sys.stdout is not None and hasattr(sys.stdout, "write"):
+        try:
+            print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
+        except Exception:
+            pass
 
 def run_gui():
     import shutil

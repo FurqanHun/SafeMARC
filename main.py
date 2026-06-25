@@ -161,10 +161,27 @@ def run_gui():
     import shutil
     import os
     tess_path = shutil.which("tesseract")
-    if not tess_path and os.name == "nt":
-        default_win_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-        if os.path.exists(default_win_path):
-            tess_path = default_win_path
+    if not tess_path:
+        if os.name == "nt":
+            default_paths = [
+                r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            ]
+        elif sys.platform == "darwin":
+            default_paths = [
+                "/opt/homebrew/bin/tesseract",
+                "/usr/local/bin/tesseract",
+                "/opt/local/bin/tesseract",
+            ]
+        else:
+            default_paths = [
+                "/usr/bin/tesseract",
+                "/usr/local/bin/tesseract",
+            ]
+        for path in default_paths:
+            if os.path.exists(path):
+                tess_path = path
+                break
             
     if not tess_path:
         QMessageBox.warning(

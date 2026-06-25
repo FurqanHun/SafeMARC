@@ -8,11 +8,23 @@ def pytesseract_env():
     import shutil
     import pytesseract
     
-    if sys.platform == "win32" and not shutil.which("tesseract"):
-        default_paths = [
-            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-        ]
+    if not shutil.which("tesseract"):
+        if sys.platform == "win32":
+            default_paths = [
+                r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            ]
+        elif sys.platform == "darwin":
+            default_paths = [
+                "/opt/homebrew/bin/tesseract",
+                "/usr/local/bin/tesseract",
+                "/opt/local/bin/tesseract",
+            ]
+        else:
+            default_paths = [
+                "/usr/bin/tesseract",
+                "/usr/local/bin/tesseract",
+            ]
         for path in default_paths:
             if os.path.exists(path):
                 pytesseract.pytesseract.tesseract_cmd = path

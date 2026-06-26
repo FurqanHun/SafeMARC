@@ -3237,7 +3237,7 @@ class SafeMARCMainWindow(QMainWindow):
                 self.current_file_path = page_path
                 self.current_hits = []
                 self.update_toolbar_state()
-                self.title_label.setText(f"🛡️ SafeMARC - Page {self.active_pdf_index + 1}/{len(self.active_pdf_pages)}")
+                self.title_label.setText("🛡️ SafeMARC")
                 
                 self.pdf_nav_container.show()
                 self.pdf_page_spin.blockSignals(True)

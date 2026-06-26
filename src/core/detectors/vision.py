@@ -184,6 +184,7 @@ class VisionDetector(BaseDetector):
         """
         h_img, w_img = cv_image.shape[:2]
         raw_dets = self._multi_scale_detect(cv_image, w_img, h_img)
+        num_faces = len(raw_dets)
 
         hits = []
         for det in raw_dets:
@@ -198,7 +199,9 @@ class VisionDetector(BaseDetector):
             identity = None
             if self.identity_manager and match_identities:
                 det_row = np.array(det, dtype=np.float32)
-                identity = self.identity_manager.match_face_aligned(cv_image, det_row)
+                identity = self.identity_manager.match_face_aligned(
+                    cv_image, det_row, num_faces=num_faces
+                )
 
             label = f"FACE: {identity}" if identity else "FACE"
             hits.append(SensitiveHit(

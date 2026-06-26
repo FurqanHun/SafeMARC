@@ -229,12 +229,16 @@ class IdentityManager:
             print(f"[IdentityManager] alignCrop failed during embedding: {e}")
             return None
 
-    def match_face_aligned(self, full_img: np.ndarray, det_row: np.ndarray):
+    def match_face_aligned(self, full_img: np.ndarray, det_row: np.ndarray,
+                           num_faces: int = 1):
         """
         Match a detected face using the full YuNet detection row (bbox +
         landmarks + score) so that SFace can use alignCrop for proper
         geometric alignment before embedding.  Falls back to crop-based
         matching when SFace is unavailable.
+
+        num_faces: total detections in the same image, used to select
+        the appropriate margin strictness in _rank_sface_embedding.
         """
         if not self.is_trained or full_img is None:
             return None
@@ -242,7 +246,7 @@ class IdentityManager:
         if self.use_sface:
             try:
                 aligned = self.sface_recognizer.alignCrop(full_img, det_row)
-                return self._match_sface_from_aligned(aligned)
+                return self._match_sface_from_aligned(aligned, num_faces)
             except Exception as e:
                 print(f"[IdentityManager] alignCrop match failed ({e}), falling back to crop.")
                 x, y, w, h = int(det_row[0]), int(det_row[1]), int(det_row[2]), int(det_row[3])
@@ -255,29 +259,14 @@ class IdentityManager:
             face_crop = full_img[max(0, y):min(h_img, y + h), max(0, x):min(w_img, x + w)]
             return self._match_lbph(face_crop)
 
-    def _match_sface_from_aligned(self, aligned_face: np.ndarray):
-        """Compute SFace embedding from an already-aligned 112x112 BGR crop and match."""
+    def _match_sface_from_aligned(self, aligned_face: np.ndarray, num_faces: int = 1):
+        """
+        Compute SFace embedding from an already-aligned 112x112 BGR crop and
+        match against all registered identities.
+        """
         try:
             embedding = self.sface_recognizer.feature(aligned_face)
-
-            best_name  = None
-            best_score = -1.0
-            for name, ref_embeddings in self.sface_embeddings.items():
-                for ref_emb in ref_embeddings:
-                    score = self.sface_recognizer.match(
-                        embedding, ref_emb, cv2.FaceRecognizerSF_FR_COSINE
-                    )
-                    if score > best_score:
-                        best_score = score
-                        best_name  = name
-
-            from PySide6.QtCore import QSettings
-            settings = QSettings("SafeMARC", "SafeMARC")
-            fm_val  = float(settings.value("model_face_match", 0.36))
-            matched = best_score > fm_val
-            print(f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} "
-                  f"(Threshold: {fm_val:.2f}) → {'MATCH' if matched else 'REJECT'}")
-            return best_name if matched else None
+            return self._rank_sface_embedding(embedding, num_faces)
         except Exception as e:
             print(f"SFace aligned match failed: {e}")
             return None
@@ -295,36 +284,83 @@ class IdentityManager:
         else:
             return self._match_lbph(face_image)
 
+    def _rank_sface_embedding(self, embedding: np.ndarray,
+                              num_faces: int = 1) -> Optional[str]:
+        """
+        Shared scoring logic for both aligned and crop-based SFace paths.
+
+        Scoring strategy:
+          - Per-identity score = MAX cosine similarity across all reference
+            embeddings for that identity (preserves recall: one strong ref
+            is enough to match a genuine face in challenging conditions).
+          - Context-aware tiered margin against the second-best identity:
+              * Strong score (> threshold+0.20): margin >= 0.08 (easy accept)
+              * Borderline score, single-face image (num_faces == 1):
+                margin >= 0.10 — portrait / solo shot, inherently lower false-
+                positive risk, so a moderate gap suffices.
+              * Borderline score, multi-face image (num_faces > 1):
+                margin >= 0.20 — group photo, many competing faces, a large
+                gap is required to avoid ambiguous matches.
+          - Only one identity registered: margin check is skipped.
+        """
+        _STRONG_SCORE_OFFSET  = 0.20
+        _MARGIN_STRONG        = 0.08
+        _MARGIN_BORDERLINE_1  = 0.10   # Single-face image.
+        _MARGIN_BORDERLINE_N  = 0.20   # Multi-face image.
+
+        from PySide6.QtCore import QSettings
+        settings = QSettings("SafeMARC", "SafeMARC")
+        fm_val = float(settings.value("model_face_match", 0.40))
+
+        # Max score across all reference embeddings per identity.
+        identity_scores = {}
+        for name, ref_embeddings in self.sface_embeddings.items():
+            scores = [
+                float(self.sface_recognizer.match(
+                    embedding, ref_emb, cv2.FaceRecognizerSF_FR_COSINE
+                ))
+                for ref_emb in ref_embeddings
+            ]
+            identity_scores[name] = max(scores)
+
+        if not identity_scores:
+            return None
+
+        ranked      = sorted(identity_scores.items(), key=lambda x: x[1], reverse=True)
+        best_name   = ranked[0][0]
+        best_score  = ranked[0][1]
+        second_score = ranked[1][1] if len(ranked) > 1 else -1.0
+        margin = best_score - second_score
+
+        # Tiered margin requirement.
+        if len(ranked) == 1:
+            margin_ok = True
+        elif best_score > fm_val + _STRONG_SCORE_OFFSET:
+            margin_ok = margin >= _MARGIN_STRONG
+        else:
+            # Borderline zone: strictness depends on how many faces are in image.
+            min_margin = _MARGIN_BORDERLINE_1 if num_faces == 1 else _MARGIN_BORDERLINE_N
+            margin_ok = margin >= min_margin
+
+        matched = best_score > fm_val and margin_ok
+
+        print(
+            f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} "
+            f"(Threshold: {fm_val:.2f}, Margin: {margin:.4f}) "
+            f"→ {'MATCH' if matched else 'REJECT'}"
+        )
+        return best_name if matched else None
+
+
     def _match_sface(self, face_image: np.ndarray) -> Optional[str]:
-        """Match using SFace deep learning embeddings."""
+        """Crop-based SFace match used as fallback when alignCrop is unavailable."""
         try:
-            aligned = cv2.resize(face_image, (112, 112))
+            aligned   = cv2.resize(face_image, (112, 112))
             embedding = self.sface_recognizer.feature(aligned)
-            
-            best_name = None
-            best_score = -1.0
-            
-            for name, ref_embeddings in self.sface_embeddings.items():
-                for ref_emb in ref_embeddings:
-                    score = self.sface_recognizer.match(
-                        embedding, ref_emb, cv2.FaceRecognizerSF_FR_COSINE
-                    )
-                    if score > best_score:
-                        best_score = score
-                        best_name = name
-            
-            from PySide6.QtCore import QSettings
-            settings = QSettings("SafeMARC", "SafeMARC")
-            fm_val = float(settings.value("model_face_match", 0.36))
-            matched = best_score > fm_val
-            print(f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} (Threshold: {fm_val:.2f}) → {'MATCH' if matched else 'REJECT'}")
-            
-            if matched:
-                return best_name
+            return self._rank_sface_embedding(embedding, num_faces=1)
         except Exception as e:
             print(f"SFace match failed: {e}")
-        
-        return None
+            return None
 
     def _match_lbph(self, face_image: np.ndarray) -> Optional[str]:
         """Fallback LBPH matching."""

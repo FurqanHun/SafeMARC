@@ -116,7 +116,7 @@ classDiagram
         <<static>>
         +extract_pages(pdf_path: str, progress_callback: Optional~callable~) List~dict~
         +extract_first_page(pdf_path: str) str
-        +build_pdf(page_image_paths: List~str~, out_path: str) bool
+        +build_pdf(page_image_paths: List~str~, out_path: str, downscale_factor: int, jpeg_quality: int) bool
     }
 
     class PDFExtractWorker {

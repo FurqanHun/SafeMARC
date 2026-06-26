@@ -119,9 +119,11 @@ sequenceDiagram
 
     User->>UI: Click "Start Review"
     alt Is PDF File
-        UI->>EW: PDFExtractWorker.start()
+        UI->>EW: QTimer.singleShot(50ms) → PDFExtractWorker.start()
+        note over UI,EW: 50ms deferral gives the window manager time to fully map LoadingDialog before heavy I/O begins, eliminating visual ghosting artifacts
         loop For each page extracted
             EW-->>UI: progress(current, total)
+            note over EW: time.sleep(0.01) per iteration yields GIL to GUI thread, keeping QProgressBar and spinner responsive
             UI->>LD: update_progress()
         end
         EW-->>UI: finished(pages)
@@ -142,11 +144,13 @@ sequenceDiagram
             UI->>UI: Cache manual & selected hits for page
         end
         User->>UI: Click "Redact Next" on final page / "Skip Remaining Pages"
-        UI->>FW: PDFFinalizeWorker.start()
+        UI->>FW: QTimer.singleShot(50ms) → PDFFinalizeWorker.start()
+        note over UI,FW: Same 50ms deferral ensures LoadingDialog is fully painted before compilation begins
         loop For each visited/reviewed page in PDF
             FW->>Rd: apply(page_path, temp_output, selected_hits)
             Rd-->>FW: Done
             FW-->>UI: progress(current, total)
+            note over FW: time.sleep(0.01) per page yields GIL, keeping progress dialog responsive
             UI->>LD: update_progress()
         end
         FW->>Ph: build_pdf(temp_outputs, out_path)

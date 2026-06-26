@@ -32,6 +32,7 @@ graph TD
         UC3 --> UC3_D[Select Target Identities]
         UC3 --> UC3_E[Toggle Auto-Skip Clean Images]
         UC3 --> UC3_F[Toggle Skip Review / Auto-Redact]
+        UC3 --> UC3_G[Toggle Global Output Folder & Set Output Path]
         UC3 --> UC3_H[Adjust Face Detection Threshold Slider]
         UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
         UC3_B --> UC3_B_1[Import Custom Patterns from .json/.smpat]
@@ -101,6 +102,7 @@ graph TD
     - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
     - **Face Detection Sensitivity Slider**: Adjusts the MediaPipe ObjectDetector score threshold (10-90%) for body silhouettes, preventing false body matches or allowing faint body detections.
 - **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
+- **Output Folder**: Global output folder is enabled by default. The user can toggle it, choose a custom folder path, or switch to per-file output. The preference is persisted across sessions via `QSettings`.
 - **Custom Patterns Import/Export**:
   - **Export**: User clicks the Export button next to custom patterns and chooses the format: password-protected `.smpat` or unencrypted `.json`. The `.smpat` format encrypts the patterns list with a password-derived key.
   - **Import**: User clicks the Import button and selects a `.smpat` or `.json` file. The `.smpat` format prompts for the password to decrypt the pattern definitions, whereas `.json` imports them directly.

@@ -6,6 +6,12 @@ from typing import List, Dict, Optional
 from src.utils.paths import resource_path, get_app_data_dir
 
 
+# Score and NMS thresholds for YuNet when cropping reference faces.
+_YUNET_SCORE_THRESH = 0.50
+_YUNET_NMS_THRESH   = 0.30
+_YUNET_TOP_K        = 100
+
+
 class IdentityManager:
     def __init__(self, identities_dir: str = None):
         self.identities_dir = os.path.abspath(identities_dir) if identities_dir else os.path.join(get_app_data_dir(), "identities")
@@ -39,49 +45,46 @@ class IdentityManager:
         
         self.reload_identities()
 
-    def _extract_face_crop(self, img):
-        """Extract the largest face crop from an image using a robust high-recall multi-cascade ensemble. Returns BGR crop."""
-        if not hasattr(self._local, "face_cascade"):
-            self._local.face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            )
-            self._local.face_cascade_alt = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-            )
-            self._local.profile_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_profileface.xml'
-            )
-            
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        h_img, w_img = gray.shape[:2]
-        
-        faces_default = self._local.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-        faces_alt = self._local.face_cascade_alt.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-        faces_profile = self._local.profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-        
-        flipped_gray = cv2.flip(gray, 1)
-        faces_profile_flipped = self._local.profile_cascade.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=4)
-        
-        all_faces = []
-        for (x, y, w, h) in faces_default:
-            all_faces.append((int(x), int(y), int(w), int(h)))
-        for (x, y, w, h) in faces_alt:
-            all_faces.append((int(x), int(y), int(w), int(h)))
-        for (x, y, w, h) in faces_profile:
-            all_faces.append((int(x), int(y), int(w), int(h)))
-        for (x, y, w, h) in faces_profile_flipped:
-            orig_x = w_img - x - w
-            all_faces.append((int(orig_x), int(y), int(w), int(h)))
-            
-        if len(all_faces) > 0:
-            x, y, w, h = max(all_faces, key=lambda f: f[2] * f[3])
-            clip_y = max(0, y)
-            clip_h = min(h_img - clip_y, h)
-            clip_x = max(0, x)
-            clip_w = min(w_img - clip_x, w)
-            return img[clip_y:clip_y+clip_h, clip_x:clip_x+clip_w]
-            
-        return img
+    def _extract_face_crop(self, img: np.ndarray) -> np.ndarray:
+        """
+        Extract the largest face crop from an image using YuNet DNN detector.
+        Falls back to the full image if no face is found.
+        Returns a BGR crop.
+        """
+        yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
+        if not os.path.exists(yunet_path):
+            # YuNet model not present — return the full image as-is.
+            return img
+
+        h_img, w_img = img.shape[:2]
+        detector = cv2.FaceDetectorYN.create(
+            model=yunet_path,
+            config="",
+            input_size=(w_img, h_img),
+            score_threshold=_YUNET_SCORE_THRESH,
+            nms_threshold=_YUNET_NMS_THRESH,
+            top_k=_YUNET_TOP_K,
+        )
+
+        _, detections = detector.detect(img)
+
+        if detections is None or len(detections) == 0:
+            return img
+
+        # Pick the largest detected face by area.
+        best = max(detections, key=lambda d: d[2] * d[3])
+        x, y, w, h = int(best[0]), int(best[1]), int(best[2]), int(best[3])
+
+        # Clamp to image bounds.
+        x = max(0, x)
+        y = max(0, y)
+        w = min(w_img - x, w)
+        h = min(h_img - y, h)
+
+        if w <= 0 or h <= 0:
+            return img
+
+        return img[y:y + h, x:x + w]
 
     def reload_identities(self):
         """Loads images from disk and builds recognition data."""

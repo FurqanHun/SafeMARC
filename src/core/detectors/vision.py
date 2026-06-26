@@ -13,27 +13,72 @@ from src.core.types import SensitiveHit
 from src.utils.paths import resource_path
 
 
+# Score threshold for YuNet face detection (0.0–1.0).
+# Lower values recall more faces at the cost of precision.
+_YUNET_SCORE_THRESH = 0.60
+_YUNET_NMS_THRESH   = 0.30
+_YUNET_TOP_K        = 5000
+
+
+def _load_yunet(model_path: str, input_size: tuple) -> cv2.FaceDetectorYN:
+    """Instantiate a YuNet FaceDetectorYN for the given input resolution."""
+    return cv2.FaceDetectorYN.create(
+        model=model_path,
+        config="",
+        input_size=input_size,
+        score_threshold=_YUNET_SCORE_THRESH,
+        nms_threshold=_YUNET_NMS_THRESH,
+        top_k=_YUNET_TOP_K,
+    )
+
+
 class VisionDetector(BaseDetector):
     def __init__(self, mode: str = "faces", identity_manager=None):
         self.mode = mode
         self.identity_manager = identity_manager
         self._local = threading.local()
-        
+
         if self.mode == "bodies":
             model_path = resource_path("assets/efficientdet_lite2.tflite")
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Missing body model: {model_path}")
-                
+
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
             fd_val = float(settings.value("model_face_detect", 0.20))
-            
+
             base_options = mp_python.BaseOptions(model_asset_path=model_path)
             options = vision.ObjectDetectorOptions(
                 base_options=base_options, score_threshold=fd_val, max_results=5
             )
             print(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {fd_val:.2f}")
             self.detector = vision.ObjectDetector.create_from_options(options)
+
+        elif self.mode == "faces":
+            yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
+            if not os.path.exists(yunet_path):
+                raise FileNotFoundError(
+                    f"Missing YuNet model: {yunet_path}\n"
+                    "Download it with:\n"
+                    "  curl -L -o assets/face_detection_yunet_2023mar.onnx "
+                    "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/"
+                    "face_detection_yunet_2023mar.onnx"
+                )
+            # YuNet detector is created per-call with the actual image size, but
+            # we store the model path for thread-local instantiation.
+            self._yunet_model_path = yunet_path
+
+    def _get_yunet(self, width: int, height: int) -> cv2.FaceDetectorYN:
+        """Return a thread-local YuNet instance, re-created when input size changes."""
+        detector = getattr(self._local, "yunet", None)
+        last_size = getattr(self._local, "yunet_size", None)
+
+        if detector is None or last_size != (width, height):
+            detector = _load_yunet(self._yunet_model_path, (width, height))
+            self._local.yunet = detector
+            self._local.yunet_size = (width, height)
+
+        return detector
 
     def detect(self, image_path: str, match_identities: bool = True) -> List[SensitiveHit]:
         abs_path = os.path.abspath(image_path)
@@ -47,178 +92,101 @@ class VisionDetector(BaseDetector):
             return []
 
         if self.mode == "faces":
-            if not hasattr(self._local, "face_cascade"):
-                self._local.face_cascade = cv2.CascadeClassifier(
-                    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-                )
-                self._local.face_cascade_alt = cv2.CascadeClassifier(
-                    cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
-                )
-                self._local.profile_cascade = cv2.CascadeClassifier(
-                    cv2.data.haarcascades + 'haarcascade_profileface.xml'
-                )
-            
-            gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-            h_img, w_img = gray.shape[:2]
-            min_face = max(40, min(h_img, w_img) // 30)
-            
-            if h_img < min_face or w_img < min_face:
-                return []
-            
-            faces_alt = self._local.face_cascade_alt.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
-            )
-            faces_default = self._local.face_cascade.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
-            )
-            faces_profile = self._local.profile_cascade.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
-            )
-            flipped_gray = cv2.flip(gray, 1)
-            faces_profile_flipped = self._local.profile_cascade.detectMultiScale(
-                flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
-            )
-            
-            clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
-            clahe_gray = clahe.apply(gray)
-            faces_alt_clahe = self._local.face_cascade_alt.detectMultiScale(
-                clahe_gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_face, min_face)
-            )
-            
-            raw_boxes = []
-            for (x, y, w, h) in faces_alt:
-                raw_boxes.append([int(x), int(y), int(w), int(h)])
-            for (x, y, w, h) in faces_default:
-                raw_boxes.append([int(x), int(y), int(w), int(h)])
-            for (x, y, w, h) in faces_profile:
-                raw_boxes.append([int(x), int(y), int(w), int(h)])
-            for (x, y, w, h) in faces_profile_flipped:
-                orig_x = w_img - x - w
-                raw_boxes.append([int(orig_x), int(y), int(w), int(h)])
-            for (x, y, w, h) in faces_alt_clahe:
-                raw_boxes.append([int(x), int(y), int(w), int(h)])
-                
-            center = (w_img / 2.0, h_img / 2.0)
-            for angle in [-30, 30]:
-                M = cv2.getRotationMatrix2D(center, angle, 1.0)
-                rotated_gray = cv2.warpAffine(gray, M, (w_img, h_img))
-                
-                faces_rot = self._local.face_cascade_alt.detectMultiScale(
-                    rotated_gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_face, min_face)
-                )
-                
-                for (x, y, w, h) in faces_rot:
-                    cx = x + w / 2.0
-                    cy = y + h / 2.0
-                    
-                    M_inv = cv2.getRotationMatrix2D(center, -angle, 1.0)
-                    pts = np.array([[[cx, cy]]], dtype=np.float32)
-                    orig_pts = cv2.transform(pts, M_inv)
-                    orig_cx, orig_cy = orig_pts[0][0]
-                    
-                    orig_x = int(orig_cx - w / 2.0)
-                    orig_y = int(orig_cy - h / 2.0)
-                    raw_boxes.append([orig_x, orig_y, int(w), int(h)])
-                
-            merged_boxes = []
-            for box in raw_boxes:
-                bx, by, bw, bh = box
-                is_merged = False
-                for i, m_box in enumerate(merged_boxes):
-                    mx, my, mw, mh = m_box
-                    
-                    ix = max(bx, mx)
-                    iy = max(by, my)
-                    iw = min(bx + bw, mx + mw) - ix
-                    ih = min(by + bh, my + mh) - iy
-                    
-                    if iw > 0 and ih > 0:
-                        intersect_area = iw * ih
-                        box_area = bw * bh
-                        m_box_area = mw * mh
-                        
-                        if intersect_area / min(box_area, m_box_area) > 0.40:
-                            min_x = min(bx, mx)
-                            min_y = min(by, my)
-                            max_x = max(bx + bw, mx + mw)
-                            max_y = max(by + bh, my + mh)
-                            
-                            merged_boxes[i] = [min_x, min_y, max_x - min_x, max_y - min_y]
-                            is_merged = True
-                            break
-                if not is_merged:
-                    merged_boxes.append(box)
-                    
-            for (x, y, w, h) in merged_boxes:
-                identity = None
-                if self.identity_manager and match_identities:
-                    clip_y = max(0, y)
-                    clip_h = min(h_img - clip_y, h)
-                    clip_x = max(0, x)
-                    clip_w = min(w_img - clip_x, w)
-                    
-                    face_crop = cv_image[clip_y:clip_y+clip_h, clip_x:clip_x+clip_w]
-                    if face_crop.size > 0:
-                        identity = self.identity_manager.match_face(face_crop)
-                        
-                label = f"FACE: {identity}" if identity else "FACE"
-                
-                hits.append(
-                    SensitiveHit(
-                        x=int(x),
-                        y=int(y),
-                        w=int(w),
-                        h=int(h),
-                        label=label,
-                        confidence=0.99,
-                        identity=identity or ""
-                    )
-                )
-
+            hits = self._detect_faces(cv_image, match_identities)
 
         elif self.mode == "bodies":
-            from PySide6.QtCore import QSettings
-            settings = QSettings("SafeMARC", "SafeMARC")
-            fd_val = float(settings.value("model_face_detect", 0.20))
-            
-            if not hasattr(self, "_active_fd_val") or self._active_fd_val != fd_val:
-                print(f"[DEBUG] Recreating ObjectDetector with active threshold: {fd_val:.2f}")
-                self._active_fd_val = fd_val
-                model_path = resource_path("assets/efficientdet_lite2.tflite")
-                base_options = mp_python.BaseOptions(model_asset_path=model_path)
-                options = vision.ObjectDetectorOptions(
-                    base_options=base_options, score_threshold=fd_val, max_results=5
+            hits = self._detect_bodies(cv_image)
+
+        return hits
+
+    def _detect_faces(self, cv_image: np.ndarray, match_identities: bool) -> List[SensitiveHit]:
+        """Run YuNet face detection and optionally match identities via SFace/LBPH."""
+        h_img, w_img = cv_image.shape[:2]
+
+        yunet = self._get_yunet(w_img, h_img)
+
+        # YuNet expects BGR input directly (no grayscale conversion needed).
+        _, detections = yunet.detect(cv_image)
+
+        hits = []
+        if detections is None:
+            return hits
+
+        for det in detections:
+            # Each detection row: [x, y, w, h, <landmarks x5>, score]
+            x, y, w, h = int(det[0]), int(det[1]), int(det[2]), int(det[3])
+            score = float(det[-1])
+
+            # Clamp to image bounds.
+            x = max(0, x)
+            y = max(0, y)
+            w = min(w_img - x, w)
+            h = min(h_img - y, h)
+
+            if w <= 0 or h <= 0:
+                continue
+
+            identity = None
+            if self.identity_manager and match_identities:
+                face_crop = cv_image[y:y + h, x:x + w]
+                if face_crop.size > 0:
+                    identity = self.identity_manager.match_face(face_crop)
+
+            label = f"FACE: {identity}" if identity else "FACE"
+            hits.append(
+                SensitiveHit(
+                    x=x, y=y, w=w, h=h,
+                    label=label,
+                    confidence=score,
+                    identity=identity or "",
                 )
-                self.detector = vision.ObjectDetector.create_from_options(options)
-                
-            scale = 1
-            adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)
+            )
 
-            rgb_image = cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+        return hits
 
-            result = self.detector.detect(mp_image)
+    def _detect_bodies(self, cv_image: np.ndarray) -> List[SensitiveHit]:
+        """Run MediaPipe EfficientDet-Lite2 body/person detection."""
+        from PySide6.QtCore import QSettings
+        settings = QSettings("SafeMARC", "SafeMARC")
+        fd_val = float(settings.value("model_face_detect", 0.20))
 
-            if result and result.detections:
-                for detection in result.detections:
-                    bbox = detection.bounding_box
-                    cat = detection.categories[0]
-                    if cat.category_name in ["person", "face"]:
-                        hits.append(
-                            SensitiveHit(
-                                x=int(bbox.origin_x / scale),
-                                y=int(bbox.origin_y / scale),
-                                w=int(bbox.width / scale),
-                                h=int(bbox.height / scale),
-                                label="BODY",
-                                confidence=float(cat.score),
-                            )
+        if not hasattr(self, "_active_fd_val") or self._active_fd_val != fd_val:
+            print(f"[DEBUG] Recreating ObjectDetector with active threshold: {fd_val:.2f}")
+            self._active_fd_val = fd_val
+            model_path = resource_path("assets/efficientdet_lite2.tflite")
+            base_options = mp_python.BaseOptions(model_asset_path=model_path)
+            options = vision.ObjectDetectorOptions(
+                base_options=base_options, score_threshold=fd_val, max_results=5
+            )
+            self.detector = vision.ObjectDetector.create_from_options(options)
+
+        adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)
+        rgb_image = cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+
+        result = self.detector.detect(mp_image)
+
+        hits = []
+        if result and result.detections:
+            for detection in result.detections:
+                bbox = detection.bounding_box
+                cat = detection.categories[0]
+                if cat.category_name in ["person", "face"]:
+                    hits.append(
+                        SensitiveHit(
+                            x=int(bbox.origin_x),
+                            y=int(bbox.origin_y),
+                            w=int(bbox.width),
+                            h=int(bbox.height),
+                            label="BODY",
+                            confidence=float(cat.score),
                         )
+                    )
         return hits
 
     def cleanup(self):
         if hasattr(self, "detector") and self.detector:
             try:
                 self.detector.close()
-            except:
+            except Exception:
                 pass

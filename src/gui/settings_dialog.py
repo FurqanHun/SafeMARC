@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QStandardPaths, QRect, QPoint, 
 from PySide6.QtGui import QIcon, QPainter, QImage, QPixmap, QColor, QPen, QShortcut, QKeySequence
 from src.core.identity_manager import IdentityManager
 from src.utils.crypto import encrypt_data, decrypt_data
+from src.utils.paths import resource_path
 import os
 
 def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
@@ -1955,27 +1956,37 @@ class FaceCropDialog(QDialog):
         self.crop_label.setFixedSize(scaled_w, scaled_h)
         self.scale_factor = scale
         
-        gray = cv2.cvtColor(self.raw_img, cv2.COLOR_BGR2GRAY)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        
+        # Auto-focus the crop box on the largest detected face using YuNet.
+        yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
+        faces = []
+        if os.path.exists(yunet_path):
+            face_det = cv2.FaceDetectorYN.create(
+                model=yunet_path, config="",
+                input_size=(raw_w, raw_h),
+                score_threshold=0.50, nms_threshold=0.30, top_k=100,
+            )
+            _, detections = face_det.detect(self.raw_img)
+            if detections is not None:
+                faces = detections
+
         if len(faces) > 0:
-            fx, fy, fw, fh = max(faces, key=lambda f: f[2] * f[3])
+            best = max(faces, key=lambda d: d[2] * d[3])
+            fx, fy, fw, fh = int(best[0]), int(best[1]), int(best[2]), int(best[3])
             side = max(fw, fh)
             pad = int(side * 0.15)
             raw_side = side + 2 * pad
-            
+
             cx = fx + fw // 2
             cy = fy + fh // 2
-            
+
             rx = max(0, cx - raw_side // 2)
             ry = max(0, cy - raw_side // 2)
-            
+
             if rx + raw_side > raw_w:
                 rx = max(0, raw_w - raw_side)
             if ry + raw_side > raw_h:
                 ry = max(0, raw_h - raw_side)
-                
+
             rw = rh = min(raw_side, raw_w - rx, raw_h - ry)
         else:
             rw = rh = min(raw_w, raw_h, 180)

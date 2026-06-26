@@ -13,6 +13,20 @@ class TestPDFNavigation(unittest.TestCase):
         cls.app = QApplication.instance()
         if cls.app is None:
             cls.app = QApplication(sys.argv)
+        from PySide6.QtWidgets import QMessageBox
+        cls.original_info = QMessageBox.information
+        QMessageBox.information = lambda *args, **kwargs: QMessageBox.Ok
+        cls.original_warning = QMessageBox.warning
+        QMessageBox.warning = lambda *args, **kwargs: QMessageBox.Ok
+        cls.original_critical = QMessageBox.critical
+        QMessageBox.critical = lambda *args, **kwargs: QMessageBox.Ok
+
+    @classmethod
+    def tearDownClass(cls):
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information = cls.original_info
+        QMessageBox.warning = cls.original_warning
+        QMessageBox.critical = cls.original_critical
 
     def test_pdf_navigation_lifecycle(self):
         class MockScanner:
@@ -28,6 +42,8 @@ class TestPDFNavigation(unittest.TestCase):
         window.scanner = MockScanner()
         window.is_batch_mode = True
         window.batch_index = 0
+        window.chk_auto_skip.setChecked(False)
+        window.chk_skip_review.setChecked(False)
         
         # Add item to file list
         item = QListWidgetItem("test.pdf")
@@ -109,6 +125,8 @@ class TestPDFNavigation(unittest.TestCase):
         window.scanner = MockScanner()
         window.is_batch_mode = True
         window.batch_index = 0
+        window.chk_auto_skip.setChecked(False)
+        window.chk_skip_review.setChecked(False)
         
         # Add item to file list
         item = QListWidgetItem("test.pdf")

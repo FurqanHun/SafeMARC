@@ -274,29 +274,90 @@ class ScanWorker(QThread):
             self.error.emit(e)
 
 
+class LoadingDialog(QDialog):
+    def __init__(self, title, message, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.setWindowModality(Qt.WindowModal)
+        
+        from PySide6.QtWidgets import QVBoxLayout, QLabel, QProgressBar
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+        
+        self.label = QLabel(message, self)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setStyleSheet("color: #F3F4F6; font-size: 13px; font-weight: 600; background: transparent;")
+        
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setAlignment(Qt.AlignCenter)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 6px;
+                height: 20px;
+                text-align: center;
+                color: #FFFFFF;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QProgressBar::chunk {
+                background-color: #10B981;
+                border-radius: 5px;
+            }
+        """)
+        
+        layout.addWidget(self.label)
+        layout.addWidget(self.progress_bar)
+        
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #0B0F19;
+                border: 1px solid #374151;
+                border-radius: 8px;
+            }
+        """)
+        self.resize(320, 120)
+        
+    def update_progress(self, current, total):
+        if total > 0:
+            percentage = int((current / total) * 100)
+            self.progress_bar.setValue(percentage)
+            self.progress_bar.setFormat(f"{current} / {total} ({percentage}%)")
+
+
 class PDFExtractWorker(QThread):
+    progress = Signal(int, int)  # current, total
     finished = Signal(list)
     error = Signal(Exception)
 
-    def __init__(self, file_path):
-        super().__init__()
+    def __init__(self, file_path, parent=None):
+        super().__init__(parent)
         self.file_path = file_path
 
     def run(self):
         try:
             from src.utils.pdf_handler import PDFHandler
-            pages = PDFHandler.extract_pages(self.file_path)
+            def callback(current, total):
+                self.progress.emit(current, total)
+            pages = PDFHandler.extract_pages(self.file_path, progress_callback=callback)
             self.finished.emit(pages)
         except Exception as e:
             self.error.emit(e)
 
 
 class PDFFinalizeWorker(QThread):
+    progress = Signal(int, int)  # current, total
     finished = Signal(bool, list)
     error = Signal(Exception)
 
-    def __init__(self, scanner, original_pages, cache, active_pdf_source, out_path):
-        super().__init__()
+    def __init__(self, scanner, original_pages, cache, active_pdf_source, out_path, parent=None):
+        super().__init__(parent)
         self.scanner = scanner
         self.original_pages = original_pages
         self.cache = cache
@@ -311,8 +372,10 @@ class PDFFinalizeWorker(QThread):
             
             # Start with original image paths
             outputs = [p["image_path"] for p in self.original_pages]
+            total_steps = len(self.original_pages) + 1 # +1 for PDF build
             
             for idx, page_data in enumerate(self.original_pages):
+                self.progress.emit(idx, total_steps)
                 original_path = page_data["image_path"]
                 cache_key = f"{self.active_pdf_source}_page_{idx}"
                 cached_data = self.cache.get(cache_key, None)
@@ -334,8 +397,10 @@ class PDFFinalizeWorker(QThread):
                         outputs[idx] = temp_path
                         
             # Build the PDF
+            self.progress.emit(total_steps - 1, total_steps)
             from src.utils.pdf_handler import PDFHandler
             success = PDFHandler.build_pdf(outputs, self.out_path)
+            self.progress.emit(total_steps, total_steps)
             self.finished.emit(success, outputs)
         except Exception as e:
             self.error.emit(e)
@@ -3385,34 +3450,7 @@ class SafeMARCMainWindow(QMainWindow):
                         "reviewed": True
                     }
 
-                progress = QProgressDialog("Finalizing and compiling PDF...", None, 0, 0, self)
-                progress.setWindowTitle("Please Wait")
-                progress.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
-                progress.setWindowModality(Qt.WindowModal)
-                progress.setMinimumDuration(0)
-                progress.setStyleSheet("""
-                    QProgressDialog {
-                        background-color: #0B0F19;
-                        border: 1px solid #374151;
-                        border-radius: 8px;
-                    }
-                    QLabel {
-                        color: #F3F4F6;
-                        font-size: 13px;
-                        font-weight: 600;
-                        margin-bottom: 8px;
-                    }
-                    QProgressBar {
-                        background-color: #1F2937;
-                        border: 1px solid #4B5563;
-                        border-radius: 4px;
-                        text-align: center;
-                        color: #FFFFFF;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #10B981;
-                    }
-                """)
+                progress = LoadingDialog("Please Wait", "Finalizing and compiling PDF...", self)
                 progress.show()
 
                 worker = PDFFinalizeWorker(
@@ -3423,6 +3461,7 @@ class SafeMARCMainWindow(QMainWindow):
                     out_path
                 )
                 self._pdf_finalize_worker = worker
+                worker.progress.connect(progress.update_progress)
 
                 def on_finished(success, outputs):
                     progress.close()
@@ -3478,38 +3517,12 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Check if it's a PDF
         if file_path.lower().endswith('.pdf'):
-            progress = QProgressDialog("Extracting PDF pages...", None, 0, 0, self)
-            progress.setWindowTitle("Please Wait")
-            progress.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
-            progress.setWindowModality(Qt.WindowModal)
-            progress.setMinimumDuration(0)
-            progress.setStyleSheet("""
-                QProgressDialog {
-                    background-color: #0B0F19;
-                    border: 1px solid #374151;
-                    border-radius: 8px;
-                }
-                QLabel {
-                    color: #F3F4F6;
-                    font-size: 13px;
-                    font-weight: 600;
-                    margin-bottom: 8px;
-                }
-                QProgressBar {
-                    background-color: #1F2937;
-                    border: 1px solid #4B5563;
-                    border-radius: 4px;
-                    text-align: center;
-                    color: #FFFFFF;
-                }
-                QProgressBar::chunk {
-                    background-color: #10B981;
-                }
-            """)
+            progress = LoadingDialog("Please Wait", "Extracting PDF pages...", self)
             progress.show()
 
-            worker = PDFExtractWorker(file_path)
+            worker = PDFExtractWorker(file_path, self)
             self._pdf_extract_worker = worker
+            worker.progress.connect(progress.update_progress)
 
             def on_finished(pages):
                 progress.close()

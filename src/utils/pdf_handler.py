@@ -5,7 +5,7 @@ from PIL import Image
 
 class PDFHandler:
     @staticmethod
-    def extract_pages(pdf_path: str) -> list[dict]:
+    def extract_pages(pdf_path: str, progress_callback=None) -> list[dict]:
         """
         Extracts all pages of a PDF to a temporary directory as high-quality PNGs.
         Returns a list of dicts with file paths and word bounding boxes:
@@ -18,6 +18,11 @@ class PDFHandler:
         pages_data = []
         
         for page_num in range(len(doc)):
+            if progress_callback:
+                try:
+                    progress_callback(page_num + 1, len(doc))
+                except Exception:
+                    pass
             page = doc.load_page(page_num)
             # Increase resolution for OCR and redaction.
             zoom = 4.0

@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from src.utils.paths import resource_path, get_app_data_dir
 
 
-# Score and NMS thresholds for YuNet when cropping reference faces.
+# Score and NMS thresholds used by YuNet when cropping reference faces.
 _YUNET_SCORE_THRESH = 0.50
 _YUNET_NMS_THRESH   = 0.30
 _YUNET_TOP_K        = 100
@@ -21,13 +21,15 @@ class IdentityManager:
         self.session_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "session_temp")
         os.makedirs(self.session_temp, exist_ok=True)
         
-        self.identity_map = {}  # int id -> str Name
+        # Mapping from integer face class ID to the registered person name.
+        self.identity_map: Dict[int, str] = {}
         self.is_trained = False
         self._local = threading.local()
         
         self.use_sface = False
         self.sface_recognizer = None
-        self.sface_embeddings = {}  # name -> list of embeddings
+        # Cache of biometric SFace face embeddings, keyed by person name.
+        self.sface_embeddings: Dict[str, List[np.ndarray]] = {}
         
         sface_model = resource_path("assets/face_recognition_sface_2021dec.onnx")
         if os.path.exists(sface_model):
@@ -71,11 +73,11 @@ class IdentityManager:
         if detections is None or len(detections) == 0:
             return img
 
-        # Pick the largest detected face by area.
+        # Select the largest face detection based on bounding box area.
         best = max(detections, key=lambda d: d[2] * d[3])
         x, y, w, h = int(best[0]), int(best[1]), int(best[2]), int(best[3])
 
-        # Clamp to image bounds.
+        # Prevent coordinates from extending beyond the image boundaries.
         x = max(0, x)
         y = max(0, y)
         w = min(w_img - x, w)
@@ -149,7 +151,7 @@ class IdentityManager:
                     if self.use_sface:
                         embedding = self._build_aligned_embedding(img)
                         if embedding is None:
-                            # alignCrop fallback: plain resize if YuNet finds nothing.
+                            # Fallback: Resize the unaligned crop to 112x112 if YuNet fails to locate landmarks.
                             aligned = cv2.resize(face_crop, (112, 112))
                             embedding = self.sface_recognizer.feature(aligned)
                         
@@ -312,7 +314,7 @@ class IdentityManager:
         settings = QSettings("SafeMARC", "SafeMARC")
         fm_val = float(settings.value("model_face_match", 0.40))
 
-        # Max score across all reference embeddings per identity.
+        # Find the highest matching cosine similarity score across reference embeddings.
         identity_scores = {}
         for name, ref_embeddings in self.sface_embeddings.items():
             scores = [
@@ -332,13 +334,13 @@ class IdentityManager:
         second_score = ranked[1][1] if len(ranked) > 1 else -1.0
         margin = best_score - second_score
 
-        # Tiered margin requirement.
+        # Check matched identity against context-aware tiered margin requirements.
         if len(ranked) == 1:
             margin_ok = True
         elif best_score > fm_val + _STRONG_SCORE_OFFSET:
             margin_ok = margin >= _MARGIN_STRONG
         else:
-            # Borderline zone: strictness depends on how many faces are in image.
+            # Group photos (multiple faces) enforce a stricter margin than solo portraits.
             min_margin = _MARGIN_BORDERLINE_1 if num_faces == 1 else _MARGIN_BORDERLINE_N
             margin_ok = margin >= min_margin
 

@@ -67,9 +67,7 @@ class VisionDetector(BaseDetector):
                 )
             self._yunet_model_path = yunet_path
 
-    # ------------------------------------------------------------------
-    # Thread-local YuNet instances (keyed by input size)
-    # ------------------------------------------------------------------
+    # Thread-local YuNet instances (keyed by input size).
 
     def _get_yunet(self, w: int, h: int) -> cv2.FaceDetectorYN:
         """Native-resolution thread-local YuNet, re-created when size changes."""
@@ -87,9 +85,7 @@ class VisionDetector(BaseDetector):
             self._local.yunet_small_size = (w, h)
         return self._local.yunet_small
 
-    # ------------------------------------------------------------------
-    # Multi-scale detection + NMS
-    # ------------------------------------------------------------------
+    # Multi-scale detection and Non-Maximum Suppression (NMS) merging.
 
     def _multi_scale_detect(self, cv_image: np.ndarray, w_img: int, h_img: int) -> list:
         """
@@ -100,13 +96,13 @@ class VisionDetector(BaseDetector):
         """
         all_dets = []
 
-        # Pass 1: native resolution — catches small/medium faces.
+        # Pass 1: Run YuNet at native resolution to detect small and medium faces.
         yunet = self._get_yunet(w_img, h_img)
         _, dets = yunet.detect(cv_image)
         if dets is not None:
             all_dets.extend(dets.tolist())
 
-        # Pass 2: downscaled — catches large faces (portraits, close-ups).
+        # Pass 2: Run YuNet on a downscaled image to detect large, close-up portrait faces.
         if max(w_img, h_img) > _LARGE_FACE_MAX_DIM:
             scale = _LARGE_FACE_MAX_DIM / max(w_img, h_img)
             sw = max(1, int(w_img * scale))
@@ -118,7 +114,7 @@ class VisionDetector(BaseDetector):
             if dets_s is not None:
                 for d in dets_s.tolist():
                     d_up = list(d)
-                    # Scale bbox + 5 landmarks (indices 0-13) back to original coords.
+                    # Scale the bounding box and 5 landmarks (indices 0-13) back to native coords.
                     for i in range(14):
                         d_up[i] = d_up[i] / scale
                     all_dets.append(d_up)
@@ -147,7 +143,7 @@ class VisionDetector(BaseDetector):
                 ih = min(by + bh, ky + kh) - iy
                 if iw > 0 and ih > 0:
                     inter = iw * ih
-                    # Suppress if the smaller box is mostly inside the larger one.
+                    # Suppress if the smaller box is highly contained within the larger one.
                     min_area = min(bw * bh, kw * kh)
                     if inter / max(min_area, 1) > iou_thresh:
                         suppressed = True
@@ -157,9 +153,7 @@ class VisionDetector(BaseDetector):
 
         return kept
 
-    # ------------------------------------------------------------------
-    # Public detect
-    # ------------------------------------------------------------------
+
 
     def detect(self, image_path: str, match_identities: bool = True) -> List[SensitiveHit]:
         abs_path = os.path.abspath(image_path)

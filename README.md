@@ -59,6 +59,12 @@ Download into `assets/` directory as `efficientdet_lite2.tflite`:
 curl -L -o assets/efficientdet_lite2.tflite "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
 ```
 
+### Face Detection (YuNet)
+Download YuNet face detection model (~228KB ONNX) into `assets/`:
+```bash
+curl -L -o assets/face_detection_yunet_2023mar.onnx "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+```
+
 ### Face Recognition (Blacklist/Whitelist identity matching)
 Download OpenCV's SFace deep learning model (~37MB) into `assets/`:
 ```bash
@@ -66,6 +72,7 @@ curl -L -o assets/face_recognition_sface_2021dec.onnx "https://github.com/opencv
 ```
 > [!NOTE]
 > Without the SFace model, face identity matching falls back to LBPH (less accurate). The model is gitignored and must be downloaded separately.
+
 
 ## Structure
 

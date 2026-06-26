@@ -54,6 +54,7 @@
 ## Document Support & Handling
 - [x] **Images**: Comprehensive support for modern image formats (JPG, JPEG, PNG, WEBP).
 - [x] **PDFs**: Seamless PDF page extraction, individual page review, and rasterized rebuilding to completely eliminate any hidden layers and metadata.
+- [x] **Interactive PDF Page Navigation**: An elegant, styled page navigation spinbox panel next to the title label that appears automatically when reviewing a PDF. Allows direct jumping to any page, caching user review selections on the fly, and automatically skipping unvisited pages upon final PDF compilation.
 - [x] **PyMuPDF Rebuilding Engine**: Uses the lightweight PyMuPDF (`fitz`) library to rebuild final sanitized PDFs from redacted page images, resolving Pillow rendering/color-space issues.
 - [ ] **Word Documents (`.docx`)**: Planned for future releases.
 

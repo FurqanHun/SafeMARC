@@ -522,7 +522,60 @@ class SafeMARCMainWindow(QMainWindow):
         self.title_label.setStyleSheet(
             "font-size: 26px; font-weight: 800; color: #10B981; letter-spacing: 0.5px; font-family: 'Segoe UI', Arial, sans-serif;"
         )
+        
+        # PDF Navigation Page Selector (hidden by default)
+        from PySide6.QtWidgets import QFrame, QSpinBox
+        self.pdf_nav_container = QFrame()
+        self.pdf_nav_container.setObjectName("pdfNavContainer")
+        self.pdf_nav_container.setStyleSheet("""
+            QFrame#pdfNavContainer {
+                background-color: #1F2937;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 2px 10px;
+                margin-left: 15px;
+            }
+            QLabel {
+                color: #9CA3AF;
+                font-size: 13px;
+                font-weight: 600;
+                background: transparent;
+            }
+            QSpinBox {
+                background-color: #0B0F19;
+                color: #FFFFFF;
+                border: 1px solid #4B5563;
+                border-radius: 4px;
+                padding: 1px 4px;
+                font-size: 13px;
+                font-weight: bold;
+                min-width: 55px;
+                min-height: 24px;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                width: 0px;
+            }
+        """)
+        pdf_nav_layout = QHBoxLayout(self.pdf_nav_container)
+        pdf_nav_layout.setContentsMargins(0, 0, 0, 0)
+        pdf_nav_layout.setSpacing(6)
+        
+        pdf_nav_label = QLabel("Page")
+        self.pdf_page_spin = QSpinBox()
+        self.pdf_page_spin.setRange(1, 9999)
+        self.pdf_page_spin.setValue(1)
+        self.pdf_page_spin.setAlignment(Qt.AlignCenter)
+        self.pdf_page_spin.valueChanged.connect(self._on_pdf_page_changed)
+        
+        self.pdf_total_label = QLabel("/ 1")
+        
+        pdf_nav_layout.addWidget(pdf_nav_label)
+        pdf_nav_layout.addWidget(self.pdf_page_spin)
+        pdf_nav_layout.addWidget(self.pdf_total_label)
+        
         header_layout.addWidget(self.title_label)
+        header_layout.addWidget(self.pdf_nav_container)
+        self.pdf_nav_container.hide()
         header_layout.addStretch()
 
         self.status_label = ClickableStatusLabel(engine_status)
@@ -1586,6 +1639,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_index = -1
         self.batch_success_count = 0
         self.cleanup_temp_resources(full=False)
+        self.pdf_nav_container.hide()
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
         self.active_pdf_index = -1
@@ -2900,19 +2954,8 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Handle PDF sub-loop
         if self.active_pdf_pages:
-            import tempfile
-            redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
-            os.makedirs(redacted_dir, exist_ok=True)
-            fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
-            os.close(fd)
-            success = self.scanner.redact(self.current_file_path, temp_path, selected_hits)
-            if success:
-                self.active_pdf_has_redactions = True
-                self.active_pdf_outputs.append(temp_path)
-                self.active_pdf_index += 1
-                self.load_next_batch_item()
-            else:
-                QMessageBox.warning(self, "Error", "Failed to redact PDF page.")
+            self.active_pdf_index += 1
+            self.load_next_batch_item()
             return
         
         success = self.scanner.redact(self.current_file_path, out_path, selected_hits)
@@ -3013,11 +3056,11 @@ class SafeMARCMainWindow(QMainWindow):
             msg_box.exec()
             
             if msg_box.clickedButton() == btn_page:
-                self.active_pdf_outputs.append(self.current_file_path)
                 self.active_pdf_index += 1
                 self.load_next_batch_item()
                 return
             elif msg_box.clickedButton() == btn_pdf:
+                self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
                 self.active_pdf_outputs = []
                 self.active_pdf_index = 0
@@ -3045,8 +3088,6 @@ class SafeMARCMainWindow(QMainWindow):
             
         # Scenario A: Inside a PDF sub-loop
         if self.active_pdf_pages and self.active_pdf_index > 0:
-            if self.active_pdf_outputs:
-                self.active_pdf_outputs.pop()
             self.active_pdf_index -= 1
             self.load_next_batch_item()
             return
@@ -3054,6 +3095,7 @@ class SafeMARCMainWindow(QMainWindow):
         # Scenario B: Moving to the previous queue item
         if self.batch_index > 0:
             if self.active_pdf_pages and self.active_pdf_index == 0:
+                self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
                 self.active_pdf_outputs = []
                 self.active_pdf_index = 0
@@ -3108,6 +3150,71 @@ class SafeMARCMainWindow(QMainWindow):
                 self.batch_index = prev_index
                 self.load_next_batch_item()
 
+    def _on_pdf_page_changed(self, value):
+        if not self.active_pdf_pages:
+            return
+            
+        new_index = value - 1
+        if new_index == self.active_pdf_index:
+            return
+            
+        # Cache current page selections
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            ckey = self.get_current_cache_key()
+            self.user_selections_cache[ckey] = {
+                "active_hits": manuals,
+                "reviewed": True
+            }
+            
+        self.active_pdf_index = new_index
+        self.load_next_batch_item()
+
+    def _finalize_pdf_redaction(self):
+        if not self.active_pdf_pages:
+            return
+            
+        import tempfile
+        redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
+        os.makedirs(redacted_dir, exist_ok=True)
+        
+        # Save current page's selections
+        if self.current_file_path:
+            manuals = self.preview_widget.active_hits.copy()
+            ckey = self.get_current_cache_key()
+            self.user_selections_cache[ckey] = {
+                "active_hits": manuals,
+                "reviewed": True
+            }
+
+        # Initialize the outputs with the original page paths
+        self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
+
+        for idx, page_data in enumerate(self.active_pdf_pages):
+            original_path = page_data["image_path"]
+            cache_key = f"{self.active_pdf_source}_page_{idx}"
+            cached_data = self.user_selections_cache.get(cache_key, None)
+            
+            is_visited = False
+            active_hits = []
+            if isinstance(cached_data, dict):
+                is_visited = cached_data.get("reviewed", False)
+                active_hits = cached_data.get("active_hits", [])
+                
+            # If the user never went through this page, skip it automatically
+            if not is_visited:
+                continue
+                
+            if active_hits:
+                try:
+                    fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
+                    os.close(fd)
+                    success = self.scanner.redact(original_path, temp_path, active_hits)
+                    if success:
+                        self.active_pdf_outputs[idx] = temp_path
+                except Exception as e:
+                    print(f"Error finalizing redaction for page {idx + 1}: {e}")
+
     def _undo_queue_item(self, index):
         item = self.file_list.item(index)
         if item.foreground().color() == QColor("#4CAF50"):
@@ -3132,27 +3239,31 @@ class SafeMARCMainWindow(QMainWindow):
                 self.update_toolbar_state()
                 self.title_label.setText(f"🛡️ SafeMARC - Page {self.active_pdf_index + 1}/{len(self.active_pdf_pages)}")
                 
+                self.pdf_nav_container.show()
+                self.pdf_page_spin.blockSignals(True)
+                self.pdf_page_spin.setRange(1, len(self.active_pdf_pages))
+                self.pdf_page_spin.setValue(self.active_pdf_index + 1)
+                self.pdf_total_label.setText(f"/ {len(self.active_pdf_pages)}")
+                self.pdf_page_spin.blockSignals(False)
+                
                 self.preview_widget.load_image(page_path)
                 try:
                     cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
                     hits = self.run_scan_with_overlay(page_path, pdf_words=pdf_words, cache_key=cache_key)
                     self.current_hits = hits
                     if self.chk_skip_review.isChecked():
-                        import tempfile
-                        redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
-                        os.makedirs(redacted_dir, exist_ok=True)
-                        fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
-                        os.close(fd)
-                        success = self.scanner.redact(page_path, temp_path, hits)
-                        if success:
-                            self.active_pdf_outputs.append(temp_path)
-                        else:
-                            self.active_pdf_outputs.append(page_path)
+                        self.user_selections_cache[cache_key] = {
+                            "active_hits": hits,
+                            "reviewed": True
+                        }
                         self.active_pdf_index += 1
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
                     elif not hits and self.chk_auto_skip.isChecked() and not is_backward:
-                        self.active_pdf_outputs.append(page_path)
+                        self.user_selections_cache[cache_key] = {
+                            "active_hits": [],
+                            "reviewed": True
+                        }
                         self.active_pdf_index += 1
                         QTimer.singleShot(0, self.load_next_batch_item)
                         return
@@ -3181,7 +3292,10 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception as e:
                     self.is_navigating_backward = False
                     print(f"Error processing page: {e}")
-                    self.active_pdf_outputs.append(page_path)
+                    self.user_selections_cache[cache_key] = {
+                        "active_hits": [],
+                        "reviewed": True
+                    }
                     self.active_pdf_index += 1
                     QTimer.singleShot(0, self.load_next_batch_item)
                 return
@@ -3189,6 +3303,7 @@ class SafeMARCMainWindow(QMainWindow):
                 out_path = self.get_redacted_output_path(
                     self.file_list.item(self.batch_index).data(Qt.UserRole)
                 )
+                self._finalize_pdf_redaction()
                 success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
 
                 if success:
@@ -3198,6 +3313,7 @@ class SafeMARCMainWindow(QMainWindow):
                     self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
                 
                 # Cleanup and move to next item
+                self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
                 self.active_pdf_outputs = []
                 self.batch_index += 1
@@ -3228,7 +3344,7 @@ class SafeMARCMainWindow(QMainWindow):
                     self.active_pdf_index = len(self.active_pdf_pages) - 1
                 else:
                     self.active_pdf_index = 0
-                self.active_pdf_outputs = []
+                self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
                 self.active_pdf_has_redactions = False
                 QTimer.singleShot(0, self.load_next_batch_item)
                 return

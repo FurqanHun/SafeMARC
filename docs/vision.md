@@ -165,7 +165,86 @@ The NMS runs on detections sorted by confidence (highest first) so the strongest
 
 ## 2. Face Recognition — SFace + LBPH
 
-### 2.1 Architecture Overview
+### 2.1 Recognition Evolution — Models Explored and Rejected
+
+Like detection, face recognition in SafeMARC went through several iterations and evaluated multiple candidate models before settling on the current architecture.
+
+#### Models Evaluated
+
+**MediaPipe face detection models (explored, not adopted for recognition)**
+
+During early planning the project explored MediaPipe's `BlazeFace` models for face detection as an alternative to Haar cascades. Download commands for two variants were recorded in `todo.log`:
+
+```bash
+# BlazeFace short-range (selfie/close-up oriented)
+wget -O face_detector.tflite \
+  https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite
+
+# BlazeFace full-range
+curl -L -o face_detector_full.tflite \
+  https://github.com/google-ai-edge/mediapipe/raw/master/mediapipe/modules/face_detection/face_detection_full_range.tflite
+```
+
+These were evaluated and not adopted for face detection. BlazeFace is optimised for real-time selfie streams with a very short depth-of-field assumption; it performs poorly on the high-resolution scanned document images and multi-face group photos that SafeMARC typically processes. The Haar ensemble already handled these cases better, and YuNet was a superior eventual solution.
+
+**MediaPipe EfficientDet models (adopted for body detection only)**
+
+MediaPipe's `EfficientDet Lite` family was evaluated for body/person detection. Two sizes were tested:
+
+```bash
+# Lite 0 — lighter, faster
+curl -L -o object_detector.task \
+  "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/latest/efficientdet_lite0.tflite"
+
+# Lite 2 — heavier, more accurate  
+curl -L -o object_detector_heavy.task \
+  "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
+```
+
+`EfficientDet Lite 2` was chosen for the **body/person detection mode** (`VisionDetector(mode="bodies")`). It is not involved in face detection or identity matching — it exists as a separate redaction mode for non-face-based privacy (e.g. blurring all people in a document without facial recognition).
+
+---
+
+#### Generation 1 — LBPH Face Recognizer (`92c3dfd` – `1f6b64f`)
+
+Before any identity system existed, face detection returned only anonymous hits (label: `"FACE"`). When identity-based redaction was added (`1f6b64f`), the initial recogniser was OpenCV's **LBPH (Local Binary Pattern Histogram)** — chosen because it requires no model download and is built into OpenCV.
+
+LBPH works by encoding local texture patterns in a grayscale image into histograms and comparing them. Reference images were cropped with a single Haar cascade, resized to 150 × 150, histogram-equalised, and used to train an `LBPHFaceRecognizer`. At match time, `predict()` returns a distance value; a distance below 115.0 was treated as a match.
+
+**Limitations:**
+- No geometric normalisation — angle and lighting changes between registration and scan time caused high miss rates.
+- Inherently holistic — cannot separate a face from background if the crop is slightly misaligned.
+- Works adequately on controlled portraits with consistent angle/lighting; breaks down on group photos.
+
+#### Generation 2 — SFace DNN with LBPH fallback (`1f6b64f`, `0446cfb`, `5bd90f5`)
+
+SFace (`cv2.FaceRecognizerSF`, OpenCV Zoo) was introduced as the primary recogniser in the same commit that added the full identity-management system (`1f6b64f`). It produces a **128-dimensional embedding vector** per face; two faces are compared by cosine similarity. This is the same class of approach used by commercial FR systems (ArcFace, FaceNet etc.).
+
+The initial SFace integration used the same crop-and-resize approach as LBPH — the Haar cascade bounding box was extracted, resized to 112 × 112, and passed to `sface_recognizer.feature()`. No landmark alignment was applied.
+
+Two optimisations were added in `0446cfb`:
+- **Embedding cache** — each reference image's SFace embedding is saved as `<image>.sface.npy` so subsequent launches skip the YuNet + SFace recompute.
+- **LBPH crop cache** — similarly, the pre-processed LBPH grayscale crop is saved as `<image>.lbph.png`.
+
+An ensemble auto-crop for reference images was also added in `5bd90f5`: when registering a new identity, the same multi-cascade ensemble was run on the reference photo to find and crop the face region before computing the embedding. This improved registration quality for photos where the subject was not already tightly cropped.
+
+**Default threshold:** `0.363` (OpenCV's published default for SFace cosine similarity).
+
+#### Generation 3 — SFace + YuNet alignCrop + Context-Aware Margin (current, `a11d1d5`–`d8faf5c`)
+
+With YuNet replacing the cascade ensemble for detection, SFace matching was also updated to take advantage of YuNet's landmark output:
+
+1. **`alignCrop` for reference embedding building** — instead of the multi-cascade crop + resize, `_build_aligned_embedding()` runs YuNet on the reference image, takes the largest detection's 15-element row, and calls `sface_recognizer.alignCrop()`. This geometrically normalises the face (rotation, scale, inter-eye distance) before computing the embedding. Stale `.sface.npy` caches from the previous approach were invalidated on migration.
+
+2. **`alignCrop` for live matching** — `match_face_aligned()` receives the full image and the raw YuNet detection row, so `alignCrop()` can apply the same geometric transform to the live face before comparison. Passing the full image (not a pre-crop) is required by the OpenCV API to use the landmark positions.
+
+3. **Context-aware tiered margin** — plain threshold matching produced false positives in group photos (stranger scoring 0.47 against one reference frame). The `_rank_sface_embedding()` logic was refined through several test runs with real photos before reaching the current tier constants (see §2.5).
+
+4. **Default threshold raised to 0.40** from 0.363 after empirical testing showed the higher threshold reduced marginal false positives with minimal true-positive recall loss on the test set.
+
+---
+
+### 2.2 Architecture Overview
 
 SafeMARC uses a two-model recognition stack:
 

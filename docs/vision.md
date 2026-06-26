@@ -6,16 +6,73 @@ This document provides a detailed technical reference for SafeMARC's computer vi
 
 ## 1. Face Detection — YuNet DNN
 
-### 1.1 Why YuNet instead of Haar Cascades
+### 1.1 Detection Evolution — From Haar Cascades to YuNet
 
-Previous versions used an OpenCV Haar Cascade ensemble (frontal default, frontal alt2, profile, flipped profile, CLAHE pass, ±30° rotation passes). While high-recall, this approach had several hard limits:
+SafeMARC's face detector went through three distinct generations, each motivated by real problems observed in testing.
 
-| Problem | Detail |
-|---|---|
-| **False positives** | Texture regions (lips, eyes, wrinkled fabric) frequently trigger cascades |
-| **Speed** | 5+ independent cascade passes + rotation warps per image |
-| **No landmarks** | Cascades return only a bounding box; no eye/nose positions for geometric alignment |
-| **Grayscale only** | Colour information is discarded before detection |
+#### Generation 1 — Single Haar Cascade (`92c3dfd`)
+
+The initial implementation used a single `haarcascade_frontalface_default.xml` pass on a grayscale image. It was fast and required no model file download, but had serious limitations:
+
+- **Upright frontals only** — tilted heads, side profiles, and partially occluded faces were missed entirely.
+- **High false-positive rate** on scanned documents — high-contrast texture patterns (letterheads, table borders, watermarks) frequently triggered the cascade.
+- **No sub-detector coordination** — single pass meant no way to recover from misses.
+
+#### Generation 2 — Ensemble Haar Cascade with Union-NMS (`784c810`, `0cc2dbb`, `214d3d1`)
+
+To fix the recall problems, the detector was rebuilt as a **multi-cascade ensemble**:
+
+| Pass | Cascade | Purpose |
+|---|---|---|
+| 1 | `haarcascade_frontalface_alt2.xml` | Tilted heads, slight occlusion |
+| 2 | `haarcascade_frontalface_default.xml` | Classic upright frontals |
+| 3 | `haarcascade_profileface.xml` | Left-facing side profiles |
+| 4 | Profile cascade on horizontally flipped image | Right-facing side profiles |
+| 5 | Alt frontal on CLAHE-enhanced image | Low-contrast / underexposed faces |
+| 6–7 | Alt frontal on ±30° rotated images | Strongly tilted heads |
+
+All raw detections from all passes were pooled and merged with a custom **Union-NMS** — rather than picking one winner, overlapping boxes from different cascades were merged by taking their coordinate union. This ensured partially covered faces (hands in front, hair, glasses) were fully enclosed in the final redaction box.
+
+Thread safety was also addressed (`214d3d1`): cascade classifiers are not thread-safe in OpenCV. Each worker thread that calls `detect()` was given its own thread-local `_local.face_cascade` instances via `threading.local()` to prevent concurrent access assertion crashes.
+
+**Result:** significantly improved recall across poses and angles, and the Union-NMS approach effectively collapsed multi-cascade duplicate hits into clean single boxes. False positives dropped substantially compared to generation 1.
+
+**Remaining limitations:**
+- Still no landmark data — SFace matching used a plain bbox crop + resize, discarding all geometric alignment information.
+- The 7-pass pipeline was expensive and did a lot of redundant work on images with many faces.
+- Very large portrait-sized faces (> 300 px) still required multiple passes to be caught at rotated scales.
+- Texture false positives on scanned documents persisted at lower rates.
+
+#### Generation 3 — YuNet DNN + Multi-Scale + Context-Aware Matching (current, `a11d1d5`, `f551c7c`, `d8faf5c`)
+
+YuNet was introduced to replace the entire cascade ensemble. Out of the box it matched the ensemble's core accuracy on standard portraits while being faster and simpler — one model, one pass. However, two issues required additional engineering:
+
+1. **Large portrait miss** — YuNet's training range is 10–300 px. A close-up portrait where the face fills 800 × 700 px is outside this range. Solution: **multi-scale detection** (§1.2) — a second pass on a downscaled image catches these large faces.
+
+2. **Sub-face false positives on large faces** — before the multi-scale pass was in place, YuNet at native resolution would detect lips or eyes (which happen to be in the 10–300 px range) instead of the full face. Solution: **containment-ratio NMS** (§1.3) — suppresses any box that is ≥ 40% enclosed by a larger sibling detection.
+
+3. **SFace accuracy regression** — the initial YuNet integration passed only a bbox crop to SFace, the same as the Haar ensemble did. This turned out to lose all landmark geometry and produce *worse* SFace scores than the ensemble (even though the crop was better). Solution: pass the full 15-element detection row to `alignCrop` (§2.3), which restored and exceeded the previous matching accuracy.
+
+So while YuNet alone was "quite similar" to the refined ensemble on straight portraits, it needed the same class of supplementary techniques (multi-scale, NMS refinement, geometric alignment) to match the ensemble's overall performance — just expressed differently and more efficiently.
+
+---
+
+### 1.2 Why YuNet was Still Worth the Switch
+
+Even after adding multi-scale and containment NMS, the YuNet stack is meaningfully better than the ensemble in several ways:
+
+| | Ensemble Haar | YuNet (current) |
+|---|---|---|
+| **Passes per image** | 7 (cascade × 5 + CLAHE + rotations) | 2 (native + downscaled) |
+| **Landmark output** | ❌ bbox only | ✅ 5 keypoints per face |
+| **SFace alignment** | plain resize, no geometry | `alignCrop` with landmark transform |
+| **Sub-face FP handling** | Union-NMS (merge, not suppress) | Containment-ratio NMS (suppress) |
+| **Thread safety** | manual `threading.local` cascade copies | thread-local `cv2.FaceDetectorYN` instances |
+| **Model download** | none (built-in cascades) | 228 KB ONNX |
+
+The 5 landmark points are the decisive advantage: they enable `cv2.FaceRecognizerSF.alignCrop()` which geometrically normalises each face to a canonical pose before computing the SFace embedding. The ensemble had no way to do this, which is why SFace scores were lower even when the bbox itself was correctly placed.
+
+---
 
 **YuNet** (`cv2.FaceDetectorYN`) is a lightweight DNN face detector from the OpenCV Zoo. It runs directly on BGR images, returns a **15-element detection vector per face** (bounding box + 5 facial landmarks + confidence score), and achieves state-of-the-art accuracy on the WIDER Face benchmark at millisecond latency.
 

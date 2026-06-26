@@ -68,25 +68,25 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Run Ensemble Cascades: Frontal + Alt Frontal + Profile + Flipped Profile] --> B[Union-NMS Bounding Box Merging]
-    B --> C[Crop Face with Safe Slicing]
-    C --> D{SFace model available?}
+    A[Run Multi-Scale YuNet DNN Detection] --> B[Containment-Ratio NMS]
+    B --> C{SFace model available?}
     
-    D -- Yes --> E[Resize crop to 112×112]
-    E --> F[Compute 128-dim SFace embedding]
-    F --> G[Compare against all reference embeddings]
-    G --> H{Cosine similarity > 0.363?}
+    C -- Yes --> D[alignCrop using YuNet 5 facial landmarks]
+    D --> E[Compute 128-dim SFace embedding]
+    E --> F[Compare against all reference embeddings]
+    F --> G{Cosine similarity >= 0.40 & tiered margin check?}
     
-    H -- Yes --> I["Label: FACE: {name}"]
-    H -- No --> J["Label: FACE (unknown)"]
+    G -- Yes --> H["Label: FACE: {name}"]
+    G -- No --> I["Label: FACE (unknown)"]
     
-    D -- No --> K[LBPH fallback]
+    C -- No --> J[Crop Face via bounding box]
+    J --> K[LBPH fallback on 150×150 crop]
     K --> L{Distance < 115?}
-    L -- Yes --> I
-    L -- No --> J
+    L -- Yes --> H
+    L -- No --> I
     
-    I --> RM{Redaction Mode}
-    J --> RM
+    H --> RM{Redaction Mode}
+    I --> RM
     
     RM -- All --> RED[Always redacted]
     RM -- Blacklist --> BL{Identity in target list?}
@@ -133,7 +133,7 @@ sequenceDiagram
             Sc->>VD: detect(page_path, match_identities)
             alt If match_identities is True
                 loop For each detected face
-                    VD->>IM: match_face(face_crop)
+                    VD->>IM: match_face_aligned(full_img, det_row, num_faces)
                     IM-->>VD: identity or None
                 end
             end
@@ -162,7 +162,7 @@ sequenceDiagram
         Sc->>VD: detect(file_path, match_identities)
         alt If match_identities is True
             loop For each detected face
-                VD->>IM: match_face(face_crop)
+                VD->>IM: match_face_aligned(full_img, det_row, num_faces)
                 IM-->>VD: identity or None
             end
         end
@@ -224,7 +224,7 @@ sequenceDiagram
     loop For each selected file
         SD->>SD: Show "Loading & detecting face..." status
         SD->>CD: Open FaceCropDialog
-        CD->>CD: Run robust ensemble to pre-focus crop box
+        CD->>CD: Run YuNet DNN to pre-focus crop box
         User->>CD: Adjust crop selection and click Save
         CD-->>SD: cropped_image
     end

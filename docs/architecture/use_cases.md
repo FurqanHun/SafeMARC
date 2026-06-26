@@ -78,7 +78,7 @@ graph TD
 - **Main Workflow**:
   1. The application parses the current queue item.
   2. If it's a PDF, pages are extracted as temporary high-fidelity images.
-  3. The scanning engine uses computer vision (Haar Cascade for faces, MediaPipe for bodies) and text patterns to map sensitive hits.
+  3. The scanning engine uses computer vision (YuNet DNN for faces, MediaPipe for bodies) and text patterns to map sensitive hits.
   4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition.
   5. Hits are filtered based on the active face redaction mode and selected target identities.
   6. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).

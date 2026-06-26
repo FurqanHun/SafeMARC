@@ -15,16 +15,19 @@
 
  
 ## Core Vision Features
-- [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
-  - *Pose & Occlusion Robustness*: Employs a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces.
+- [x] **Face Detection**: Fast & high-accuracy face scanning via **YuNet DNN** (`assets/face_detection_yunet_2023mar.onnx`).
+  - *Multi-Scale Strategy*: Employs a dual-scale pipeline (native resolution for small/medium faces, and downscaled 640px pass to capture large portrait-sized faces) to overcome DNN training scale limits.
+  - *Containment-Aware NMS*: Replaces standard IoU NMS with a custom containment-ratio NMS (40% threshold) to prevent sub-face false positives (eyes, lips) inside larger face boxes.
 - [x] **Face Recognition**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback.
-  - *Ensemble Auto-Cropping*: Reference images are auto-cropped using the high-recall ensemble face detector to guarantee high-precision biometric registration even for tilted or posed reference photos.
+  - *Landmark-Based Geometric alignCrop*: Reference and live images are normalized using YuNet's 5 facial landmark coordinates and `alignCrop()` to correct for rotation, scale, and tilt before embedding extraction.
+  - *Context-Aware Tiered Margin*: Matches are gated by a tiered margin check where borderline scores in group photos require stricter separation (0.20) than portrait shots (0.10) to prevent false matches in crowded frames.
 - [x] **Body Detection**: Robust human body and silhouette detection.
   - *EfficientDet-Lite2 (TFLite)*: Leverages MediaPipe Object Detector with a lightweight, high-performance `efficientdet_lite2.tflite` model to detect full bodies and silhouettes with low latency.
 - [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
 - [x] **Redact All**: Auto-redact all detected faces in a document.
 - [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.
 - [x] **Blacklist Mode**: Specifically redact only matched sensitive identities.
+
  
 ## Text Redaction
 - [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents. Automatically auto-locates Tesseract installation paths across multiple operating systems on startup and execution (Windows standard Program Files paths, macOS Homebrew/MacPorts, and Linux system binary paths) even if not present in the user's PATH environment variable.

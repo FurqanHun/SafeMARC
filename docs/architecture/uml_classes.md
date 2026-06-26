@@ -82,9 +82,12 @@ classDiagram
         +bool is_trained
         +reload_identities() void
         +match_face(face_image: ndarray) Optional~str~
+        +match_face_aligned(full_img: ndarray, det_row: ndarray, num_faces: int) Optional~str~
         +add_identity(name: str, image_paths: List~str~) void
         +add_session_identity(name: str, image_path: str) void
         -_extract_face_crop(img: ndarray) ndarray
+        -_build_aligned_embedding(img: ndarray) ndarray
+        -_rank_sface_embedding(embedding: ndarray, num_faces: int) Optional~str~
     }
 
     BaseDetector <|-- VisionDetector

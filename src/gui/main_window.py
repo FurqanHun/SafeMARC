@@ -57,7 +57,7 @@ class EngineStatusDialog(QDialog):
         import PySide6
         
         self.setWindowTitle("SafeMARC Engine Status")
-        self.resize(500, 480)
+        self.resize(500, 520)
         self.setStyleSheet("""
             QDialog {
                 background-color: #0B0F19;
@@ -139,6 +139,19 @@ class EngineStatusDialog(QDialog):
         else:
             sface_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>SFace Recognition Model:</b> Missing (Fallback to LBPH)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download face_recognition_sface_2021dec.onnx into assets/</span>")
         status_layout.addWidget(sface_lbl)
+        
+        yunet_model_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
+        yunet_exists = os.path.exists(yunet_model_path)
+        yunet_active = (scanner is not None and scanner.vision_detector is not None)
+        
+        yunet_lbl = QLabel()
+        if yunet_active and yunet_exists:
+            yunet_lbl.setText("<span style='color: #10B981;'>✔</span> <b>YuNet Face Detection Model:</b> Loaded (ONNX)")
+        elif yunet_exists:
+            yunet_lbl.setText("<span style='color: #FBBF24;'>⚠</span> <b>YuNet Face Detection Model:</b> Found, but scanner not initialized")
+        else:
+            yunet_lbl.setText("<span style='color: #EF4444;'>✘</span> <b>YuNet Face Detection Model:</b> Missing (ONNX)<br><span style='color: #9CA3AF; font-size: 11px;'>To resolve, download face_detection_yunet_2023mar.onnx into assets/</span>")
+        status_layout.addWidget(yunet_lbl)
         
         body_model_path = resource_path("assets/efficientdet_lite2.tflite")
         body_exists = os.path.exists(body_model_path)

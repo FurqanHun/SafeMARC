@@ -1452,6 +1452,8 @@ class SettingsDialog(QDialog):
                     self.progress_bar.setVisible(False)
                     self.setEnabled(True)
                     QApplication.restoreOverrideCursor()
+            else:
+                self.lbl_status.setText("")
 
     def _on_global_output_toggled(self, checked):
         self.settings.setValue("always_use_global_output", checked)

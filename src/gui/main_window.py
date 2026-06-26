@@ -370,9 +370,8 @@ class PDFFinalizeWorker(QThread):
             redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
             os.makedirs(redacted_dir, exist_ok=True)
             
-            # Start with original image paths
             outputs = [p["image_path"] for p in self.original_pages]
-            total_steps = len(self.original_pages) + 1 # +1 for PDF build
+            total_steps = len(self.original_pages) + 1
             
             for idx, page_data in enumerate(self.original_pages):
                 self.progress.emit(idx, total_steps)
@@ -396,10 +395,23 @@ class PDFFinalizeWorker(QThread):
                     if success:
                         outputs[idx] = temp_path
                         
-            # Build the PDF
             self.progress.emit(total_steps - 1, total_steps)
             from src.utils.pdf_handler import PDFHandler
-            success = PDFHandler.build_pdf(outputs, self.out_path)
+            
+            page_sizes = []
+            from PIL import Image
+            for p in self.original_pages:
+                if "width" in p and "height" in p:
+                    page_sizes.append((p["width"], p["height"]))
+                else:
+                    try:
+                        with Image.open(p["image_path"]) as img:
+                            w, h = img.size
+                        page_sizes.append((w / 4.0, h / 4.0))
+                    except Exception:
+                        page_sizes.append((595.0, 842.0))
+                        
+            success = PDFHandler.build_pdf(outputs, self.out_path, page_sizes=page_sizes)
             self.progress.emit(total_steps, total_steps)
             self.finished.emit(success, outputs)
         except Exception as e:

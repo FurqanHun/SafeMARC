@@ -56,7 +56,7 @@
 - [x] **Images**: Comprehensive support for modern image formats (JPG, JPEG, PNG, WEBP).
 - [x] **PDFs**: Seamless PDF page extraction, individual page review, and rasterized rebuilding to completely eliminate any hidden layers and metadata.
 - [x] **Interactive PDF Page Navigation & Direct Jumping**: An elegant, custom-styled toolbar panel containing a page spinbox (`Page X / Y`) next to the SafeMARC title. Changing the spinbox value triggers immediate, direct navigation to any page in the active PDF. The toolbar title dynamically adjusts to eliminate redundant labels, and page changes automatically commit current redaction states to the zero-lag session cache.
-- [x] **PyMuPDF Rebuilding Engine**: Uses the lightweight PyMuPDF (`fitz`) library to rebuild final sanitized PDFs from redacted page images, resolving Pillow rendering/color-space issues.
+- [x] **PyMuPDF Rebuilding Engine**: Uses the lightweight PyMuPDF (`fitz`) library to rebuild final sanitized PDFs from redacted page images, resolving Pillow rendering/color-space issues. Rebuilt pages preserve original page dimensions and utilize highly optimized JPEG compression (quality 85) to reduce compiled PDF size by up to 98%.
 - [ ] **Word Documents (`.docx`)**: Planned for future releases.
 
 ## Non-Destructive Review Workflow

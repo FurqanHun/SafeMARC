@@ -143,39 +143,31 @@ class TestPDFNavigation(unittest.TestCase):
         window.active_pdf_outputs = ["page0.png", "page1.png", "page2.png"]
         window.active_pdf_index = 0
         
-        # Load next item to trigger PDF loop processing
         window.load_next_batch_item()
         
-        # Mock PDFHandler.build_pdf to capture the compiled outputs
         from src.utils.pdf_handler import PDFHandler
         built_outputs = []
         original_build_pdf = PDFHandler.build_pdf
         try:
-            def mock_build_pdf(outputs, output_path):
+            def mock_build_pdf(outputs, output_path, *args, **kwargs):
                 nonlocal built_outputs
                 built_outputs = list(outputs)
                 return True
             PDFHandler.build_pdf = mock_build_pdf
             
-            # User reviews Page 1 (index 0) and adds a manual hit
             hit = SensitiveHit(10, 10, 15, 15, "MANUAL", 1.0)
             window.preview_widget.active_hits = [hit]
             
-            # Simulate skip remaining pages (what btn_remaining clicked triggers)
             window.active_pdf_index = len(window.active_pdf_pages)
             window.load_next_batch_item()
             
-            # Wait for thread and process events
             worker = getattr(window, "_pdf_finalize_worker", None)
             if worker:
                 while worker.isRunning():
                     QApplication.processEvents()
             
-            # Verify built_outputs has 3 items
             self.assertEqual(len(built_outputs), 3)
-            # Verify page 0 got redacted (has a temp file output path)
             self.assertNotEqual(built_outputs[0], "page0.png")
-            # Verify page 1 and 2 remained original
             self.assertEqual(built_outputs[1], "page1.png")
             self.assertEqual(built_outputs[2], "page2.png")
         finally:

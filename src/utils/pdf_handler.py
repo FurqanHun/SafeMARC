@@ -24,7 +24,6 @@ class PDFHandler:
                 except Exception:
                     pass
             page = doc.load_page(page_num)
-            # Increase resolution for OCR and redaction.
             zoom = 4.0
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)

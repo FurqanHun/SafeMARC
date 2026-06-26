@@ -3359,13 +3359,11 @@ class SafeMARCMainWindow(QMainWindow):
         item.setData(Qt.ForegroundRole, None)
 
     def load_next_batch_item(self):
-        # Update Previous button state
         can_go_back = bool(self.batch_index > 0 or (self.active_pdf_pages and self.active_pdf_index > 0))
         self.btn_previous.setEnabled(can_go_back)
 
         is_backward = getattr(self, "is_navigating_backward", False)
 
-        # PDF Sub-loop
         if self.active_pdf_pages:
             if self.active_pdf_index < len(self.active_pdf_pages):
                 page_data = self.active_pdf_pages[self.active_pdf_index]
@@ -3420,7 +3418,6 @@ class SafeMARCMainWindow(QMainWindow):
                         self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits, reviewed=reviewed)
                         self.btn_redact_next.setEnabled(True)
                         
-                        # Clear any auto-relocated focus if not focused via keyboard
                         focused = QApplication.focusWidget()
                         if not focused or focused.property("focused_via_keyboard") != "true":
                             if focused:
@@ -3441,7 +3438,6 @@ class SafeMARCMainWindow(QMainWindow):
                     self.file_list.item(self.batch_index).data(Qt.UserRole)
                 )
                 
-                # Save current page's selections before starting the background thread
                 if self.current_file_path:
                     manuals = self.preview_widget.active_hits.copy()
                     ckey = self.get_current_cache_key()
@@ -3474,7 +3470,6 @@ class SafeMARCMainWindow(QMainWindow):
                     else:
                         self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
 
-                    # Cleanup and move to next item
                     self.pdf_nav_container.hide()
                     self.active_pdf_pages = []
                     self.active_pdf_outputs = []
@@ -3488,7 +3483,6 @@ class SafeMARCMainWindow(QMainWindow):
                     print(f"Error finalizing PDF: {e}")
                     self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
 
-                    # Cleanup and move to next item
                     self.pdf_nav_container.hide()
                     self.active_pdf_pages = []
                     self.active_pdf_outputs = []
@@ -3501,7 +3495,6 @@ class SafeMARCMainWindow(QMainWindow):
                 worker.start()
                 return
 
-        # Base case: Finished queue
         if self.batch_index >= self.file_list.count():
             self.is_navigating_backward = False
             final_count = self.batch_success_count
@@ -3510,12 +3503,10 @@ class SafeMARCMainWindow(QMainWindow):
             QMessageBox.information(self, "Complete", f"Review complete.\nSuccessfully redacted {final_count} files.")
             return
             
-        # Highlight current item in the list
         item = self.file_list.item(self.batch_index)
         self.file_list.setCurrentItem(item)
         file_path = item.data(Qt.UserRole)
         
-        # Check if it's a PDF
         if file_path.lower().endswith('.pdf'):
             progress = LoadingDialog("Please Wait", "Extracting PDF pages...", self)
             progress.show()

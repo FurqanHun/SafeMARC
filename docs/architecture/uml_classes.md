@@ -114,9 +114,36 @@ classDiagram
 
     class PDFHandler {
         <<static>>
-        +extract_pages(pdf_path: str) List~dict~
+        +extract_pages(pdf_path: str, progress_callback: Optional~callable~) List~dict~
         +extract_first_page(pdf_path: str) str
         +build_pdf(page_image_paths: List~str~, out_path: str) bool
+    }
+
+    class PDFExtractWorker {
+        +Signal progress
+        +Signal finished
+        +Signal error
+        +str file_path
+        +run() void
+    }
+
+    class PDFFinalizeWorker {
+        +Signal progress
+        +Signal finished
+        +Signal error
+        +SafeScanner scanner
+        +List original_pages
+        +Dict cache
+        +str active_pdf_source
+        +str out_path
+        +run() void
+    }
+
+    class LoadingDialog {
+        +QProgressBar progress_bar
+        +QLabel spinner_label
+        +QLabel status_label
+        +update_progress(current: int, total: int) void
     }
 ```
 
@@ -142,6 +169,11 @@ classDiagram
         +int active_pdf_index
         +bool is_navigating_backward
         +QShortcut shortcut_rescan
+        +QFrame pdf_nav_container
+        +QSpinBox pdf_page_spin
+        +QLabel pdf_total_label
+        +List active_pdf_pages
+        +List active_pdf_outputs
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -159,6 +191,8 @@ classDiagram
         -_toggle_target_identity(name: str, checked: bool) void
         -_toggle_active_region(name: str, checked: bool) void
         -_rescan_current() void
+        -_on_pdf_page_changed(value: int) void
+        -_finalize_pdf_redaction() void
         +on_quick_add_identity(hit: SensitiveHit) void
         +toggle_persistent_mode(checked: bool) void
         +cleanup_temp_resources(full: bool) void
@@ -244,6 +278,7 @@ classDiagram
         +log_file: file
         +write(data: str) void
         +flush() void
+        +fileno() int
     }
 
     class KeyboardFocusFilter {
@@ -252,10 +287,13 @@ classDiagram
 
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow *-- ClickableStatusLabel
+    SafeMARCMainWindow *-- PDFExtractWorker : manages
+    SafeMARCMainWindow *-- PDFFinalizeWorker : manages
     SafeMARCMainWindow ..> SettingsDialog : opens
     SafeMARCMainWindow ..> PersistentRangeDialog : opens
     SafeMARCMainWindow ..> EngineStatusDialog : opens
     SafeMARCMainWindow ..> QuickAddIdentityDialog : opens
+    SafeMARCMainWindow ..> LoadingDialog : opens
     PreviewWidget *-- SelectableHitItem
     PreviewWidget ..> SafeMARCMainWindow : identityRequested signal
     FocusEventFilter ..> SafeMARCMainWindow : filters focus events for

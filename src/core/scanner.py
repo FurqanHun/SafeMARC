@@ -15,7 +15,6 @@ class SafeScanner:
         self.face_redaction_mode = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
         self.target_identities = [] # Names to filter on.
         
-        # Performance session caches.
         self._vision_cache = {}  # Map of file path to SensitiveHit list.
         self._regex_cache = {}   # Map of file path to SensitiveHit list.
         self._scan_cache = {}    # Map of cache key to SensitiveHit list.
@@ -63,7 +62,6 @@ class SafeScanner:
         all_hits = []
         print(f"Scanning: {file_path}")
  
-        # Text and OCR detection.
         if ckey in self._regex_cache:
             print(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
             regex_hits = self._regex_cache[ckey]
@@ -75,7 +73,6 @@ class SafeScanner:
                 regex_hits = []
             self._regex_cache[ckey] = list(regex_hits)
  
-        # Face and body detection.
         if ckey in self._vision_cache:
             print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
             vision_hits = self._vision_cache[ckey]
@@ -90,21 +87,18 @@ class SafeScanner:
         all_hits.extend(regex_hits)
         all_hits.extend(vision_hits)
  
-        # Filter hits by active redaction mode.
         final_hits = []
         for hit in all_hits:
             if hit.label.startswith("FACE") or hit.label == "BODY":
                 if self.face_redaction_mode == "ALL":
                     final_hits.append(hit)
                 elif self.face_redaction_mode == "BLACKLIST":
-                    # Redact recognized target identities.
                     if hit.identity and hit.identity in self.target_identities:
                         final_hits.append(hit)
                         print(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
                     else:
                         print(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
                 elif self.face_redaction_mode == "WHITELIST":
-                    # Redact unrecognized faces.
                     if hit.identity and hit.identity in self.target_identities:
                         print(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
                     else:

@@ -10,7 +10,7 @@ class SensitiveHit:
     y: int
     w: int
     h: int
-    label: str  # Category label.
+    label: str
     confidence: float
-    text_content: str = ""  # Text content associated with the hit.
-    identity: str = ""      # Matched identity name.
+    text_content: str = ""
+    identity: str = ""

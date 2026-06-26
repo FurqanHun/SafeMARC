@@ -21,7 +21,6 @@ class Redactor:
             return False
 
         for hit in hits:
-            # Draw filled black rectangle.
             cv2.rectangle(
                 image, (hit.x, hit.y), (hit.x + hit.w, hit.y + hit.h), (0, 0, 0), -1
             )

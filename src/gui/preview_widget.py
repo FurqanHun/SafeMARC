@@ -31,8 +31,7 @@ class SelectableHitItem(QGraphicsRectItem):
         is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.confidence < threshold)
         
         if self.is_focused:
-            # Highlight with bright blue focus border.
-            color = QColor(59, 130, 246) # Bright blue `#3B82F6`
+            color = QColor(59, 130, 246)
             self.setPen(QPen(color, 4, Qt.SolidLine))
             if self.is_selected:
                 self.setBrush(QBrush(QColor(59, 130, 246, 70)))
@@ -42,8 +41,7 @@ class SelectableHitItem(QGraphicsRectItem):
             return
 
         if is_low_conf_text:
-            # Low confidence hit.
-            color = QColor(245, 158, 11, 200) # Amber `#F59E0B`
+            color = QColor(245, 158, 11, 200)
             if self.is_selected:
                 self.setPen(QPen(color, 3))
                 self.setBrush(QBrush(QColor(245, 158, 11, 50)))
@@ -79,7 +77,6 @@ class SelectableHitItem(QGraphicsRectItem):
             
             action = menu.exec(event.screenPos())
             if action == add_action:
-                # Notify parent to handle cropping.
                 self.scene().views()[0].on_add_identity_requested(self.hit)
         
         event.accept()
@@ -112,7 +109,6 @@ class LoadingOverlay(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(15)
         
-        # Spinner spacer.
         self.spinner_spacer = QWidget()
         self.spinner_spacer.setFixedSize(60, 60)
         self.spinner_spacer.setStyleSheet("background: transparent;")
@@ -125,7 +121,7 @@ class LoadingOverlay(QWidget):
         
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
-        self.timer.start(16) # Rotation timer.
+        self.timer.start(16)
         
         self.pulse_timer = QTimer(self)
         self.pulse_timer.timeout.connect(self.update_dots)
@@ -147,7 +143,6 @@ class LoadingOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        # Draw glassmorphism background.
         painter.fillRect(self.rect(), QColor(11, 15, 25, 210))
         
         spacer_pos = self.spinner_spacer.mapTo(self, self.spinner_spacer.rect().topLeft())
@@ -213,7 +208,6 @@ class PreviewWidget(QGraphicsView):
         self.persistent_scope = scope
         self.persistent_pdf_source = pdf_source
         if enabled:
-            # Capture current manual hits.
             self.persistent_manual_hits = [h for h in self.active_hits if h.label == "MANUAL"]
         else:
             self.persistent_manual_hits = []
@@ -249,31 +243,26 @@ class PreviewWidget(QGraphicsView):
             return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h and a.label == b.label
         
         if cached_active_hits is not None and reviewed:
-            # Restore user review state.
             self.active_hits = []
             for hit in hits:
                 if any(_hits_match(hit, ch) for ch in cached_active_hits):
                     self.active_hits.append(hit)
-            # Inject cached manual hits.
             for ch in cached_active_hits:
                 if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
                     hits.append(ch)
                     self.active_hits.append(ch)
         else:
-            # Apply confidence filtering.
             self.active_hits = []
             for hit in hits:
                 is_low_conf = bool("FACE" not in hit.label and "BODY" not in hit.label and hit.label != "MANUAL" and hit.confidence < threshold)
                 if not is_low_conf:
                     self.active_hits.append(hit)
-            # Inject manual boxes from cache.
             if cached_active_hits:
                 for ch in cached_active_hits:
                     if ch.label == "MANUAL" and not any(_hits_match(ch, h) for h in hits):
                         hits.append(ch)
                         self.active_hits.append(ch)
         
-        # Inject persistent manual hits.
         if self.persistent_mode:
             should_inject = False
             if is_pdf:
@@ -297,7 +286,6 @@ class PreviewWidget(QGraphicsView):
             self.scene.removeItem(item)
         self.hit_items.clear()
         
-        # Render all hits.
         for hit in hits:
             is_sel = hit in self.active_hits
             item = SelectableHitItem(hit, self.on_hit_toggled, is_selected=is_sel)
@@ -365,7 +353,6 @@ class PreviewWidget(QGraphicsView):
             self.draw_start_point = None
             
             if rect.width() > 5 and rect.height() > 5:
-                # Constrain to image bounds.
                 if self.current_pixmap_item:
                     pixmap_rect = self.current_pixmap_item.boundingRect()
                     rect = rect.intersected(pixmap_rect)

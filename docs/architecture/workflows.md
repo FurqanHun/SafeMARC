@@ -28,27 +28,38 @@ graph TD
     F4 --> F
 
     F --> G{User Action}
-    G -- Redact Next --> H[Burn redactions & save to output file]
+    G -- Redact Next --> H{Is it a PDF?}
     G -- Skip --> I{Is it a PDF?}
     G -- Go Previous --> P{Re-entering completed PDF?}
+    G -- Change Spinbox / Jump Page --> S[Save selections to Cache & Load target page]
+    
+    S --> D1
     
     P -- Yes --> Q[Prompt User: Restart PDF from Page 1?]
     Q -- Yes --> E
     P -- No --> R[Load previous item or page]
     R --> D1
     
+    H -- No --> H_IMG[Burn redactions & save to output file]
+    H -- Yes --> H_PDF{Is it the last page?}
+    H_PDF -- No --> H_NEXT[Save selections to Cache & Load next page] --> D1
+    H_PDF -- Yes --> FIN[Trigger background PDF compilation finalization]
+    
     I -- No --> J[Mark as skipped / grey out in queue]
-    I -- Yes --> K[Prompt User: Skip Page or Skip entire PDF?]
-    K -- Page --> L[Keep current page unchanged & move to next page]
-    K -- PDF --> J
+    I -- Yes --> K{Prompt User: Skip Page, Skip Remaining, or Entire PDF?}
+    K -- Skip Page --> L{Is it the last page?}
+    L -- No --> L_NEXT[Save selections to Cache & Load next page] --> D1
+    L -- Yes --> FIN
+    K -- Skip Remaining --> M[Fast-forward index, skip unvisited, & trigger compile] --> FIN
+    K -- Entire PDF --> J
 
-    H --> M{More items in queue?}
-    J --> M
-    L --> M
+    H_IMG --> NEXT_QUEUE{More items in queue?}
+    FIN --> NEXT_QUEUE
+    J --> NEXT_QUEUE
 
-    M -- Yes --> N[Move to next queue item]
+    NEXT_QUEUE -- Yes --> N[Move to next queue item]
     N --> C
-    M -- No --> O[Processing complete]
+    NEXT_QUEUE -- No --> O[Processing complete]
 ```
 
 ---
@@ -97,6 +108,9 @@ sequenceDiagram
     autonumber
     actor User as Reviewer
     participant UI as Desktop MainWindow
+    participant LD as LoadingDialog
+    participant EW as PDFExtractWorker
+    participant FW as PDFFinalizeWorker
     participant Sc as SafeScanner
     participant IM as IdentityManager
     participant VD as VisionDetector
@@ -105,8 +119,13 @@ sequenceDiagram
 
     User->>UI: Click "Start Review"
     alt Is PDF File
-        UI->>Ph: extract_pages(file_path)
-        Ph-->>UI: List of temp page paths
+        UI->>EW: PDFExtractWorker.start()
+        loop For each page extracted
+            EW-->>UI: progress(current, total)
+            UI->>LD: update_progress()
+        end
+        EW-->>UI: finished(pages)
+        UI->>LD: close()
         loop For each page in PDF
             UI->>Sc: scan(page_path)
             Sc->>VD: detect(page_path, match_identities)
@@ -119,13 +138,21 @@ sequenceDiagram
             VD-->>Sc: List of hits with identities
             Sc->>Sc: Filter by face_redaction_mode
             Sc-->>UI: Filtered hits
-            User->>UI: Confirm / draw boxes
-            User->>UI: Click "Redact Next"
-            UI->>Rd: apply(page_path, temp_output, selected_hits)
-            Rd-->>UI: Done
+            User->>UI: Confirm / draw boxes / navigate
+            UI->>UI: Cache manual & selected hits for page
         end
-        UI->>Ph: build_pdf(temp_outputs, out_path)
-        Ph-->>UI: Final sanitized PDF
+        User->>UI: Click "Redact Next" on final page / "Skip Remaining Pages"
+        UI->>FW: PDFFinalizeWorker.start()
+        loop For each visited/reviewed page in PDF
+            FW->>Rd: apply(page_path, temp_output, selected_hits)
+            Rd-->>FW: Done
+            FW-->>UI: progress(current, total)
+            UI->>LD: update_progress()
+        end
+        FW->>Ph: build_pdf(temp_outputs, out_path)
+        Ph-->>FW: Final sanitized PDF
+        FW-->>UI: finished(success, outputs)
+        UI->>LD: close()
     else Is Image File
         UI->>Sc: scan(file_path)
         Sc->>VD: detect(file_path, match_identities)

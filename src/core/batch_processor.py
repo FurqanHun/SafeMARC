@@ -37,7 +37,6 @@ class BatchProcessor:
         elif use_suffix:
             return os.path.join(base_dir, out_name)
         else:
-            # Save to redacted output folder alongside original.
             new_dir = os.path.join(base_dir, "safemarc_redacted_output")
             return os.path.join(new_dir, out_name)
 

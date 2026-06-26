@@ -34,7 +34,6 @@ def main(args: List[str] = None):
         
     parsed_args = parse_args(args)
     
-    # Configure detectors.
     enable_faces = parsed_args.faces
     enable_text = parsed_args.text
     enable_body = parsed_args.redact_body

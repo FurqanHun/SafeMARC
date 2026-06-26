@@ -5,9 +5,10 @@
 - [x] **Stable PDF Cache Keys**: Maps randomized temporary PDF extraction paths to stable document/page keys to perfectly track PDF hits inside the zero-lag session cache.
 - [x] **Unified Resource Pooling**: All temporary files (PDF pages, cropped identities, clipboard images, and redacted assets) are securely managed inside a single system-level `safemarc_temp` directory to prevent workspace clutter and bypass Windows permission issues.
 - [x] **Graceful RAII Loop Guard**: PySide6 event loops are protected with a custom `SIGINT` signal handler and a `try-finally` Python RAII guard. This guarantees that `safemarc_temp` is securely and completely purged even if the application is killed forcefully with `Ctrl+C`.
-- [x] **Persistent Diagnostics & Logging**: Automatically initializes Python `faulthandler` to log native C/C++ segmentation faults, paired with a custom `TeeStream` redirection that writes diagnostic outputs to both standard streams and a persistent `safemarc.log` file in the XDG app data directory.
+- [x] **Persistent Diagnostics & Logging**: Automatically initializes Python `faulthandler` to log native C/C++ segmentation faults, paired with a custom `TeeStream` redirection that writes diagnostic outputs to both standard streams and a persistent `safemarc.log` file in the XDG app data directory. The logging and `TeeStream` redirection are fully resilient to headless and packaged `noconsole` environments (such as PyInstaller builds), safely checking stream existence, catching write/flush errors, and implementing a fallback `fileno()` method.
 - [x] **Safety-Focused Keyboard Focus Filter**: Replaces crash-prone PySide6 `focusChanged` signals with a custom `FocusEventFilter` to safely manage keyboard focus shifting, prevent infinite loops, and handle ESC keybindings.
-
+- [x] **Non-Blocking Background Threads & Real-Time Progress Feedback**: Migrates heavy, long-running operations (like PDF page extraction and final PDF compilation) into dedicated background `QThread` workers (`PDFExtractWorker` and `PDFFinalizeWorker`). Displays a premium, custom-styled dark-themed modal `LoadingDialog` containing an animated spinner, custom typography, and a native `QProgressBar` reporting granular page-by-page progress in real-time, eliminating GUI freezes and ensuring seamless multitasking.
+ 
 ## Core Vision Features
 - [x] **Face Detection**: Fast & accurate face scanning via Haar Cascade (OpenCV).
   - *Pose & Occlusion Robustness*: Employs a multi-cascade ensemble (frontal, alt-frontal, and side-profile) with horizontal profile-flipping, and Union-Based Bounding Box Merging (Union-NMS) to seamlessly capture tilted, rotated, posed, and partially covered faces.
@@ -19,9 +20,9 @@
 - [x] **Redact All**: Auto-redact all detected faces in a document.
 - [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.
 - [x] **Blacklist Mode**: Specifically redact only matched sensitive identities.
-
+ 
 ## Text Redaction
-- [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents.
+- [x] **Smart PDF Text Extraction & OCR Fallback**: Leverages native PDF digital text via PyMuPDF for perfect accuracy, with a highly optimized Tesseract OCR fallback (OpenCV binarization and 2x upscaling) for scanned documents. Automatically auto-locates Tesseract installation paths across multiple operating systems on startup and execution (Windows standard Program Files paths, macOS Homebrew/MacPorts, and Linux system binary paths) even if not present in the user's PATH environment variable.
 - [x] **Predefined & Dynamic Regional Patterns**: Pre-configured rules for common entities grouped by country regions. The user can toggle these regions via the UI, instantly re-evaluating matches:
   - **Global**: Credit Card numbers (Visa, Mastercard, Amex, etc.), Email Addresses, IPv4 Addresses, Names (with title prefixes e.g. Mr, Dr, Mrs), and Street Locations/Addresses.
   - **Pakistan**: National Identity Card (CNIC), Phone Numbers, Passports, Driving Licenses, and Vehicle Registration Plates.
@@ -54,7 +55,7 @@
 ## Document Support & Handling
 - [x] **Images**: Comprehensive support for modern image formats (JPG, JPEG, PNG, WEBP).
 - [x] **PDFs**: Seamless PDF page extraction, individual page review, and rasterized rebuilding to completely eliminate any hidden layers and metadata.
-- [x] **Interactive PDF Page Navigation**: An elegant, styled page navigation spinbox panel next to the title label that appears automatically when reviewing a PDF. Allows direct jumping to any page, caching user review selections on the fly, and automatically skipping unvisited pages upon final PDF compilation.
+- [x] **Interactive PDF Page Navigation & Direct Jumping**: An elegant, custom-styled toolbar panel containing a page spinbox (`Page X / Y`) next to the SafeMARC title. Changing the spinbox value triggers immediate, direct navigation to any page in the active PDF. The toolbar title dynamically adjusts to eliminate redundant labels, and page changes automatically commit current redaction states to the zero-lag session cache.
 - [x] **PyMuPDF Rebuilding Engine**: Uses the lightweight PyMuPDF (`fitz`) library to rebuild final sanitized PDFs from redacted page images, resolving Pillow rendering/color-space issues.
 - [ ] **Word Documents (`.docx`)**: Planned for future releases.
 
@@ -63,6 +64,10 @@
 - [x] **Manual Draw Tool**: Ability to toggle "Draw Box" mode (with a button or the `D` keyboard shortcut) to draw custom redaction rectangles.
 - [x] **Persistent Draw Tool**: Persistent manual redaction boxes across the entire queue or specific PDF pages for repeating layouts (toggled via the premium "Persistent Boxes" pin button).
 - [x] **Auto-Skip Clean Images**: Configurable feature to bypass images with no detected sensitive hits for a faster review.
+- [x] **Granular PDF Skipping & Skip Remaining Pages**:
+  - *Current Page*: Skips only the current page, moving to the next.
+  - *Remaining Pages*: Bypasses all upcoming pages in the document. Automatically copies unreviewed pages to the compilation stack as clean/original, commits any edits already made, and triggers background compilation to build the finalized PDF immediately.
+  - *Entire PDF*: Aborts review of the current document entirely, discarding changes, and advances the batch queue.
 - [x] **Skip Review Mode**: Configurable checkbox toggle to run fully automated review and redaction across all items.
 - [x] **Stop Review**: Option to exit the active batch review process without clearing the queue.
 - [x] **Queue Management**: Direct queue manipulation allowing users to remove any individual file before/during review.

@@ -61,7 +61,7 @@
 
 ## Non-Destructive Review Workflow
 - [x] **Manual Toggle**: Intersected regions/boxes can be untoggled before saving.
-- [x] **Manual Draw Tool**: Ability to toggle "Draw Box" mode (with a button or the `D` keyboard shortcut) to draw custom redaction rectangles.
+- [x] **Manual Draw Tool**: Ability to toggle "Draw Box" mode (with a button or the `D` keyboard shortcut) to draw custom redaction rectangles, rendered in a distinct bright purple (`#A855F7`) to separate them from automated detections.
 - [x] **Persistent Draw Tool**: Persistent manual redaction boxes across the entire queue or specific PDF pages for repeating layouts (toggled via the premium "Persistent Boxes" pin button).
 - [x] **Auto-Skip Clean Images**: Configurable feature to bypass images with no detected sensitive hits for a faster review.
 - [x] **Granular PDF Skipping & Skip Remaining Pages**:
@@ -106,10 +106,11 @@ To make reviewing sensitive matches completely intuitive and tactile, SafeMARC u
 
 | State / Match Type | Status | Outline Style | Fill Style | Identity Label | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Low-Confidence Text** | Checked (Selected) | **Solid Amber** (`#F59E0B`, thickness: 3) | **Amber Fill** (opacity: 50) | Visible (if set) | Calculated confidence falls below the user's customized text cutoff threshold, but explicitly selected for redaction. |
-| **Low-Confidence Text** | Unchecked (Unselected) | **Dashed Amber** (`#F59E0B`, thickness: 2) | **Light Amber Fill** (opacity: 15) | Hidden | "Review Suggested" state; isolated pattern match lacking context keywords. Unselected by default. |
-| **Known Face Hit** | Checked (Selected) | **Solid Green** (`#10B981`, thickness: 3) | **Green Fill** (opacity: 50) | Visible | Matched biometric face with similarity score above the face matching threshold. |
-| **High-Confidence Hit** | Checked (Selected) | **Solid Red** (`#FF0000`, thickness: 3) | **Red Fill** (opacity: 50) | Visible (if set) | High-confidence text (confidence $\ge$ threshold), generic face, body silhouette, or custom manual draw box. |
+| **Low-Confidence Text** | Checked (Selected) | **Solid Amber** (`#F59E0B`, thickness: 3) | **Amber Fill** (opacity: 80) | Visible (if set) | Calculated confidence falls below the user's customized text cutoff threshold, but explicitly selected for redaction. |
+| **Low-Confidence Text** | Unchecked (Unselected) | **Dashed Amber** (`#F59E0B`, thickness: 2) | **Light Amber Fill** (opacity: 30) | Hidden | "Review Suggested" state; isolated pattern match lacking context keywords. Unselected by default. |
+| **Known Face Hit** | Checked (Selected) | **Solid Green** (`#10B981`, thickness: 3) | **Green Fill** (opacity: 80) | Visible | Matched biometric face with similarity score above the face matching threshold. |
+| **High-Confidence Hit** | Checked (Selected) | **Solid Red** (`#EF4444`, thickness: 3) | **Red Fill** (opacity: 80) | Visible (if set) | High-confidence text (confidence $\ge$ threshold), generic face, or body silhouette. |
+| **Custom Manual Box** | Checked (Selected) | **Solid Purple** (`#A855F7`, thickness: 3) | **Purple Fill** (opacity: 80) | Hidden | Custom manual draw box defined directly by the user. |
 | **De-selected Hit** | Unchecked (Unselected) | **Dashed Grey** (`#646464`, thickness: 2) | **Transparent** (no fill) | Hidden | Standard high-confidence or generic hit that the user has unchecked to skip redacting. |
 
 For more information, please check `requirements.txt`.

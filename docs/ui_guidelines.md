@@ -16,6 +16,7 @@ The design utilizes a highly curated dark theme with vibrant emerald and ruby ac
 | Primary Accent | `#10B981` | Vibrant emerald green for primary actions |
 | Warning Accent | `#E11D48` | Ruby red for destruction or removals |
 | Dark Warning | `#BE123C` | Shadow border/focus color for warnings |
+| Manual Overrides | `#A855F7` | Vibrant purple for custom drawn regions |
 | Main Text | `#F3F4F6` | Off-white text |
 | Subdued Text | `#9CA3AF` | Light gray text for labels |
 
@@ -75,10 +76,11 @@ btn_settings.setIcon(svg_to_icon(SVG_SETTINGS))
 ### Bounding Box Color Coding & Review Suggested States
 
 To make manual review of automatic detections perfectly clear and visual, redactable regions are drawn with color-coded borders and translucent fills:
-- **High-Confidence AI Hit / Custom Manual Box** (`confidence` $\ge$ threshold): Solid Ruby Red (`#FF0000`, opacity: 50%, thickness: 3). Automatically selected for redaction.
-- **Biometric Known Identity Match**: Solid Emerald Green (`#10B981`, opacity: 50%, thickness: 3) with a floating text label showing the matched person's name.
-- **Low-Confidence / Ambiguous Text Match** (falls below the auto-redact cutoff): Solid Amber (`#F59E0B`, opacity: 50%, thickness: 3) if explicitly checked by the user; otherwise, a dashed Amber border (`#F59E0B`, opacity: 15%, thickness: 2) in the "Review Suggested" unchecked state, requesting user confirmation.
-- **Deselected Hit**: Dashed Grey (`#646464`, opacity: 0% / transparent fill, thickness: 2). Hit is ignored and will not be redacted when saving.
+- **Biometric Known Identity Match**: Solid Emerald Green (`#10B981`, opacity: 80%, thickness: 3) with a floating text label showing the matched person's name.
+- **High-Confidence AI Hit (Vision/Body)**: Solid Ruby Red (`#EF4444`, opacity: 80%, thickness: 3). Automatically selected for redaction.
+- **Custom Manual Box / Drawing Preview**: Solid Purple/Violet (`#A855F7`, opacity: 80%, thickness: 3) if selected/drawn; otherwise, dashed Grey (`#646464`, transparent fill, thickness: 2) if deselected.
+- **Low-Confidence / Ambiguous Text Match** (falls below the auto-redact cutoff): Solid Amber/Yellow (`#FBBF24` / `#F59E0B`, opacity: 80%, thickness: 3) if selected; otherwise, dashed Amber (`#F59E0B`, opacity: 30%, thickness: 2) in the "Review Suggested" unchecked state.
+- **Deselected Hit**: Dashed Grey (`#646464`, transparent fill, thickness: 2). Hit is ignored and will not be redacted when saving.
 
 ## Keyboard Focus & Accessibility Guidelines
 

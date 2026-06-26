@@ -28,7 +28,7 @@ class SelectableHitItem(QGraphicsRectItem):
     def update_style(self):
         settings = QSettings("SafeMARC", "SafeMARC")
         threshold = int(settings.value("model_text_conf", 70))
-        is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.confidence < threshold)
+        is_low_conf_text = bool("FACE" not in self.hit.label and "BODY" not in self.hit.label and self.hit.label != "MANUAL" and self.hit.confidence < threshold)
         
         if self.is_focused:
             color = QColor(59, 130, 246)
@@ -40,23 +40,33 @@ class SelectableHitItem(QGraphicsRectItem):
             if self.text_item: self.text_item.setVisible(True)
             return
 
+        if self.hit.label == "MANUAL":
+            color = QColor(168, 85, 247)
+            if self.is_selected:
+                self.setPen(QPen(color, 3, Qt.SolidLine))
+                self.setBrush(QBrush(QColor(168, 85, 247, 80)))
+            else:
+                self.setPen(QPen(QColor(100, 100, 100, 255), 2, Qt.DashLine))
+                self.setBrush(QBrush(QColor(0, 0, 0, 0)))
+            return
+
         if is_low_conf_text:
-            color = QColor(245, 158, 11, 200)
+            color = QColor(245, 158, 11)
             if self.is_selected:
                 self.setPen(QPen(color, 3))
-                self.setBrush(QBrush(QColor(245, 158, 11, 50)))
+                self.setBrush(QBrush(QColor(245, 158, 11, 80)))
             else:
                 self.setPen(QPen(color, 2, Qt.DashLine))
-                self.setBrush(QBrush(QColor(245, 158, 11, 15)))
+                self.setBrush(QBrush(QColor(245, 158, 11, 30)))
             if self.text_item: self.text_item.setVisible(self.is_selected)
         else:
             if self.is_selected:
-                color = QColor(16, 185, 129, 200) if self.hit.identity else QColor(255, 0, 0, 200)
+                color = QColor(16, 185, 129) if self.hit.identity else QColor(239, 68, 68)
                 self.setPen(QPen(color, 3))
-                self.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), 50)))
+                self.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), 80)))
                 if self.text_item: self.text_item.setVisible(True)
             else:
-                self.setPen(QPen(QColor(100, 100, 100, 200), 2, Qt.DashLine))
+                self.setPen(QPen(QColor(100, 100, 100, 255), 2, Qt.DashLine))
                 self.setBrush(QBrush(QColor(0, 0, 0, 0)))
                 if self.text_item: self.text_item.setVisible(False)
 
@@ -327,8 +337,8 @@ class PreviewWidget(QGraphicsView):
         if self.drawing_mode and event.button() == Qt.LeftButton:
             self.draw_start_point = self.mapToScene(event.pos())
             self.current_drawing_rect = QGraphicsRectItem()
-            self.current_drawing_rect.setPen(QPen(QColor(255, 0, 0), 2, Qt.DashLine))
-            self.current_drawing_rect.setBrush(QBrush(QColor(255, 0, 0, 30)))
+            self.current_drawing_rect.setPen(QPen(QColor(168, 85, 247), 2, Qt.DashLine))
+            self.current_drawing_rect.setBrush(QBrush(QColor(168, 85, 247, 30)))
             self.scene.addItem(self.current_drawing_rect)
             event.accept()
         else:

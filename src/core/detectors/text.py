@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 
 import pytesseract
 from PIL import Image
@@ -10,13 +10,13 @@ from src.core.types import SensitiveHit
 
 
 class RegexDetector(BaseDetector):
-    def __init__(self):
-        self.custom_patterns = []
-        self.cached_image_path = None
-        self.cached_pdf_words = None
-        self.cached_data_list = []
+    def __init__(self) -> None:
+        self.custom_patterns: List[dict] = []
+        self.cached_image_path: Optional[str] = None
+        self.cached_pdf_words: Optional[list] = None
+        self.cached_data_list: List[tuple] = []
 
-    def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False, keywords: list = None):
+    def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False, keywords: Optional[List[str]] = None) -> None:
         if not is_regex:
             pattern = re.escape(pattern)
             if is_whole_word:
@@ -32,10 +32,10 @@ class RegexDetector(BaseDetector):
         except re.error as e:
             print(f"Failed to compile regex pattern '{pattern}': {e}")
 
-    def clear_custom_patterns(self):
+    def clear_custom_patterns(self) -> None:
         self.custom_patterns.clear()
 
-    def detect(self, image_path: str, pdf_words: list = None) -> List[SensitiveHit]:
+    def detect(self, image_path: str, pdf_words: Optional[list] = None) -> List[SensitiveHit]:
         if not self.custom_patterns:
             return []
             
@@ -103,7 +103,7 @@ class RegexDetector(BaseDetector):
             self.cached_pdf_words = pdf_words
             self.cached_data_list = new_cached_list
 
-        def boxes_overlap_heavily(b1, b2) -> bool:
+        def boxes_overlap_heavily(b1: SensitiveHit, b2: SensitiveHit) -> bool:
             x_left = max(b1.x, b2.x)
             y_top = max(b1.y, b2.y)
             x_right = min(b1.x + b1.w, b2.x + b2.w)

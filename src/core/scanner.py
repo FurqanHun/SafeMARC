@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Optional
 from src.core.detectors.text import RegexDetector
 from src.core.detectors.vision import VisionDetector
 from src.core.redactor import Redactor
@@ -12,34 +12,34 @@ class SafeScanner:
         self.text_detector = RegexDetector()
         self.detectors = [self.text_detector, self.vision_detector]
         self.redactor = Redactor()
-        self.face_redaction_mode = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
-        self.target_identities = [] # Names to filter on.
+        self.face_redaction_mode: str = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
+        self.target_identities: List[str] = [] # Names to filter on.
         
-        self._vision_cache = {}  # Map of file path to SensitiveHit list.
-        self._regex_cache = {}   # Map of file path to SensitiveHit list.
-        self._scan_cache = {}    # Map of cache key to SensitiveHit list.
+        self._vision_cache: Dict[str, List[SensitiveHit]] = {}  # Map of file path to SensitiveHit list.
+        self._regex_cache: Dict[str, List[SensitiveHit]] = {}   # Map of file path to SensitiveHit list.
+        self._scan_cache: Dict[str, List[SensitiveHit]] = {}    # Map of cache key to SensitiveHit list.
         
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         self._vision_cache = {}
         self._regex_cache = {}
         self._scan_cache = {}
         print("[SafeScanner] Session scan caches cleared.")
         
-    def clear_vision_cache(self):
+    def clear_vision_cache(self) -> None:
         self._vision_cache = {}
         self._scan_cache = {}
         print("[SafeScanner] Vision caches cleared.")
         
-    def set_vision_mode(self, mode: str):
+    def set_vision_mode(self, mode: str) -> None:
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
         self.detectors = [self.text_detector, self.vision_detector]
         self.clear_cache()
  
-    def set_face_redaction_mode(self, mode: str):
+    def set_face_redaction_mode(self, mode: str) -> None:
         self.face_redaction_mode = mode
         self.clear_cache()
  
-    def set_text_patterns(self, patterns_list):
+    def set_text_patterns(self, patterns_list: List[dict]) -> None:
         self.text_detector.clear_custom_patterns()
         for p in patterns_list:
             if p["pattern"].strip():
@@ -52,7 +52,7 @@ class SafeScanner:
                 )
         self.clear_cache()
  
-    def scan(self, file_path: str, pdf_words: list = None, cache_key: str = None) -> List[SensitiveHit]:
+    def scan(self, file_path: str, pdf_words: Optional[list] = None, cache_key: Optional[str] = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""
         ckey = cache_key if cache_key else file_path
         if ckey in self._scan_cache:
@@ -111,11 +111,11 @@ class SafeScanner:
         self._scan_cache[ckey] = list(final_hits)
         return final_hits
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         for detector in self.detectors:
             if hasattr(detector, "cleanup"):
                 detector.cleanup()
 
-    def redact(self, file_path: str, output_path: str, hits: List[SensitiveHit]):
+    def redact(self, file_path: str, output_path: str, hits: List[SensitiveHit]) -> bool:
         """Applies redaction based on hits."""
         return self.redactor.apply(file_path, output_path, hits)

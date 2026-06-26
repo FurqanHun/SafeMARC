@@ -1,9 +1,10 @@
 import sys
 import os
 import contextlib
+from typing import Generator
 
 @contextlib.contextmanager
-def pytesseract_env():
+def pytesseract_env() -> Generator[None, None, None]:
     """Context manager to temporarily restore the original LD_LIBRARY_PATH for Tesseract subprocesses."""
     import shutil
     import pytesseract
@@ -45,7 +46,7 @@ def pytesseract_env():
             os.environ.clear()
             os.environ.update(original_env)
 
-def resource_path(relative_path):
+def resource_path(relative_path: str) -> str:
     """Get absolute path to resource, handling PyInstaller packaging."""
     try:
         base_path = sys._MEIPASS
@@ -54,7 +55,7 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-def get_app_data_dir(app_name="SafeMARC"):
+def get_app_data_dir(app_name: str = "SafeMARC") -> str:
     """
     Get the appropriate application data directory across different OSes.
     Respects XDG Base Directory Specification on Linux.

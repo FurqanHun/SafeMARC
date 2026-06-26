@@ -1,11 +1,12 @@
 import os
 import tempfile
+from typing import List, Dict, Optional, Tuple, Callable
 import fitz  # PyMuPDF
 from PIL import Image
 
 class PDFHandler:
     @staticmethod
-    def extract_pages(pdf_path: str, progress_callback=None) -> list[dict]:
+    def extract_pages(pdf_path: str, progress_callback: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
         """
         Extracts all pages of a PDF to a temporary directory as high-quality PNGs.
         Returns a list of dicts with file paths and word bounding boxes:
@@ -48,7 +49,7 @@ class PDFHandler:
         return pages_data
 
     @staticmethod
-    def extract_first_page(pdf_path: str) -> str:
+    def extract_first_page(pdf_path: str) -> Optional[str]:
         doc = fitz.open(pdf_path)
         if len(doc) > 0:
             safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
@@ -64,7 +65,7 @@ class PDFHandler:
         return None
 
     @staticmethod
-    def build_pdf(image_paths: list[str], output_pdf_path: str, page_sizes: list = None) -> bool:
+    def build_pdf(image_paths: List[str], output_pdf_path: str, page_sizes: Optional[List[Tuple[float, float]]] = None) -> bool:
         """
         Combines a list of image paths into a single PDF.
         """

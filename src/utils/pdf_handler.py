@@ -79,6 +79,8 @@ class PDFHandler:
 
             doc = fitz.open()
             for idx, img_path in enumerate(image_paths):
+                import time
+                time.sleep(0.01)
                 fd, temp_jpg = tempfile.mkstemp(suffix=".jpg")
                 os.close(fd)
                 temp_files.append(temp_jpg)

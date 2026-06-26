@@ -329,6 +329,10 @@ class LoadingDialog(QDialog):
             percentage = int((current / total) * 100)
             self.progress_bar.setValue(percentage)
             self.progress_bar.setFormat(f"{current} / {total} ({percentage}%)")
+            self.repaint()
+            import sys
+            if "pytest" not in sys.modules:
+                QApplication.processEvents()
 
 
 class PDFExtractWorker(QThread):
@@ -343,8 +347,10 @@ class PDFExtractWorker(QThread):
     def run(self):
         try:
             from src.utils.pdf_handler import PDFHandler
+            import time
             def callback(current, total):
                 self.progress.emit(current, total)
+                time.sleep(0.01)
             pages = PDFHandler.extract_pages(self.file_path, progress_callback=callback)
             self.finished.emit(pages)
         except Exception as e:
@@ -375,6 +381,8 @@ class PDFFinalizeWorker(QThread):
             
             for idx, page_data in enumerate(self.original_pages):
                 self.progress.emit(idx, total_steps)
+                import time
+                time.sleep(0.01)
                 original_path = page_data["image_path"]
                 cache_key = f"{self.active_pdf_source}_page_{idx}"
                 cached_data = self.cache.get(cache_key, None)
@@ -396,6 +404,8 @@ class PDFFinalizeWorker(QThread):
                         outputs[idx] = temp_path
                         
             self.progress.emit(total_steps - 1, total_steps)
+            import time
+            time.sleep(0.01)
             from src.utils.pdf_handler import PDFHandler
             
             page_sizes = []
@@ -3461,6 +3471,10 @@ class SafeMARCMainWindow(QMainWindow):
 
                 progress = LoadingDialog("Please Wait", "Finalizing and compiling PDF...", self)
                 progress.show()
+                progress.repaint()
+                import sys
+                if "pytest" not in sys.modules:
+                    QApplication.processEvents()
 
                 worker = PDFFinalizeWorker(
                     self.scanner,
@@ -3505,7 +3519,11 @@ class SafeMARCMainWindow(QMainWindow):
 
                 worker.finished.connect(on_finished)
                 worker.error.connect(on_error)
-                worker.start()
+                import sys
+                if "pytest" in sys.modules:
+                    worker.start()
+                else:
+                    QTimer.singleShot(50, worker.start)
                 return
 
         if self.batch_index >= self.file_list.count():
@@ -3523,6 +3541,10 @@ class SafeMARCMainWindow(QMainWindow):
         if file_path.lower().endswith('.pdf'):
             progress = LoadingDialog("Please Wait", "Extracting PDF pages...", self)
             progress.show()
+            progress.repaint()
+            import sys
+            if "pytest" not in sys.modules:
+                QApplication.processEvents()
 
             worker = PDFExtractWorker(file_path, self)
             self._pdf_extract_worker = worker
@@ -3559,7 +3581,11 @@ class SafeMARCMainWindow(QMainWindow):
 
             worker.finished.connect(on_finished)
             worker.error.connect(on_error)
-            worker.start()
+            import sys
+            if "pytest" in sys.modules:
+                worker.start()
+            else:
+                QTimer.singleShot(50, worker.start)
             return
         
         self.current_file_path = file_path

@@ -94,6 +94,12 @@ class TestPDFNavigation(unittest.TestCase):
         # 4. Finalize PDF redaction
         window._finalize_pdf_redaction()
         
+        worker = getattr(window, "_pdf_finalize_worker", None)
+        if worker:
+            while worker.isRunning():
+                QApplication.processEvents()
+            worker.wait()
+        
         # Verify Page 1 (index 0) got redacted (has a temp file output path)
         self.assertNotEqual(window.active_pdf_outputs[0], "page0.png")
         self.assertTrue(window.active_pdf_outputs[0].endswith(".png"))
@@ -110,6 +116,10 @@ class TestPDFNavigation(unittest.TestCase):
             if out.startswith("/tmp") or "safemarc_temp" in out:
                 if os.path.exists(out):
                     os.remove(out)
+        window.is_batch_mode = False
+        window.active_pdf_pages = []
+        window.file_list.clear()
+        QApplication.processEvents()
 
     def test_skip_remaining_pages(self):
         class MockScanner:
@@ -165,6 +175,7 @@ class TestPDFNavigation(unittest.TestCase):
             if worker:
                 while worker.isRunning():
                     QApplication.processEvents()
+                worker.wait()
             
             self.assertEqual(len(built_outputs), 3)
             self.assertNotEqual(built_outputs[0], "page0.png")
@@ -172,6 +183,10 @@ class TestPDFNavigation(unittest.TestCase):
             self.assertEqual(built_outputs[2], "page2.png")
         finally:
             PDFHandler.build_pdf = original_build_pdf
+            window.is_batch_mode = False
+            window.active_pdf_pages = []
+            window.file_list.clear()
+            QApplication.processEvents()
 
 if __name__ == "__main__":
     unittest.main()

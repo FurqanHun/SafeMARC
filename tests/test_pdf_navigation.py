@@ -147,6 +147,12 @@ class TestPDFNavigation(unittest.TestCase):
             window.active_pdf_index = len(window.active_pdf_pages)
             window.load_next_batch_item()
             
+            # Wait for thread and process events
+            worker = getattr(window, "_pdf_finalize_worker", None)
+            if worker:
+                while worker.isRunning():
+                    QApplication.processEvents()
+            
             # Verify built_outputs has 3 items
             self.assertEqual(len(built_outputs), 3)
             # Verify page 0 got redacted (has a temp file output path)

@@ -274,6 +274,73 @@ class ScanWorker(QThread):
             self.error.emit(e)
 
 
+class PDFExtractWorker(QThread):
+    finished = Signal(list)
+    error = Signal(Exception)
+
+    def __init__(self, file_path):
+        super().__init__()
+        self.file_path = file_path
+
+    def run(self):
+        try:
+            from src.utils.pdf_handler import PDFHandler
+            pages = PDFHandler.extract_pages(self.file_path)
+            self.finished.emit(pages)
+        except Exception as e:
+            self.error.emit(e)
+
+
+class PDFFinalizeWorker(QThread):
+    finished = Signal(bool, list)
+    error = Signal(Exception)
+
+    def __init__(self, scanner, original_pages, cache, active_pdf_source, out_path):
+        super().__init__()
+        self.scanner = scanner
+        self.original_pages = original_pages
+        self.cache = cache
+        self.active_pdf_source = active_pdf_source
+        self.out_path = out_path
+
+    def run(self):
+        try:
+            import tempfile
+            redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
+            os.makedirs(redacted_dir, exist_ok=True)
+            
+            # Start with original image paths
+            outputs = [p["image_path"] for p in self.original_pages]
+            
+            for idx, page_data in enumerate(self.original_pages):
+                original_path = page_data["image_path"]
+                cache_key = f"{self.active_pdf_source}_page_{idx}"
+                cached_data = self.cache.get(cache_key, None)
+                
+                is_visited = False
+                active_hits = []
+                if isinstance(cached_data, dict):
+                    is_visited = cached_data.get("reviewed", False)
+                    active_hits = cached_data.get("active_hits", [])
+                    
+                if not is_visited:
+                    continue
+                    
+                if active_hits:
+                    fd, temp_path = tempfile.mkstemp(suffix=".png", dir=redacted_dir)
+                    os.close(fd)
+                    success = self.scanner.redact(original_path, temp_path, active_hits)
+                    if success:
+                        outputs[idx] = temp_path
+                        
+            # Build the PDF
+            from src.utils.pdf_handler import PDFHandler
+            success = PDFHandler.build_pdf(outputs, self.out_path)
+            self.finished.emit(success, outputs)
+        except Exception as e:
+            self.error.emit(e)
+
+
 def apply_focus_indicators(parent):
     from PySide6.QtWidgets import QWidget, QPushButton, QCheckBox, QComboBox, QLineEdit, QListWidget, QSlider, QRadioButton
     for child in parent.findChildren(QWidget):
@@ -3308,22 +3375,91 @@ class SafeMARCMainWindow(QMainWindow):
                 out_path = self.get_redacted_output_path(
                     self.file_list.item(self.batch_index).data(Qt.UserRole)
                 )
-                self._finalize_pdf_redaction()
-                success = PDFHandler.build_pdf(self.active_pdf_outputs, out_path)
-
-                if success:
-                    self.batch_success_count += 1
-                    self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
-                else:
-                    self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
                 
-                # Cleanup and move to next item
-                self.pdf_nav_container.hide()
-                self.active_pdf_pages = []
-                self.active_pdf_outputs = []
-                self.batch_index += 1
-                self.title_label.setText("🛡️ SafeMARC")
-                QTimer.singleShot(0, self.load_next_batch_item)
+                # Save current page's selections before starting the background thread
+                if self.current_file_path:
+                    manuals = self.preview_widget.active_hits.copy()
+                    ckey = self.get_current_cache_key()
+                    self.user_selections_cache[ckey] = {
+                        "active_hits": manuals,
+                        "reviewed": True
+                    }
+
+                progress = QProgressDialog("Finalizing and compiling PDF...", None, 0, 0, self)
+                progress.setWindowTitle("Please Wait")
+                progress.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+                progress.setWindowModality(Qt.WindowModal)
+                progress.setMinimumDuration(0)
+                progress.setStyleSheet("""
+                    QProgressDialog {
+                        background-color: #0B0F19;
+                        border: 1px solid #374151;
+                        border-radius: 8px;
+                    }
+                    QLabel {
+                        color: #F3F4F6;
+                        font-size: 13px;
+                        font-weight: 600;
+                        margin-bottom: 8px;
+                    }
+                    QProgressBar {
+                        background-color: #1F2937;
+                        border: 1px solid #4B5563;
+                        border-radius: 4px;
+                        text-align: center;
+                        color: #FFFFFF;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #10B981;
+                    }
+                """)
+                progress.show()
+
+                worker = PDFFinalizeWorker(
+                    self.scanner,
+                    self.active_pdf_pages,
+                    self.user_selections_cache,
+                    self.active_pdf_source,
+                    out_path
+                )
+                self._pdf_finalize_worker = worker
+
+                def on_finished(success, outputs):
+                    progress.close()
+                    self._pdf_finalize_worker = None
+                    self.active_pdf_outputs = outputs
+
+                    if success:
+                        self.batch_success_count += 1
+                        self.file_list.item(self.batch_index).setForeground(QColor("#4CAF50"))
+                    else:
+                        self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
+
+                    # Cleanup and move to next item
+                    self.pdf_nav_container.hide()
+                    self.active_pdf_pages = []
+                    self.active_pdf_outputs = []
+                    self.batch_index += 1
+                    self.title_label.setText("🛡️ SafeMARC")
+                    QTimer.singleShot(0, self.load_next_batch_item)
+
+                def on_error(e):
+                    progress.close()
+                    self._pdf_finalize_worker = None
+                    print(f"Error finalizing PDF: {e}")
+                    self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
+
+                    # Cleanup and move to next item
+                    self.pdf_nav_container.hide()
+                    self.active_pdf_pages = []
+                    self.active_pdf_outputs = []
+                    self.batch_index += 1
+                    self.title_label.setText("🛡️ SafeMARC")
+                    QTimer.singleShot(0, self.load_next_batch_item)
+
+                worker.finished.connect(on_finished)
+                worker.error.connect(on_error)
+                worker.start()
                 return
 
         # Base case: Finished queue
@@ -3342,24 +3478,72 @@ class SafeMARCMainWindow(QMainWindow):
         
         # Check if it's a PDF
         if file_path.lower().endswith('.pdf'):
-            try:
-                self.active_pdf_source = file_path
-                self.active_pdf_pages = PDFHandler.extract_pages(file_path)
-                if is_backward:
-                    self.active_pdf_index = len(self.active_pdf_pages) - 1
-                else:
-                    self.active_pdf_index = 0
-                self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
-                self.active_pdf_has_redactions = False
-                QTimer.singleShot(0, self.load_next_batch_item)
-                return
-            except Exception as e:
+            progress = QProgressDialog("Extracting PDF pages...", None, 0, 0, self)
+            progress.setWindowTitle("Please Wait")
+            progress.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setStyleSheet("""
+                QProgressDialog {
+                    background-color: #0B0F19;
+                    border: 1px solid #374151;
+                    border-radius: 8px;
+                }
+                QLabel {
+                    color: #F3F4F6;
+                    font-size: 13px;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                }
+                QProgressBar {
+                    background-color: #1F2937;
+                    border: 1px solid #4B5563;
+                    border-radius: 4px;
+                    text-align: center;
+                    color: #FFFFFF;
+                }
+                QProgressBar::chunk {
+                    background-color: #10B981;
+                }
+            """)
+            progress.show()
+
+            worker = PDFExtractWorker(file_path)
+            self._pdf_extract_worker = worker
+
+            def on_finished(pages):
+                progress.close()
+                self._pdf_extract_worker = None
+                try:
+                    self.active_pdf_source = file_path
+                    self.active_pdf_pages = pages
+                    if is_backward:
+                        self.active_pdf_index = len(self.active_pdf_pages) - 1
+                    else:
+                        self.active_pdf_index = 0
+                    self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
+                    self.active_pdf_has_redactions = False
+                    QTimer.singleShot(0, self.load_next_batch_item)
+                except Exception as e:
+                    self.is_navigating_backward = False
+                    item.setForeground(QColor("#d32f2f"))
+                    print(f"Error handling extracted PDF: {e}")
+                    self.batch_index += 1
+                    QTimer.singleShot(0, self.load_next_batch_item)
+
+            def on_error(e):
+                progress.close()
+                self._pdf_extract_worker = None
                 self.is_navigating_backward = False
                 item.setForeground(QColor("#d32f2f"))
                 print(f"Error extracting PDF: {e}")
                 self.batch_index += 1
                 QTimer.singleShot(0, self.load_next_batch_item)
-                return
+
+            worker.finished.connect(on_finished)
+            worker.error.connect(on_error)
+            worker.start()
+            return
         
         self.current_file_path = file_path
         self.current_hits = []

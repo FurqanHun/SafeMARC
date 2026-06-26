@@ -3034,8 +3034,9 @@ class SafeMARCMainWindow(QMainWindow):
             from PySide6.QtWidgets import QMessageBox
             msg_box = QMessageBox(self)
             msg_box.setWindowTitle("Skip Action")
-            msg_box.setText("Would you like to skip only the current page or the entire PDF?")
+            msg_box.setText("Choose how you would like to proceed with skipping:")
             btn_page = msg_box.addButton("Current Page", QMessageBox.AcceptRole)
+            btn_remaining = msg_box.addButton("Remaining Pages", QMessageBox.ActionRole)
             btn_pdf = msg_box.addButton("Entire PDF", QMessageBox.ActionRole)
             btn_cancel = msg_box.addButton("Cancel", QMessageBox.RejectRole)
             msg_box.setStyleSheet("""
@@ -3057,6 +3058,10 @@ class SafeMARCMainWindow(QMainWindow):
             
             if msg_box.clickedButton() == btn_page:
                 self.active_pdf_index += 1
+                self.load_next_batch_item()
+                return
+            elif msg_box.clickedButton() == btn_remaining:
+                self.active_pdf_index = len(self.active_pdf_pages)
                 self.load_next_batch_item()
                 return
             elif msg_box.clickedButton() == btn_pdf:

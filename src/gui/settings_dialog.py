@@ -406,7 +406,8 @@ class SettingsDialog(QDialog):
         gen_layout.addWidget(lbl_desc)
 
         self.chk_global_output = QCheckBox("Always save redacted files to the global output folder")
-        always_use_global = self.settings.value("always_use_global_output", "false") == "true" or self.settings.value("always_use_global_output", False) is True
+        val_always = self.settings.value("always_use_global_output")
+        always_use_global = True if val_always is None else (str(val_always).lower() == "true")
         self.chk_global_output.setChecked(always_use_global)
         self.chk_global_output.toggled.connect(self._on_global_output_toggled)
         gen_layout.addWidget(self.chk_global_output)

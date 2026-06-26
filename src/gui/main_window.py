@@ -2997,7 +2997,8 @@ class SafeMARCMainWindow(QMainWindow):
         from PySide6.QtCore import QSettings, QStandardPaths
         settings = QSettings("SafeMARC", "SafeMARC")
         
-        always_global = settings.value("always_use_global_output", "false") == "true" or settings.value("always_use_global_output", False) is True
+        val_always = settings.value("always_use_global_output")
+        always_global = True if val_always is None else (str(val_always).lower() == "true")
         
         global_dir = settings.value("global_output_dir", "")
         if not global_dir:

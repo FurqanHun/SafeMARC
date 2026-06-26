@@ -1,6 +1,6 @@
 import os
 import threading
-from typing import List
+from typing import List, Optional
 
 import cv2
 import numpy as np
@@ -13,11 +13,12 @@ from src.core.types import SensitiveHit
 from src.utils.paths import resource_path
 
 
-# Score threshold for YuNet face detection (0.0–1.0).
-# Lower values recall more faces at the cost of precision.
-_YUNET_SCORE_THRESH = 0.60
+_YUNET_SCORE_THRESH = 0.70   # Higher threshold reduces lip/eye false positives.
 _YUNET_NMS_THRESH   = 0.30
 _YUNET_TOP_K        = 5000
+
+# Downscale images wider/taller than this before the large-face detection pass.
+_LARGE_FACE_MAX_DIM = 640
 
 
 def _load_yunet(model_path: str, input_size: tuple) -> cv2.FaceDetectorYN:
@@ -59,26 +60,106 @@ class VisionDetector(BaseDetector):
             if not os.path.exists(yunet_path):
                 raise FileNotFoundError(
                     f"Missing YuNet model: {yunet_path}\n"
-                    "Download it with:\n"
+                    "Download with:\n"
                     "  curl -L -o assets/face_detection_yunet_2023mar.onnx "
                     "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/"
                     "face_detection_yunet_2023mar.onnx"
                 )
-            # YuNet detector is created per-call with the actual image size, but
-            # we store the model path for thread-local instantiation.
             self._yunet_model_path = yunet_path
 
-    def _get_yunet(self, width: int, height: int) -> cv2.FaceDetectorYN:
-        """Return a thread-local YuNet instance, re-created when input size changes."""
-        detector = getattr(self._local, "yunet", None)
-        last_size = getattr(self._local, "yunet_size", None)
+    # ------------------------------------------------------------------
+    # Thread-local YuNet instances (keyed by input size)
+    # ------------------------------------------------------------------
 
-        if detector is None or last_size != (width, height):
-            detector = _load_yunet(self._yunet_model_path, (width, height))
-            self._local.yunet = detector
-            self._local.yunet_size = (width, height)
+    def _get_yunet(self, w: int, h: int) -> cv2.FaceDetectorYN:
+        """Native-resolution thread-local YuNet, re-created when size changes."""
+        if (getattr(self._local, "yunet", None) is None
+                or getattr(self._local, "yunet_size", None) != (w, h)):
+            self._local.yunet = _load_yunet(self._yunet_model_path, (w, h))
+            self._local.yunet_size = (w, h)
+        return self._local.yunet
 
-        return detector
+    def _get_yunet_small(self, w: int, h: int) -> cv2.FaceDetectorYN:
+        """Downscaled-pass thread-local YuNet instance."""
+        if (getattr(self._local, "yunet_small", None) is None
+                or getattr(self._local, "yunet_small_size", None) != (w, h)):
+            self._local.yunet_small = _load_yunet(self._yunet_model_path, (w, h))
+            self._local.yunet_small_size = (w, h)
+        return self._local.yunet_small
+
+    # ------------------------------------------------------------------
+    # Multi-scale detection + NMS
+    # ------------------------------------------------------------------
+
+    def _multi_scale_detect(self, cv_image: np.ndarray, w_img: int, h_img: int) -> list:
+        """
+        Run YuNet at native resolution, then at a downscaled resolution when
+        the image is large (catches portrait-sized faces > 300px which YuNet's
+        training range doesn't cover at native scale).  Results are merged with
+        containment-aware NMS.
+        """
+        all_dets = []
+
+        # Pass 1: native resolution — catches small/medium faces.
+        yunet = self._get_yunet(w_img, h_img)
+        _, dets = yunet.detect(cv_image)
+        if dets is not None:
+            all_dets.extend(dets.tolist())
+
+        # Pass 2: downscaled — catches large faces (portraits, close-ups).
+        if max(w_img, h_img) > _LARGE_FACE_MAX_DIM:
+            scale = _LARGE_FACE_MAX_DIM / max(w_img, h_img)
+            sw = max(1, int(w_img * scale))
+            sh = max(1, int(h_img * scale))
+            small = cv2.resize(cv_image, (sw, sh), interpolation=cv2.INTER_AREA)
+
+            yunet_s = self._get_yunet_small(sw, sh)
+            _, dets_s = yunet_s.detect(small)
+            if dets_s is not None:
+                for d in dets_s.tolist():
+                    d_up = list(d)
+                    # Scale bbox + 5 landmarks (indices 0-13) back to original coords.
+                    for i in range(14):
+                        d_up[i] = d_up[i] / scale
+                    all_dets.append(d_up)
+
+        return self._nms(all_dets)
+
+    def _nms(self, detections: list, iou_thresh: float = 0.40) -> list:
+        """
+        Greedy NMS sorted by confidence.  Uses containment ratio instead of
+        pure IoU so that sub-face detections (lips, eyes) inside a larger face
+        box are suppressed even when their IoU with the face box is low.
+        """
+        if not detections:
+            return []
+
+        dets = sorted(detections, key=lambda d: float(d[-1]), reverse=True)
+        kept = []
+
+        for det in dets:
+            bx, by, bw, bh = det[0], det[1], det[2], det[3]
+            suppressed = False
+            for k in kept:
+                kx, ky, kw, kh = k[0], k[1], k[2], k[3]
+                ix = max(bx, kx);  iy = max(by, ky)
+                iw = min(bx + bw, kx + kw) - ix
+                ih = min(by + bh, ky + kh) - iy
+                if iw > 0 and ih > 0:
+                    inter = iw * ih
+                    # Suppress if the smaller box is mostly inside the larger one.
+                    min_area = min(bw * bh, kw * kh)
+                    if inter / max(min_area, 1) > iou_thresh:
+                        suppressed = True
+                        break
+            if not suppressed:
+                kept.append(det)
+
+        return kept
+
+    # ------------------------------------------------------------------
+    # Public detect
+    # ------------------------------------------------------------------
 
     def detect(self, image_path: str, match_identities: bool = True) -> List[SensitiveHit]:
         abs_path = os.path.abspath(image_path)
@@ -86,66 +167,51 @@ class VisionDetector(BaseDetector):
         if cv_image is None:
             return []
 
-        hits = []
-
         if self.mode == "text":
             return []
-
         if self.mode == "faces":
-            hits = self._detect_faces(cv_image, match_identities)
-
-        elif self.mode == "bodies":
-            hits = self._detect_bodies(cv_image)
-
-        return hits
+            return self._detect_faces(cv_image, match_identities)
+        if self.mode == "bodies":
+            return self._detect_bodies(cv_image)
+        return []
 
     def _detect_faces(self, cv_image: np.ndarray, match_identities: bool) -> List[SensitiveHit]:
-        """Run YuNet face detection and optionally match identities via SFace/LBPH."""
+        """
+        Multi-scale YuNet detection with landmark-aligned SFace matching.
+        The full 15-element detection row (bbox + landmarks + score) is passed
+        to IdentityManager.match_face_aligned so it can use cv2.FaceRecognizerSF
+        .alignCrop() for geometrically correct face alignment before embedding.
+        """
         h_img, w_img = cv_image.shape[:2]
-
-        yunet = self._get_yunet(w_img, h_img)
-
-        # YuNet expects BGR input directly (no grayscale conversion needed).
-        _, detections = yunet.detect(cv_image)
+        raw_dets = self._multi_scale_detect(cv_image, w_img, h_img)
 
         hits = []
-        if detections is None:
-            return hits
-
-        for det in detections:
-            # Each detection row: [x, y, w, h, <landmarks x5>, score]
+        for det in raw_dets:
             x, y, w, h = int(det[0]), int(det[1]), int(det[2]), int(det[3])
             score = float(det[-1])
 
-            # Clamp to image bounds.
-            x = max(0, x)
-            y = max(0, y)
-            w = min(w_img - x, w)
-            h = min(h_img - y, h)
-
+            x = max(0, x);  y = max(0, y)
+            w = min(w_img - x, w);  h = min(h_img - y, h)
             if w <= 0 or h <= 0:
                 continue
 
             identity = None
             if self.identity_manager and match_identities:
-                face_crop = cv_image[y:y + h, x:x + w]
-                if face_crop.size > 0:
-                    identity = self.identity_manager.match_face(face_crop)
+                det_row = np.array(det, dtype=np.float32)
+                identity = self.identity_manager.match_face_aligned(cv_image, det_row)
 
             label = f"FACE: {identity}" if identity else "FACE"
-            hits.append(
-                SensitiveHit(
-                    x=x, y=y, w=w, h=h,
-                    label=label,
-                    confidence=score,
-                    identity=identity or "",
-                )
-            )
+            hits.append(SensitiveHit(
+                x=x, y=y, w=w, h=h,
+                label=label,
+                confidence=score,
+                identity=identity or "",
+            ))
 
         return hits
 
     def _detect_bodies(self, cv_image: np.ndarray) -> List[SensitiveHit]:
-        """Run MediaPipe EfficientDet-Lite2 body/person detection."""
+        """MediaPipe EfficientDet-Lite2 body/person detection."""
         from PySide6.QtCore import QSettings
         settings = QSettings("SafeMARC", "SafeMARC")
         fd_val = float(settings.value("model_face_detect", 0.20))
@@ -165,23 +231,18 @@ class VisionDetector(BaseDetector):
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
 
         result = self.detector.detect(mp_image)
-
         hits = []
         if result and result.detections:
             for detection in result.detections:
                 bbox = detection.bounding_box
-                cat = detection.categories[0]
+                cat  = detection.categories[0]
                 if cat.category_name in ["person", "face"]:
-                    hits.append(
-                        SensitiveHit(
-                            x=int(bbox.origin_x),
-                            y=int(bbox.origin_y),
-                            w=int(bbox.width),
-                            h=int(bbox.height),
-                            label="BODY",
-                            confidence=float(cat.score),
-                        )
-                    )
+                    hits.append(SensitiveHit(
+                        x=int(bbox.origin_x), y=int(bbox.origin_y),
+                        w=int(bbox.width),    h=int(bbox.height),
+                        label="BODY",
+                        confidence=float(cat.score),
+                    ))
         return hits
 
     def cleanup(self):

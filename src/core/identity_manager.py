@@ -147,8 +147,11 @@ class IdentityManager:
                     face_crop = self._extract_face_crop(img)
                     
                     if self.use_sface:
-                        aligned = cv2.resize(face_crop, (112, 112))
-                        embedding = self.sface_recognizer.feature(aligned)
+                        embedding = self._build_aligned_embedding(img)
+                        if embedding is None:
+                            # alignCrop fallback: plain resize if YuNet finds nothing.
+                            aligned = cv2.resize(face_crop, (112, 112))
+                            embedding = self.sface_recognizer.feature(aligned)
                         
                         try:
                             npy_path = img_path + ".sface.npy"
@@ -198,7 +201,88 @@ class IdentityManager:
                 self.is_trained = False
                 print("[IdentityManager] No identities found to train.")
 
-    def match_face(self, face_image: np.ndarray) -> Optional[str]:
+    def _build_aligned_embedding(self, img: np.ndarray):
+        """
+        Run YuNet on a reference image and use alignCrop to produce a
+        geometrically aligned 112x112 face before computing the SFace
+        embedding.  Returns None if no face is found.
+        """
+        yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
+        if not os.path.exists(yunet_path):
+            return None
+
+        h_img, w_img = img.shape[:2]
+        detector = cv2.FaceDetectorYN.create(
+            model=yunet_path, config="",
+            input_size=(w_img, h_img),
+            score_threshold=0.50, nms_threshold=0.30, top_k=100,
+        )
+        _, dets = detector.detect(img)
+        if dets is None or len(dets) == 0:
+            return None
+
+        best = max(dets, key=lambda d: d[2] * d[3])
+        try:
+            aligned = self.sface_recognizer.alignCrop(img, best)
+            return self.sface_recognizer.feature(aligned)
+        except Exception as e:
+            print(f"[IdentityManager] alignCrop failed during embedding: {e}")
+            return None
+
+    def match_face_aligned(self, full_img: np.ndarray, det_row: np.ndarray):
+        """
+        Match a detected face using the full YuNet detection row (bbox +
+        landmarks + score) so that SFace can use alignCrop for proper
+        geometric alignment before embedding.  Falls back to crop-based
+        matching when SFace is unavailable.
+        """
+        if not self.is_trained or full_img is None:
+            return None
+
+        if self.use_sface:
+            try:
+                aligned = self.sface_recognizer.alignCrop(full_img, det_row)
+                return self._match_sface_from_aligned(aligned)
+            except Exception as e:
+                print(f"[IdentityManager] alignCrop match failed ({e}), falling back to crop.")
+                x, y, w, h = int(det_row[0]), int(det_row[1]), int(det_row[2]), int(det_row[3])
+                h_img, w_img = full_img.shape[:2]
+                face_crop = full_img[max(0, y):min(h_img, y + h), max(0, x):min(w_img, x + w)]
+                return self.match_face(face_crop)
+        else:
+            x, y, w, h = int(det_row[0]), int(det_row[1]), int(det_row[2]), int(det_row[3])
+            h_img, w_img = full_img.shape[:2]
+            face_crop = full_img[max(0, y):min(h_img, y + h), max(0, x):min(w_img, x + w)]
+            return self._match_lbph(face_crop)
+
+    def _match_sface_from_aligned(self, aligned_face: np.ndarray):
+        """Compute SFace embedding from an already-aligned 112x112 BGR crop and match."""
+        try:
+            embedding = self.sface_recognizer.feature(aligned_face)
+
+            best_name  = None
+            best_score = -1.0
+            for name, ref_embeddings in self.sface_embeddings.items():
+                for ref_emb in ref_embeddings:
+                    score = self.sface_recognizer.match(
+                        embedding, ref_emb, cv2.FaceRecognizerSF_FR_COSINE
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_name  = name
+
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            fm_val  = float(settings.value("model_face_match", 0.36))
+            matched = best_score > fm_val
+            print(f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} "
+                  f"(Threshold: {fm_val:.2f}) → {'MATCH' if matched else 'REJECT'}")
+            return best_name if matched else None
+        except Exception as e:
+            print(f"SFace aligned match failed: {e}")
+            return None
+
+    def match_face(self, face_image: np.ndarray):
         """
         Takes a BGR face crop, predicts identity.
         Returns the Name if confidence is high enough, else None.

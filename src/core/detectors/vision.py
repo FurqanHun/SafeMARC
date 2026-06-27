@@ -21,13 +21,13 @@ _YUNET_TOP_K        = 5000
 _LARGE_FACE_MAX_DIM = 640
 
 
-def _load_yunet(model_path: str, input_size: tuple) -> cv2.FaceDetectorYN:
+def _load_yunet(model_path: str, input_size: tuple, score_threshold: float = _YUNET_SCORE_THRESH) -> cv2.FaceDetectorYN:
     """Instantiate a YuNet FaceDetectorYN for the given input resolution."""
     return cv2.FaceDetectorYN.create(
         model=model_path,
         config="",
         input_size=input_size,
-        score_threshold=_YUNET_SCORE_THRESH,
+        score_threshold=score_threshold,
         nms_threshold=_YUNET_NMS_THRESH,
         top_k=_YUNET_TOP_K,
     )
@@ -88,25 +88,29 @@ class VisionDetector(BaseDetector):
 
     # Thread-local YuNet instances (keyed by input size).
 
-    def _get_yunet(self, w: int, h: int) -> cv2.FaceDetectorYN:
-        """Native-resolution thread-local YuNet, re-created when size changes."""
+    def _get_yunet(self, w: int, h: int, thresh: float) -> cv2.FaceDetectorYN:
+        """Native-resolution thread-local YuNet, re-created when size or threshold changes."""
         if (getattr(self._local, "yunet", None) is None
-                or getattr(self._local, "yunet_size", None) != (w, h)):
-            self._local.yunet = _load_yunet(self._yunet_model_path, (w, h))
+                or getattr(self._local, "yunet_size", None) != (w, h)
+                or getattr(self._local, "yunet_thresh", None) != thresh):
+            self._local.yunet = _load_yunet(self._yunet_model_path, (w, h), thresh)
             self._local.yunet_size = (w, h)
+            self._local.yunet_thresh = thresh
         return self._local.yunet
 
-    def _get_yunet_small(self, w: int, h: int) -> cv2.FaceDetectorYN:
+    def _get_yunet_small(self, w: int, h: int, thresh: float) -> cv2.FaceDetectorYN:
         """Downscaled-pass thread-local YuNet instance."""
         if (getattr(self._local, "yunet_small", None) is None
-                or getattr(self._local, "yunet_small_size", None) != (w, h)):
-            self._local.yunet_small = _load_yunet(self._yunet_model_path, (w, h))
+                or getattr(self._local, "yunet_small_size", None) != (w, h)
+                or getattr(self._local, "yunet_thresh_small", None) != thresh):
+            self._local.yunet_small = _load_yunet(self._yunet_model_path, (w, h), thresh)
             self._local.yunet_small_size = (w, h)
+            self._local.yunet_thresh_small = thresh
         return self._local.yunet_small
 
     # Multi-scale detection and Non-Maximum Suppression (NMS) merging.
 
-    def _multi_scale_detect(self, cv_image: np.ndarray, w_img: int, h_img: int) -> list:
+    def _multi_scale_detect(self, cv_image: np.ndarray, w_img: int, h_img: int, face_thresh: float) -> list:
         """
         Run YuNet at native resolution, then at a downscaled resolution when
         the image is large (catches portrait-sized faces > 300px which YuNet's
@@ -116,7 +120,7 @@ class VisionDetector(BaseDetector):
         all_dets = []
 
         # Pass 1: Run YuNet at native resolution to detect small and medium faces.
-        yunet = self._get_yunet(w_img, h_img)
+        yunet = self._get_yunet(w_img, h_img, face_thresh)
         _, dets = yunet.detect(cv_image)
         if dets is not None:
             all_dets.extend(dets.tolist())
@@ -128,7 +132,7 @@ class VisionDetector(BaseDetector):
             sh = max(1, int(h_img * scale))
             small = cv2.resize(cv_image, (sw, sh), interpolation=cv2.INTER_AREA)
 
-            yunet_s = self._get_yunet_small(sw, sh)
+            yunet_s = self._get_yunet_small(sw, sh, face_thresh)
             _, dets_s = yunet_s.detect(small)
             if dets_s is not None:
                 for d in dets_s.tolist():
@@ -188,15 +192,20 @@ class VisionDetector(BaseDetector):
             return self._detect_bodies(cv_image)
         return []
 
-    def _detect_faces(self, cv_image: np.ndarray, match_identities: bool) -> List[SensitiveHit]:
+    def _detect_faces(self, cv_image: np.ndarray, match_identities: bool, face_thresh: Optional[float] = None) -> List[SensitiveHit]:
         """
         Multi-scale YuNet detection with landmark-aligned SFace matching.
         The full 15-element detection row (bbox + landmarks + score) is passed
         to IdentityManager.match_face_aligned so it can use cv2.FaceRecognizerSF
         .alignCrop() for geometrically correct face alignment before embedding.
         """
+        if face_thresh is None:
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            face_thresh = float(settings.value("model_face_detect_yunet", _YUNET_SCORE_THRESH))
+
         h_img, w_img = cv_image.shape[:2]
-        raw_dets = self._multi_scale_detect(cv_image, w_img, h_img)
+        raw_dets = self._multi_scale_detect(cv_image, w_img, h_img, face_thresh)
         num_faces = len(raw_dets)
 
         hits = []
@@ -347,7 +356,7 @@ class VisionDetector(BaseDetector):
 
         # Face-guided estimation & recovery for any uncovered faces
         try:
-            faces = self._detect_faces(cv_image, match_identities=False)
+            faces = self._detect_faces(cv_image, match_identities=False, face_thresh=_YUNET_SCORE_THRESH)
             for face in faces:
                 fx, fy, fw, fh = face.x, face.y, face.w, face.h
                 

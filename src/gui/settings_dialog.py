@@ -754,7 +754,7 @@ class SettingsDialog(QDialog):
         lbl_fd.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
         self.slider_fd = QSlider(Qt.Horizontal)
         self.slider_fd.setRange(10, 100)
-        fd_val = float(self.settings.value("model_face_detect", 0.20))
+        fd_val = float(self.settings.value("model_face_detect_yunet", 0.70))
         self.slider_fd.setValue(int(fd_val * 100))
         self.lbl_fd_val = QLabel(f"{fd_val:.2f}")
         self.lbl_fd_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
@@ -762,7 +762,7 @@ class SettingsDialog(QDialog):
         def fd_changed(val):
             v = val / 100.0
             self.lbl_fd_val.setText(f"{v:.2f}")
-            self.settings.setValue("model_face_detect", v)
+            self.settings.setValue("model_face_detect_yunet", v)
         self.slider_fd.valueChanged.connect(fd_changed)
         
         fd_box.addWidget(lbl_fd)
@@ -854,7 +854,7 @@ class SettingsDialog(QDialog):
         """)
         
         def reset_to_defaults():
-            self.slider_fd.setValue(20)
+            self.slider_fd.setValue(70)
             self.slider_bd.setValue(25)
             self.slider_fm.setValue(40)
             self.slider_tm.setValue(70)

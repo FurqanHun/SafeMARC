@@ -119,3 +119,44 @@ def test_scanner_face_filtering_modes():
     assert "Alice" not in [h.identity for h in hits]
     assert "Bob" in [h.identity for h in hits]
     assert None in [h.identity for h in hits]
+
+
+def test_scanner_body_filtering_modes():
+    scanner = SafeScanner()
+    
+    mock_text_detector = MagicMock(spec=RegexDetector)
+    mock_text_detector.detect.return_value = []
+    
+    mock_vision_detector = MagicMock(spec=VisionDetector)
+    mock_vision_detector.detect.return_value = [
+        SensitiveHit(10, 10, 20, 20, "BODY", 0.9, identity="Alice"),
+        SensitiveHit(50, 50, 20, 20, "BODY", 0.9, identity="Bob"),
+        SensitiveHit(100, 100, 20, 20, "BODY", 0.8, identity=None)
+    ]
+    
+    scanner.text_detector = mock_text_detector
+    scanner.vision_detector = mock_vision_detector
+    scanner.detectors = [mock_text_detector, mock_vision_detector]
+    
+    # Verify ALL mode.
+    scanner.set_face_redaction_mode("ALL")
+    hits = scanner.scan("dummy.png")
+    assert len(hits) == 3
+    
+    # Verify BLACKLIST mode.
+    scanner.set_face_redaction_mode("BLACKLIST")
+    scanner.target_identities = ["Alice"]
+    hits = scanner.scan("dummy.png")
+    assert len(hits) == 1
+    assert hits[0].identity == "Alice"
+    assert hits[0].label == "BODY"
+    
+    # Verify WHITELIST mode.
+    scanner.set_face_redaction_mode("WHITELIST")
+    scanner.target_identities = ["Alice"]
+    hits = scanner.scan("dummy.png")
+    assert len(hits) == 2
+    assert "Alice" not in [h.identity for h in hits]
+    assert "Bob" in [h.identity for h in hits]
+    assert None in [h.identity for h in hits]
+

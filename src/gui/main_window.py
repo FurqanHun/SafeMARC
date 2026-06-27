@@ -1030,9 +1030,9 @@ class SafeMARCMainWindow(QMainWindow):
         self.cmb_face_mode.currentTextChanged.connect(self._update_face_mode)
         
         face_mode_layout = QHBoxLayout()
-        lbl_face_mode = QLabel("Face Mode:")
-        lbl_face_mode.setStyleSheet("font-weight: bold; color: #9CA3AF;")
-        face_mode_layout.addWidget(lbl_face_mode)
+        self.lbl_face_mode = QLabel("Face Mode:")
+        self.lbl_face_mode.setStyleSheet("font-weight: bold; color: #9CA3AF;")
+        face_mode_layout.addWidget(self.lbl_face_mode)
         face_mode_layout.addWidget(self.cmb_face_mode)
         settings_layout.addLayout(face_mode_layout)
         
@@ -1725,6 +1725,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.btn_remove,
             self.btn_clear,
             self.cmb_vision_mode,
+            self.cmb_face_mode,
             self.btn_select_people,
             self.btn_select_regions,
             self.btn_add_text,
@@ -1753,6 +1754,9 @@ class SafeMARCMainWindow(QMainWindow):
         self.update_review_button_tooltips()
         self.focus_filter = FocusEventFilter(self)
         QApplication.instance().installEventFilter(self.focus_filter)
+
+        # Sync visibility of face mode controls
+        self.on_vision_mode_changed(self.cmb_vision_mode.currentIndex())
 
     def _apply_default_splitter_sizes(self):
         """Compute splitter sizes from actual width so nothing clips."""
@@ -2451,10 +2455,30 @@ class SafeMARCMainWindow(QMainWindow):
             self._rescan_current()
 
     def on_vision_mode_changed(self, index):
+        mode = self.cmb_vision_mode.itemData(index)
+        
+        # Hide/show face mode controls based on mode
+        if mode in ("faces", "bodies"):
+            if hasattr(self, "lbl_face_mode"):
+                self.lbl_face_mode.show()
+            if hasattr(self, "cmb_face_mode"):
+                self.cmb_face_mode.show()
+            if hasattr(self, "btn_select_people"):
+                if self.cmb_face_mode.currentText() in ("Blacklist", "Whitelist"):
+                    self.btn_select_people.show()
+                else:
+                    self.btn_select_people.hide()
+        else:
+            if hasattr(self, "lbl_face_mode"):
+                self.lbl_face_mode.hide()
+            if hasattr(self, "cmb_face_mode"):
+                self.cmb_face_mode.hide()
+            if hasattr(self, "btn_select_people"):
+                self.btn_select_people.hide()
+
         if not self.scanner:
             return
             
-        mode = self.cmb_vision_mode.itemData(index)
         try:
             self.scanner.set_vision_mode(mode)
             if self.is_batch_mode and self.current_file_path:

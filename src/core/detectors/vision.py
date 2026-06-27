@@ -189,7 +189,7 @@ class VisionDetector(BaseDetector):
         if self.mode == "faces":
             return self._detect_faces(cv_image, match_identities)
         if self.mode == "bodies":
-            return self._detect_bodies(cv_image)
+            return self._detect_bodies(cv_image, match_identities)
         return []
 
     def _detect_faces(self, cv_image: np.ndarray, match_identities: bool, face_thresh: Optional[float] = None) -> List[SensitiveHit]:
@@ -235,8 +235,8 @@ class VisionDetector(BaseDetector):
 
         return hits
 
-    def _detect_bodies(self, cv_image: np.ndarray) -> List[SensitiveHit]:
-        """MediaPipe EfficientDet-Lite2 body/person detection."""
+    def _detect_bodies(self, cv_image: np.ndarray, match_identities: bool = True) -> List[SensitiveHit]:
+        """MediaPipe EfficientDet-Lite2 body/person detection with identity matching."""
         from PySide6.QtCore import QSettings
         settings = QSettings("SafeMARC", "SafeMARC")
         bd_val = float(settings.value("model_body_detect", 0.25))
@@ -250,6 +250,13 @@ class VisionDetector(BaseDetector):
                 base_options=base_options, score_threshold=bd_val, max_results=100
             )
             self.detector = vision.ObjectDetector.create_from_options(options)
+
+        # Run face detection with identity matching first, so we can map face identities to bodies.
+        faces = []
+        try:
+            faces = self._detect_faces(cv_image, match_identities=match_identities, face_thresh=_YUNET_SCORE_THRESH)
+        except Exception as e:
+            print(f"[DEBUG] Face detection in body scan failed: {e}")
 
         # Adaptive CLAHE contrast enhancement for low-light images
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
@@ -348,45 +355,51 @@ class VisionDetector(BaseDetector):
             h_box = min(h - y, h_box)
             if w_box <= 0 or h_box <= 0:
                 continue
+
+            # Associate face identity with this body box if they match
+            body_identity = ""
+            for face in faces:
+                if _is_matching_face_body(face.x, face.y, face.w, face.h, x, y, w_box, h_box):
+                    body_identity = face.identity
+                    break
+
             hits.append(SensitiveHit(
                 x=x, y=y, w=w_box, h=h_box,
                 label="BODY",
-                confidence=score
+                confidence=score,
+                identity=body_identity
             ))
 
         # Face-guided estimation & recovery for any uncovered faces
-        try:
-            faces = self._detect_faces(cv_image, match_identities=False, face_thresh=_YUNET_SCORE_THRESH)
-            for face in faces:
-                fx, fy, fw, fh = face.x, face.y, face.w, face.h
+        for face in faces:
+            fx, fy, fw, fh = face.x, face.y, face.w, face.h
+            
+            # Check if this face is covered by any final body hit
+            covered = False
+            for hit in hits:
+                if _is_matching_face_body(fx, fy, fw, fh, hit.x, hit.y, hit.w, hit.h):
+                    covered = True
+                    break
+            
+            if not covered:
+                # Generate estimated body box centering the face (with tighter constraints)
+                ew = int(fw * 2.5)
+                eh = int(fh * 4.5)
+                ex = int(fx - (ew - fw) / 2)
+                ey = int(fy)
                 
-                # Check if this face is covered by any final body hit
-                covered = False
-                for hit in hits:
-                    if _is_matching_face_body(fx, fy, fw, fh, hit.x, hit.y, hit.w, hit.h):
-                        covered = True
-                        break
+                ex = max(0, ex)
+                ey = max(0, ey)
+                ew = min(w - ex, ew)
+                eh = min(h - ey, eh)
                 
-                if not covered:
-                    # Generate estimated body box centering the face (with tighter constraints)
-                    ew = int(fw * 2.5)
-                    eh = int(fh * 4.5)
-                    ex = int(fx - (ew - fw) / 2)
-                    ey = int(fy)
-                    
-                    ex = max(0, ex)
-                    ey = max(0, ey)
-                    ew = min(w - ex, ew)
-                    eh = min(h - ey, eh)
-                    
-                    if ew > 0 and eh > 0:
-                        hits.append(SensitiveHit(
-                            x=ex, y=ey, w=ew, h=eh,
-                            label="BODY",
-                            confidence=face.confidence
-                        ))
-        except Exception as e:
-            print(f"[DEBUG] Face-guided body estimation failed: {e}")
+                if ew > 0 and eh > 0:
+                    hits.append(SensitiveHit(
+                        x=ex, y=ey, w=ew, h=eh,
+                        label="BODY",
+                        confidence=face.confidence,
+                        identity=face.identity
+                    ))
 
         return hits
 

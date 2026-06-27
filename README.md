@@ -109,6 +109,7 @@ SafeMARC/
     ├── features.md        <-- Project feature roadmap & status
     ├── shortcuts.md       <-- Keyboard and mouse shortcut guide
     ├── ui_guidelines.md   <-- Theme, colors, and layout guidelines
+    ├── crypto.md          <-- Encryption/decryption architecture & package security
     └── architecture/      <-- UML, use cases, and workflow diagrams
         ├── uml_classes.md
         ├── use_cases.md

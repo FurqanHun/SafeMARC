@@ -101,6 +101,109 @@ graph TD
 
 ---
 
+## Body Detection & Face-Body Hybrid Mapping Workflow
+
+```mermaid
+graph TD
+    A[Image Input] --> CL{Mean Gray Brightness < 90?}
+    CL -- Yes --> CL_APPLY[Apply CLAHE to L channel of LAB image] --> B
+    CL -- No --> B{Max Dim < 640px?}
+    
+    B -- Yes --> C[2x linear upscaling] --> D
+    B -- No --> D{Image Size / Max Dim?}
+    
+    D -- "> 5000 px" --> E1[4 × 3 Tiling Grid]
+    D -- "3001 – 5000 px" --> E2[3 × 3 Tiling Grid]
+    D -- "1201 – 3000 px" --> E3[2 × 2 Tiling Grid]
+    D -- "≤ 1200 px" --> E4[1 × 1 Global Pass]
+    
+    E1 --> F[Run EfficientDet-Lite2 on tiles]
+    E2 --> F
+    E3 --> F
+    E4 --> F
+    
+    F --> G[Category Filter: Keep 'person' only, drop 'face']
+    G --> H[Translate tile coords to absolute coordinates]
+    H --> I[Standard IoU NMS: threshold 0.55]
+    
+    I --> J{Sliver Filter: height >= width * 0.5?}
+    J -- No --> K[Discard hit]
+    J -- Yes --> L[Map face box containment inside body box]
+    
+    L --> M{Face has recognized identity?}
+    M -- Yes --> N[Assign identity to body box SensitiveHit]
+    M -- No --> O[Keep body box identity empty]
+    
+    N --> P[Face-Guided Recovery: Generate synthetic body box for uncovered targeted faces]
+    O --> P
+    
+    P --> Q[Depth-Ordered Clipping: Trim back-row boxes overlapping front faces]
+    Q --> R[Final Sliver Filter: height >= width * 0.5 check]
+    R --> S[Apply Redaction Mode: Blacklist/Whitelist/All]
+```
+
+---
+
+## Hybrid Digital & OCR Text Detection Workflow
+
+```mermaid
+graph TD
+    A[Image/PDF Input] --> B{Cache check: Has this file/page been scanned?}
+    B -- Yes --> C[Load cached text hits instantly]
+    B -- No --> D{Are digital PDF words available?}
+    
+    D -- Yes --> E[Map digital PDF words coordinates to scale 1.0]
+    E --> F[Run regex & text pattern matching on digital line texts]
+    F --> G[Extract word boundaries & calculate initial hits]
+    
+    D -- No --> H[Image File Path]
+    G --> H
+    
+    H --> I[Read image in Grayscale]
+    I --> J[2x upscale using linear interpolation]
+    J --> K[Apply Otsu's thresholding to binarize image]
+    K --> L[Restore LD_LIBRARY_PATH environment context]
+    L --> M[Run Tesseract OCR image_to_data --psm 3]
+    M --> N[Map OCR word bounds & scale coordinates down by 2.0]
+    N --> O[Run regex & text pattern matching on OCR line texts]
+    
+    O --> P[Pool digital hits + OCR hits]
+    P --> Q{Validation & Confidence Boosting Heuristics}
+    
+    Q -- "Credit Card" --> R1{Validate Luhn Algorithm Checksum}
+    R1 -- Pass --> S1[Assign confidence 95%]
+    R1 -- Fail --> S2[Discard hit]
+    
+    Q -- "EU IBAN" --> R2{Validate ISO 7064 Mod-97 Checksum}
+    R2 -- Pass --> T1[Assign confidence 95%]
+    R2 -- Fail --> T2[Discard hit]
+    
+    Q -- "US SSN / IN Aadhaar" --> R3{Context Keywords Proximity check within ±35 chars}
+    R3 -- Yes --> U1[Assign confidence 90%]
+    R3 -- No --> U2[Assign confidence 25% review-suggested]
+    
+    Q -- "Other Pattern (with Keywords)" --> R4{Context Keywords Proximity check within ±35 chars}
+    R4 -- Yes --> V1[Assign confidence 90%]
+    R4 -- No --> V2[Assign confidence 30% review-suggested]
+    
+    S1 --> W[Area-Overlap IoU Deduplication]
+    T1 --> W
+    U1 --> W
+    U2 --> W
+    V1 --> W
+    V2 --> W
+    
+    W --> X{Overlap ratio with other hit > 0.40?}
+    X -- Yes --> Y[Keep the hit with higher confidence, discard other]
+    X -- No --> Z[Keep both hits]
+    
+    Y --> AA[Final SensitiveHit List]
+    Z --> AA
+    AA --> AB[Cache final text hits]
+```
+
+---
+
 ## Processing & Redaction Sequence Diagram
 
 ```mermaid

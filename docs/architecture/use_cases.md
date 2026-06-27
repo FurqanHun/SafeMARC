@@ -35,6 +35,8 @@ graph TD
         UC3 --> UC3_G[Toggle Global Output Folder & Set Output Path]
         UC3 --> UC3_H[Adjust Face Detection Threshold Slider]
         UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
+        UC3 --> UC3_J[Adjust Body Detection Threshold Slider]
+        UC3 --> UC3_K[Adjust Face Match Threshold Slider]
         UC3_B --> UC3_B_1[Import Custom Patterns from .json/.smpat]
         UC3_B --> UC3_B_2[Export Custom Patterns to .json/.smpat]
     end
@@ -79,8 +81,8 @@ graph TD
   1. The application parses the current queue item.
   2. If it's a PDF, pages are extracted as temporary high-fidelity images.
   3. The scanning engine uses computer vision (YuNet DNN for faces, MediaPipe for bodies) and text patterns to map sensitive hits.
-  4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition.
-  5. Hits are filtered based on the active face redaction mode and selected target identities.
+  4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition, and bodies are spatially mapped to recognized faces to inherit their identities.
+  5. Hits are filtered based on the active face/body redaction mode and selected target identities.
   6. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).
   7. The user can press `F5` at any point to rescan the current document with the active regional and text pattern filters while preserving custom manual selections.
   8. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
@@ -99,8 +101,10 @@ graph TD
     - **Blacklist**: Only redact faces that match selected target identities.
     - **Whitelist**: Redact all faces *except* those matching selected target identities.
   - **Dynamic Threshold Adjustments**:
-    - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
-    - **Face Detection Sensitivity Slider**: Adjusts the MediaPipe ObjectDetector score threshold (10-90%) for body silhouettes, preventing false body matches or allowing faint body detections.
+    - **Face Detection Threshold Slider**: Adjusts the YuNet Face Detection score threshold (10-100%, default 70%) for face detection.
+    - **Body Detection Threshold Slider**: Adjusts the MediaPipe ObjectDetector score threshold (10-100%, default 25%) for body silhouettes, preventing false body matches or allowing faint body detections.
+    - **Face Match Threshold Slider**: Adjusts the SFace cosine similarity matching threshold (10-100%, default 40%) for identifying sensitive faces and mapping identities.
+    - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%, default 70%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
 - **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
 - **Output Folder**: Global output folder is enabled by default. The user can toggle it, choose a custom folder path, or switch to per-file output. The preference is persisted across sessions via `QSettings`.
 - **Custom Patterns Import/Export**:
@@ -129,7 +133,7 @@ graph TD
 - **Preconditions**: Settings Dialog is open.
 - **Trigger**: User clicks the "Shortcuts" tab inside the Settings Dialog.
 - **Main Workflow**:
-  1. The user views a categorized, scrollable list of all 24 keyboard actions and their current keybindings.
+  1. The user views a categorized, scrollable list of all 30 keyboard actions and their current keybindings.
   2. The user clicks the "Rebind" button next to any action, which starts listening for the next keypress/combination.
   3. The user presses the new key sequence (including modifiers like `Ctrl`, `Shift`, `Alt`, `Meta`). The button updates its text to show the new sequence.
   4. The system validates the new shortcut sequence in real time. If the shortcut is already in use by another action, a red warning text is displayed listing all conflicting actions.

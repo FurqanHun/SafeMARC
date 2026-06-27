@@ -18,15 +18,21 @@
 - [x] **Face Detection**: Fast & high-accuracy face scanning via **YuNet DNN** (`assets/face_detection_yunet_2023mar.onnx`).
   - *Multi-Scale Strategy*: Employs a dual-scale pipeline (native resolution for small/medium faces, and downscaled 640px pass to capture large portrait-sized faces) to overcome DNN training scale limits.
   - *Containment-Aware NMS*: Replaces standard IoU NMS with a custom containment-ratio NMS (40% threshold) to prevent sub-face false positives (eyes, lips) inside larger face boxes.
+  - *Dynamic Settings Integration*: Leverages user-customizable face detection threshold settings (`model_face_detect_yunet`) dynamically read from QSettings, defaulting to `0.70`.
 - [x] **Face Recognition**: Deep learning identity matching via SFace (OpenCV DNN) with LBPH fallback.
   - *Landmark-Based Geometric alignCrop*: Reference and live images are normalized using YuNet's 5 facial landmark coordinates and `alignCrop()` to correct for rotation, scale, and tilt before embedding extraction.
   - *Context-Aware Tiered Margin*: Matches are gated by a tiered margin check where borderline scores in group photos require stricter separation (0.20) than portrait shots (0.10) to prevent false matches in crowded frames.
 - [x] **Body Detection**: Robust human body and silhouette detection.
   - *EfficientDet-Lite2 (TFLite)*: Leverages MediaPipe Object Detector with a lightweight, high-performance `efficientdet_lite2.tflite` model to detect full bodies and silhouettes with low latency.
+  - *Adaptive Tiling & Upscaling*: Employs an adaptive multi-scale tiling grid (up to 4x3) for larger images to capture small-scale bodies, and 2x upscaling for small images (<640px) to boost detection recall.
+  - *Standard IoU NMS & Sliver Filtering*: Switched body detection NMS from containment-ratio to standard IoU NMS (0.55 threshold) to prevent merging overlapping adjacent people, paired with a height/width ratio filter (h >= w * 0.5) to discard sliver false positives (hands, arms, necks).
+  - *Depth-Ordered Clipping*: Trims back-row body boxes so they don't cover front-row faces (heuristic: lower bottom edge = in front).
+  - *Face-Body Hybrid Identity Mapping*: Bodies are spatially mapped to identified faces; if a body contains a matched face, it is tagged with that identity, enabling identity-based filtering for body redactions.
+  - *Face-Guided Recovery*: Automatically estimates and generates a synthetic body box centering any identified face that was missed by the body detector to ensure complete body redaction for sensitive targets.
 - [x] **Text Only Mode**: Ability to disable image/face scanning to focus strictly on text redactions.
-- [x] **Redact All**: Auto-redact all detected faces in a document.
-- [x] **Whitelist Mode**: Redact all faces except those matching specific approved identities.
-- [x] **Blacklist Mode**: Specifically redact only matched sensitive identities.
+- [x] **Redact All**: Auto-redact all detected faces/bodies in a document.
+- [x] **Whitelist Mode**: Redact all faces/bodies except those matching specific approved identities.
+- [x] **Blacklist Mode**: Specifically redact only matched sensitive identities (faces and their corresponding bodies).
 
  
 ## Text Redaction
@@ -88,12 +94,12 @@
 
 ## Biometric Identity Editor
 - [x] **Interactive 1:1 Aspect-Ratio Crop Editor**: Crop uploaded reference faces with a locked 1:1 aspect ratio, interactive resize handles, transparent helper labels, and automatic face detection fallback.
-- [x] **Real-Time Training Feedback**: Fully tactile status updates (e.g. `"Loading & detecting face..."`, `"Retraining face recognition model..."`) paired with busy override cursors and temporary interface lockouts to provide perfect, seamless transition feedback during batch cropping.
+- [x] **Real-Time Training Feedback**: Fully tactile status updates (e.g. `"Loading & detecting face..."`, `"Retraining face recognition model..."`) paired with busy override cursors and temporary interface lockouts to provide perfect, seamless transition feedback during batch cropping, automatically clearing status feedback when addition or cropping is cancelled.
 - [x] **Individual Reference Image Removal**: Delete specific reference images via interactive red corner corner close markers on thumbnails, triggering immediate `.npy` cache cleanups.
 - [x] **Extended Multi-Selection**: Select and batch-delete multiple identities at once using standard keyboard hotkeys (Ctrl+Click, Shift+Click, or Drag).
 - [x] **Identity Renaming**: Dynamic and validated renaming of identities (via the rename button `✎` or double-clicking the item in the list) with path traversal guards and directory conflict resolution.
 - [x] **Customizable Keyboard Shortcuts**: Full hotkey integration inside the identities tab (e.g., adding, renaming, deleting, importing, exporting, and uploading images) with configurable mappings in the Shortcuts Settings tab.
-- [x] **Live Biometric & Target Synchronization**: Adjusting the Face Matching Threshold, the Text Auto-Redact cutoff in the Settings dialog, or checking/unchecking target identities instantly re-evaluates and updates matches in the preview canvas in real-time.
+- [x] **Live Biometric & Target Synchronization**: Adjusting the Face Matching Threshold, Face Detection Threshold (YuNet), Body Detection Threshold (EfficientDet), the Text Auto-Redact cutoff in the Settings dialog, or checking/unchecking target identities instantly re-evaluates and updates matches in the preview canvas in real-time.
 - [x] **Smart Quick-Add Combobox Dropdown**: Right-click to assign a face directly from the preview canvas using a styled autocompleting dropdown combobox. Re-using an existing name directly appends the reference photo to the correct permanent or session folder, while new names prompt the user for save-type preferences.
 - [x] **Secure & Locked Import/Export**: Export selected or all permanent biometric reference photos into a password-protected, encrypted archive in the proprietary `.smid` (SafeMARC Identity) format. Uses standard cryptographic primitives (PBKDF2-HMAC-SHA256 with 100,000 iterations for key derivation and SHA-256 CTR mode for data encryption) with a random salt to lock the package. Importing requires the password, extracts the archive securely with path traversal guards (Zip Slip protection), and automatically runs face detection to rebuild the SFace/LBPH recognition embeddings.
 
@@ -102,9 +108,9 @@
 - [x] **Premium UI/UX Polish**: Premium unified deep-dark `#0B0F19` canvas, custom `NewIdentityDialog` with matching aesthetics (including Enter-key Save/Default support), global transparent labels, and tactile `PointingHandCursor` feedback on all interactive components (buttons, checkboxes, comboboxes, menus, and list items).
 - [x] **Keyboard-Driven Workflow**: Fully complete and safety-guarded keyboard navigation. Navigate queue, toggle Draw/Persist modes, and use `Left`/`Right` arrow keys to cycle focus on detected bounding boxes, toggling them with `Space`/`C`. All shortcuts are automatically bypassed when input fields are active or modal dialogs are open to prevent conflicts. Keyboard focus/tabbing is cleared by default when starting or navigating in batch reviews, keeping the focus strictly on the window unless explicitly activated by pressing the `Tab` key, and pressing `Escape` on any focused widget exits tabbing mode.
 - [x] **Queue Protection in Batch Mode**: Queue-modifying controls (Add File, Add Folder, Clear Queue, Paste, Remove) and the Settings dialog are automatically disabled while batch review is active to prevent modification during processing, while vision checklists and pattern configuration controls remain fully enabled.
-- [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 24 keyboard shortcuts using QSettings.
-- [x] **AI Engine & Environment Diagnostics**: A dynamic `ClickableStatusLabel` in the main toolbar providing one-click access to the `EngineStatusDialog`, which validates installation state and path locations of AI engines (SFace face recognition model, MediaPipe body silhouette detector, and Tesseract OCR).
-- [ ] **CLI Interface**: Command-line batch processing with ArgumentParser. (Planned/Partial), It's half baked rn.
+- [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 30 keyboard shortcuts using QSettings.
+- [x] **AI Engine & Environment Diagnostics**: A dynamic `ClickableStatusLabel` in the main toolbar providing one-click access to the `EngineStatusDialog`, which validates installation state and path locations of AI engines (YuNet face detection model, SFace face recognition model, MediaPipe body silhouette detector, and Tesseract OCR).
+- [x] **CLI Interface**: Robust command-line batch processing via `src/cli/cli.py` supporting `-i/--input`, `-o/--output-dir`, `--use-suffix`, `--faces`, `--redact-body`, and `--text` flags.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.
 

@@ -387,20 +387,78 @@ LBPH does not use landmarks or geometric alignment, so it is significantly less 
 
 ---
 
-## 3. Configuration & Tuning
+## 3. Body Detection Pipeline
+
+SafeMARC's body detection mode (`VisionDetector(mode="bodies")`) is built to locate full-body silhouettes and coordinate with face detections for identity-based body redaction. Because group photos have unique challenges like high density, small silhouettes, and row-based overlaps, the body detection pipeline uses several advanced stages:
+
+### 3.1 Model & Class Filtering
+The pipeline uses MediaPipe's **EfficientDet-Lite2** (`efficientdet_lite2.tflite`) running on CPU/XNNPACK. 
+- SafeMARC strictly filters out all categories except `"person"`.
+- The `"face"` category of EfficientDet is disabled because face detection is handled with much higher precision by YuNet. This prevents overlapping duplicate boxes from two different models.
+
+### 3.2 Adaptive CLAHE Contrast Enhancement
+Low-light or poorly exposed document scans degrade the body detector's performance. SafeMARC automatically checks the average brightness before scanning:
+- The image is converted to grayscale, and the mean brightness is computed.
+- If the mean brightness is `< 90`, the system applies **Contrast Limited Adaptive Histogram Equalization (CLAHE)** with a `clipLimit=2.0` and `tileGridSize=(8, 8)` to the L channel of the image in LAB color space, then converts it back to BGR.
+- This highlights structural details in dark regions without blowing out highlights, significantly improving body recall in dark environments.
+
+### 3.3 Adaptive Tiling Grid
+Large group photos (e.g. 6000 × 4000 pixels) contain small individuals that the detector's native receptive field cannot resolve. To solve this, SafeMARC implements an **adaptive tiling grid**:
+- Grid density scales dynamically based on the image's maximum dimension:
+  - **Max Dim > 5000 px**: 4 × 3 grid (12 tiles)
+  - **Max Dim > 3000 px**: 3 × 3 grid (9 tiles)
+  - **Max Dim > 1200 px**: 2 × 2 grid (4 tiles)
+  - **Max Dim ≤ 1200 px**: 1 × 1 pass (global only)
+- Tiles are scanned with a 100-pixel overlap to prevent individuals standing on boundary lines from being missed.
+- Detections from all tiles are pooled together and converted back to absolute image coordinates.
+
+### 3.4 Small Object Upscaling
+For small images where the maximum dimension is `< 640 px`, SafeMARC pre-processes the image by upscaling it 2× using linear interpolation. Bounding boxes returned by the detector are subsequently scaled back down. This allows EfficientDet to resolve small silhouettes that would otherwise be missed.
+
+### 3.5 Non-Maximum Suppression (NMS)
+Unlike face detection (which uses containment-ratio NMS to suppress sub-features like eyes or lips), body detection uses standard **Intersection-over-Union (IoU) NMS** with a threshold of `0.55`:
+- Using containment NMS on bodies would mistakenly suppress a front-row person who is highly overlapped by a taller back-row person.
+- The `0.55` IoU threshold allows closely packed, overlapping individuals in group pictures to retain their distinct bounding boxes while removing tile-boundary duplicates.
+
+### 3.6 Sliver and Shape Filtering
+Object detectors often flag arms, hands, neck fragments, or high-contrast background banners as "person" detections, leading to false-positive redaction blocks. To prevent this, SafeMARC applies a shape filter after NMS:
+- Any bounding box where the height is less than half its width (`height < width * 0.5`) is discarded as a horizontal sliver.
+- This preserves seated, crouching, or standing people while reliably filtering out arm and neck fragments.
+
+### 3.7 Depth-Ordered Clipping
+In multi-row group photos, a person in a back row will have a bounding box that extends downwards, often overlapping with the face of the person sitting or standing directly in front of them. Burning a redaction block on the back-row body would cover the front-row face. 
+
+SafeMARC solves this with a **spatial depth heuristic**:
+1. The bottom edge (`y + h`) of a box acts as a proxy for depth (lower bottom edge = closer to the camera/in front).
+2. For every pair of overlapping body boxes, we identify the one "in front" (lower bottom edge) and the one "behind" (higher bottom edge).
+3. If the "behind" box overlaps horizontally with the face of the "in-front" person, we clip the bottom of the "behind" box so it stops exactly at the top of the front person's face (`new_height = front_face.y - behind.y`).
+4. To avoid leaving tiny fragments, we only clip if the resulting box retains at least 30% of its original height.
+
+### 3.8 Hybrid Face-Body Identity Mapping
+To allow Blacklist/Whitelist identity modes to apply to full-body redaction, the vision pipeline maps bodies to facial identities:
+1. Face detection (YuNet) and identity matching (SFace) are run first.
+2. The body detector is then executed, producing candidate body boxes.
+3. For each body box, we check if any detected face box is contained within it (using a containment threshold of `0.50`).
+4. If a matching face is found, the body box is tagged with that face's identity (`SensitiveHit.identity`).
+5. **Face-Guided Recovery**: If a recognized face is not covered by any body box (due to a body detection miss), a synthetic body box is generated centering the face (`width = face.w * 2.5`, `height = face.h * 4.5`, starting vertically at `y = face.y` and extending downwards) to guarantee the body of the target identity is still redacted.
+
+---
+
+## 4. Configuration & Tuning
 
 All tuneable parameters for the vision and identity systems are stored in `QSettings("SafeMARC", "SafeMARC")` and exposed in Settings › Model Configuration:
 
 | Setting key | Default | Description |
 |---|---|---|
 | `model_face_match` | `0.40` | SFace cosine similarity threshold for identity acceptance |
-| `model_face_detect` | `0.20` | MediaPipe ObjectDetector score threshold (body detection mode only) |
+| `model_face_detect_yunet` | `0.70` | YuNet face detection confidence threshold |
+| `model_body_detect` | `0.25` | MediaPipe body detection score threshold |
 
-The YuNet detection threshold (`0.70`), NMS containment ratio (`0.40`), and tiered margin values (`0.08 / 0.10 / 0.20`) are currently hard-coded constants in `vision.py` and `identity_manager.py` (`_STRONG_SCORE_OFFSET`, `_MARGIN_STRONG`, `_MARGIN_BORDERLINE_1`, `_MARGIN_BORDERLINE_N`).
+The YuNet detection threshold is dynamically loaded from QSettings (`model_face_detect_yunet`), while NMS containment ratio (`0.40`), and SFace tiered margin values (`0.08 / 0.10 / 0.20`) are hard-coded constants in `vision.py` and `identity_manager.py`.
 
 ---
 
-## 4. Model Assets Summary
+## 5. Model Assets Summary
 
 | File | Size | Purpose | Download |
 |---|---|---|---|

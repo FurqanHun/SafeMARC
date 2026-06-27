@@ -33,11 +33,32 @@ def _load_yunet(model_path: str, input_size: tuple) -> cv2.FaceDetectorYN:
     )
 
 
+def _is_matching_face_body(fx: int, fy: int, fw: int, fh: int, bx: int, by: int, bw: int, bh: int) -> bool:
+    """Checks if a face spatially matches the upper section of a body bounding box."""
+    # 1. Face center must be inside body box horizontally (with a 10% body width margin)
+    face_cx = fx + fw / 2
+    if not (bx - bw * 0.1 <= face_cx <= bx + bw * 1.1):
+        return False
+    # 2. Face center must be above the middle of the body box,
+    # and not more than 2.0x face height above the top of the body box.
+    face_cy = fy + fh / 2
+    if not (by - fh * 2.0 <= face_cy <= by + bh * 0.5):
+        return False
+    # 3. Size ratio check: body shouldn't be disproportionately huge (e.g. > 50x face area)
+    face_area = fw * fh
+    body_area = bw * bh
+    if body_area / max(face_area, 1) > 50.0:
+        return False
+    return True
+
+
 class VisionDetector(BaseDetector):
     def __init__(self, mode: str = "faces", identity_manager=None):
         self.mode = mode
         self.identity_manager = identity_manager
         self._local = threading.local()
+
+        self._yunet_model_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
 
         if self.mode == "bodies":
             model_path = resource_path("assets/efficientdet_lite2.tflite")
@@ -46,26 +67,24 @@ class VisionDetector(BaseDetector):
 
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
-            fd_val = float(settings.value("model_face_detect", 0.20))
+            bd_val = float(settings.value("model_body_detect", 0.25))
 
             base_options = mp_python.BaseOptions(model_asset_path=model_path)
             options = vision.ObjectDetectorOptions(
-                base_options=base_options, score_threshold=fd_val, max_results=5
+                base_options=base_options, score_threshold=bd_val, max_results=100
             )
-            print(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {fd_val:.2f}")
+            print(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {bd_val:.2f}")
             self.detector = vision.ObjectDetector.create_from_options(options)
 
         elif self.mode == "faces":
-            yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
-            if not os.path.exists(yunet_path):
+            if not os.path.exists(self._yunet_model_path):
                 raise FileNotFoundError(
-                    f"Missing YuNet model: {yunet_path}\n"
+                    f"Missing YuNet model: {self._yunet_model_path}\n"
                     "Download with:\n"
                     "  curl -L -o assets/face_detection_yunet_2023mar.onnx "
                     "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/"
                     "face_detection_yunet_2023mar.onnx"
                 )
-            self._yunet_model_path = yunet_path
 
     # Thread-local YuNet instances (keyed by input size).
 
@@ -211,35 +230,155 @@ class VisionDetector(BaseDetector):
         """MediaPipe EfficientDet-Lite2 body/person detection."""
         from PySide6.QtCore import QSettings
         settings = QSettings("SafeMARC", "SafeMARC")
-        fd_val = float(settings.value("model_face_detect", 0.20))
+        bd_val = float(settings.value("model_body_detect", 0.25))
 
-        if not hasattr(self, "_active_fd_val") or self._active_fd_val != fd_val:
-            print(f"[DEBUG] Recreating ObjectDetector with active threshold: {fd_val:.2f}")
-            self._active_fd_val = fd_val
+        if not hasattr(self, "_active_bd_val") or self._active_bd_val != bd_val:
+            print(f"[DEBUG] Recreating ObjectDetector with active threshold: {bd_val:.2f}")
+            self._active_bd_val = bd_val
             model_path = resource_path("assets/efficientdet_lite2.tflite")
             base_options = mp_python.BaseOptions(model_asset_path=model_path)
             options = vision.ObjectDetectorOptions(
-                base_options=base_options, score_threshold=fd_val, max_results=5
+                base_options=base_options, score_threshold=bd_val, max_results=100
             )
             self.detector = vision.ObjectDetector.create_from_options(options)
 
-        adjusted = cv2.convertScaleAbs(cv_image, alpha=1.5, beta=10)
+        # Adaptive CLAHE contrast enhancement for low-light images
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        mean_brightness = cv2.mean(gray)[0]
+        if mean_brightness < 90:
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            lab = cv2.cvtColor(cv_image, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            adjusted = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        else:
+            adjusted = cv_image
+
+        h, w = adjusted.shape[:2]
+        full_dets = []
+
+        # Pass 1: Full image
         rgb_image = cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
-
         result = self.detector.detect(mp_image)
-        hits = []
         if result and result.detections:
-            for detection in result.detections:
-                bbox = detection.bounding_box
-                cat  = detection.categories[0]
+            for d in result.detections:
+                cat = d.categories[0]
                 if cat.category_name in ["person", "face"]:
-                    hits.append(SensitiveHit(
-                        x=int(bbox.origin_x), y=int(bbox.origin_y),
-                        w=int(bbox.width),    h=int(bbox.height),
-                        label="BODY",
-                        confidence=float(cat.score),
+                    bbox = d.bounding_box
+                    full_dets.append((
+                        int(bbox.origin_x), int(bbox.origin_y),
+                        int(bbox.width), int(bbox.height),
+                        float(cat.score)
                     ))
+
+        all_detections = list(full_dets)
+
+        # Pass 2: Overlapping tiles if image is large enough
+        if w > 800 or h > 800:
+            overlap = 100
+            # 2x2 grid
+            tiles = [
+                (0, 0, w // 2 + overlap, h // 2 + overlap),
+                (w // 2 - overlap, 0, w, h // 2 + overlap),
+                (0, h // 2 - overlap, w // 2 + overlap, h),
+                (w // 2 - overlap, h // 2 - overlap, w, h)
+            ]
+            for tx1, ty1, tx2, ty2 in tiles:
+                tx1 = max(0, tx1)
+                ty1 = max(0, ty1)
+                tx2 = min(w, tx2)
+                ty2 = min(h, ty2)
+                tile_img = adjusted[ty1:ty2, tx1:tx2]
+                if tile_img.size == 0:
+                    continue
+                tile_rgb = cv2.cvtColor(tile_img, cv2.COLOR_BGR2RGB)
+                tile_mp = mp.Image(image_format=mp.ImageFormat.SRGB, data=tile_rgb)
+                tile_result = self.detector.detect(tile_mp)
+                if tile_result and tile_result.detections:
+                    for d in tile_result.detections:
+                        cat = d.categories[0]
+                        if cat.category_name in ["person", "face"]:
+                            bbox = d.bounding_box
+                            abs_x = tx1 + bbox.origin_x
+                            abs_y = ty1 + bbox.origin_y
+                            tw, th = int(bbox.width), int(bbox.height)
+
+                            # Discard tile detection if it is highly contained inside an existing full image detection
+                            is_duplicate = False
+                            for fx, fy, fw, fh, fscore in full_dets:
+                                ix = max(abs_x, fx)
+                                iy = max(abs_y, fy)
+                                iw = min(abs_x + tw, fx + fw) - ix
+                                ih = min(abs_y + th, fy + fh) - iy
+                                if iw > 0 and ih > 0:
+                                    inter = iw * ih
+                                    if inter / max(tw * th, 1) > 0.70:
+                                        is_duplicate = True
+                                        break
+
+                            if not is_duplicate:
+                                all_detections.append((
+                                    int(abs_x), int(abs_y),
+                                    tw, th,
+                                    float(cat.score)
+                                ))
+
+        # Run NMS on MediaPipe detections first
+        suppressed = []
+        if all_detections:
+            suppressed = self._nms(all_detections, iou_thresh=0.40)
+
+        hits = []
+        for x, y, w_box, h_box, score in suppressed:
+            # Bounds safety
+            x = max(0, x)
+            y = max(0, y)
+            w_box = min(w - x, w_box)
+            h_box = min(h - y, h_box)
+            if w_box <= 0 or h_box <= 0:
+                continue
+            hits.append(SensitiveHit(
+                x=x, y=y, w=w_box, h=h_box,
+                label="BODY",
+                confidence=score
+            ))
+
+        # Face-guided estimation & recovery for any uncovered faces
+        try:
+            faces = self._detect_faces(cv_image, match_identities=False)
+            for face in faces:
+                fx, fy, fw, fh = face.x, face.y, face.w, face.h
+                
+                # Check if this face is covered by any final body hit
+                covered = False
+                for hit in hits:
+                    if _is_matching_face_body(fx, fy, fw, fh, hit.x, hit.y, hit.w, hit.h):
+                        covered = True
+                        break
+                
+                if not covered:
+                    # Generate estimated body box centering the face (with tighter constraints)
+                    ew = int(fw * 2.5)
+                    eh = int(fh * 4.5)
+                    ex = int(fx - (ew - fw) / 2)
+                    ey = int(fy)
+                    
+                    ex = max(0, ex)
+                    ey = max(0, ey)
+                    ew = min(w - ex, ew)
+                    eh = min(h - ey, eh)
+                    
+                    if ew > 0 and eh > 0:
+                        hits.append(SensitiveHit(
+                            x=ex, y=ey, w=ew, h=eh,
+                            label="BODY",
+                            confidence=face.confidence
+                        ))
+        except Exception as e:
+            print(f"[DEBUG] Face-guided body estimation failed: {e}")
+
         return hits
 
     def cleanup(self):

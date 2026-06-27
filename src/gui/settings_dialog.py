@@ -770,6 +770,27 @@ class SettingsDialog(QDialog):
         fd_box.addWidget(self.lbl_fd_val)
         model_layout.addLayout(fd_box)
 
+        bd_box = QHBoxLayout()
+        lbl_bd = QLabel("Body Detection Threshold:")
+        lbl_bd.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_bd = QSlider(Qt.Horizontal)
+        self.slider_bd.setRange(10, 100)
+        bd_val = float(self.settings.value("model_body_detect", 0.25))
+        self.slider_bd.setValue(int(bd_val * 100))
+        self.lbl_bd_val = QLabel(f"{bd_val:.2f}")
+        self.lbl_bd_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 40px;")
+        
+        def bd_changed(val):
+            v = val / 100.0
+            self.lbl_bd_val.setText(f"{v:.2f}")
+            self.settings.setValue("model_body_detect", v)
+        self.slider_bd.valueChanged.connect(bd_changed)
+        
+        bd_box.addWidget(lbl_bd)
+        bd_box.addWidget(self.slider_bd, 1)
+        bd_box.addWidget(self.lbl_bd_val)
+        model_layout.addLayout(bd_box)
+
         fm_box = QHBoxLayout()
         lbl_fm = QLabel("Face Matching Similarity:")
         lbl_fm.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
@@ -834,6 +855,7 @@ class SettingsDialog(QDialog):
         
         def reset_to_defaults():
             self.slider_fd.setValue(20)
+            self.slider_bd.setValue(25)
             self.slider_fm.setValue(40)
             self.slider_tm.setValue(70)
         self.btn_reset_model.clicked.connect(reset_to_defaults)

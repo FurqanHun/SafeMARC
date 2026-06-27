@@ -2,15 +2,15 @@
 
 block_cipher = None
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_all
 import cv2
 
-mediapipe_datas = collect_data_files('mediapipe')
+mediapipe_datas, mediapipe_binaries, mediapipe_hiddenimports = collect_all('mediapipe')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=mediapipe_binaries,
     datas=[
         ('assets/*.tflite', 'assets'),
         ('assets/*.onnx', 'assets'),
@@ -18,8 +18,8 @@ a = Analysis(
     ] + mediapipe_datas,
     hiddenimports=[
         'pytesseract', 'cv2', 'numpy', 'fitz', 'PIL', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
-        'qdarktheme', 'mediapipe'
-    ],
+        'qdarktheme'
+    ] + mediapipe_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

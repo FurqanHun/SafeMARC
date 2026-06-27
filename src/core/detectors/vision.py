@@ -144,11 +144,17 @@ class VisionDetector(BaseDetector):
 
         return self._nms(all_dets)
 
-    def _nms(self, detections: list, iou_thresh: float = 0.40) -> list:
+    def _nms(self, detections: list, iou_thresh: float = 0.40, use_iou: bool = False) -> list:
         """
-        Greedy NMS sorted by confidence.  Uses containment ratio instead of
-        pure IoU so that sub-face detections (lips, eyes) inside a larger face
-        box are suppressed even when their IoU with the face box is low.
+        Greedy NMS sorted by confidence.
+
+        When use_iou is False (default, used for faces), suppression uses
+        containment ratio (intersection / smaller area) so sub-face
+        detections (lips, eyes) inside a larger face box are removed.
+
+        When use_iou is True (used for bodies), suppression uses standard
+        IoU (intersection / union) which preserves overlapping but distinct
+        people standing close together in group photos.
         """
         if not detections:
             return []
@@ -166,11 +172,18 @@ class VisionDetector(BaseDetector):
                 ih = min(by + bh, ky + kh) - iy
                 if iw > 0 and ih > 0:
                     inter = iw * ih
-                    # Suppress if the smaller box is highly contained within the larger one.
-                    min_area = min(bw * bh, kw * kh)
-                    if inter / max(min_area, 1) > iou_thresh:
-                        suppressed = True
-                        break
+                    if use_iou:
+                        # Standard IoU: intersection / union
+                        union = bw * bh + kw * kh - inter
+                        if inter / max(union, 1) > iou_thresh:
+                            suppressed = True
+                            break
+                    else:
+                        # Containment ratio: intersection / smaller area
+                        min_area = min(bw * bh, kw * kh)
+                        if inter / max(min_area, 1) > iou_thresh:
+                            suppressed = True
+                            break
             if not suppressed:
                 kept.append(det)
 
@@ -272,6 +285,14 @@ class VisionDetector(BaseDetector):
             adjusted = cv_image
 
         h, w = adjusted.shape[:2]
+
+        # Upscale small images (max dim < 640) by 2× so EfficientDet can resolve small bodies.
+        upscale_factor = 1
+        if max(w, h) < 640:
+            upscale_factor = 2
+            adjusted = cv2.resize(adjusted, (w * 2, h * 2), interpolation=cv2.INTER_LINEAR)
+            h, w = adjusted.shape[:2]
+
         full_dets = []
 
         # Pass 1: Full image
@@ -281,7 +302,7 @@ class VisionDetector(BaseDetector):
         if result and result.detections:
             for d in result.detections:
                 cat = d.categories[0]
-                if cat.category_name in ["person", "face"]:
+                if cat.category_name == "person":
                     bbox = d.bounding_box
                     full_dets.append((
                         int(bbox.origin_x), int(bbox.origin_y),
@@ -291,21 +312,31 @@ class VisionDetector(BaseDetector):
 
         all_detections = list(full_dets)
 
-        # Pass 2: Overlapping tiles if image is large enough
-        if w > 800 or h > 800:
+        # Pass 2: Adaptive tiling — grid density scales with image size
+        max_dim = max(w, h)
+        if max_dim >= 5000:
+            cols, rows = 4, 3
+        elif max_dim >= 3000:
+            cols, rows = 3, 3
+        elif max_dim >= 1200:
+            cols, rows = 2, 2
+        else:
+            cols, rows = 0, 0  # No tiling for small images
+
+        if cols > 0 and rows > 0:
             overlap = 100
-            # 2x2 grid
-            tiles = [
-                (0, 0, w // 2 + overlap, h // 2 + overlap),
-                (w // 2 - overlap, 0, w, h // 2 + overlap),
-                (0, h // 2 - overlap, w // 2 + overlap, h),
-                (w // 2 - overlap, h // 2 - overlap, w, h)
-            ]
+            tile_w = w // cols
+            tile_h = h // rows
+            tiles = []
+            for r in range(rows):
+                for c in range(cols):
+                    tx1 = max(0, c * tile_w - overlap)
+                    ty1 = max(0, r * tile_h - overlap)
+                    tx2 = min(w, (c + 1) * tile_w + overlap)
+                    ty2 = min(h, (r + 1) * tile_h + overlap)
+                    tiles.append((tx1, ty1, tx2, ty2))
+
             for tx1, ty1, tx2, ty2 in tiles:
-                tx1 = max(0, tx1)
-                ty1 = max(0, ty1)
-                tx2 = min(w, tx2)
-                ty2 = min(h, ty2)
                 tile_img = adjusted[ty1:ty2, tx1:tx2]
                 if tile_img.size == 0:
                     continue
@@ -315,22 +346,22 @@ class VisionDetector(BaseDetector):
                 if tile_result and tile_result.detections:
                     for d in tile_result.detections:
                         cat = d.categories[0]
-                        if cat.category_name in ["person", "face"]:
+                        if cat.category_name == "person":
                             bbox = d.bounding_box
                             abs_x = tx1 + bbox.origin_x
                             abs_y = ty1 + bbox.origin_y
                             tw, th = int(bbox.width), int(bbox.height)
 
-                            # Discard tile detection if it is highly contained inside an existing full image detection
+                            # Discard tile detection if it is highly contained inside an existing detection
                             is_duplicate = False
-                            for fx, fy, fw, fh, fscore in full_dets:
+                            for fx, fy, fw, fh, fscore in all_detections:
                                 ix = max(abs_x, fx)
                                 iy = max(abs_y, fy)
                                 iw = min(abs_x + tw, fx + fw) - ix
                                 ih = min(abs_y + th, fy + fh) - iy
                                 if iw > 0 and ih > 0:
                                     inter = iw * ih
-                                    if inter / max(tw * th, 1) > 0.70:
+                                    if inter / max(tw * th, 1) > 0.50:
                                         is_duplicate = True
                                         break
 
@@ -341,10 +372,19 @@ class VisionDetector(BaseDetector):
                                     float(cat.score)
                                 ))
 
-        # Run NMS on MediaPipe detections first
+        # Scale coordinates back to original resolution if upscaled
+        if upscale_factor > 1:
+            all_detections = [
+                (int(x / upscale_factor), int(y / upscale_factor),
+                 int(bw / upscale_factor), int(bh / upscale_factor), score)
+                for x, y, bw, bh, score in all_detections
+            ]
+            h, w = h // upscale_factor, w // upscale_factor
+
+        # Run NMS on all detections (standard IoU for bodies to preserve distinct people)
         suppressed = []
         if all_detections:
-            suppressed = self._nms(all_detections, iou_thresh=0.40)
+            suppressed = self._nms(all_detections, iou_thresh=0.55, use_iou=True)
 
         hits = []
         for x, y, w_box, h_box, score in suppressed:
@@ -354,6 +394,11 @@ class VisionDetector(BaseDetector):
             w_box = min(w - x, w_box)
             h_box = min(h - y, h_box)
             if w_box <= 0 or h_box <= 0:
+                continue
+
+            # Reject slivers that are clearly not a person (hands, arms, necks).
+            # A standing/sitting person's height should be at least half their width.
+            if h_box < w_box * 0.5:
                 continue
 
             # Associate face identity with this body box if they match
@@ -401,7 +446,66 @@ class VisionDetector(BaseDetector):
                         identity=face.identity
                     ))
 
+        # Depth-ordered clipping: trim back-row boxes so they don't cover front-row faces.
+        # In a group photo, "in front" means the person's bottom edge is lower in the image.
+        hits = self._depth_clip_bodies(hits)
+
+        # Final pass: remove slivers produced by depth clipping or face-guided recovery.
+        hits = [h for h in hits if h.h >= h.w * 0.5]
+
         return hits
+
+    def _depth_clip_bodies(self, hits: List[SensitiveHit]) -> List[SensitiveHit]:
+        """Clip overlapping body boxes so back-row boxes don't cover front-row faces.
+
+        Depth heuristic: a box whose bottom edge (y + h) is further down the
+        image is considered "in front" (closer to the camera in a typical
+        group photo).  When a "behind" box's bottom extends past the top of
+        an "in front" box, the behind box is trimmed.
+        """
+        if len(hits) < 2:
+            return hits
+
+        result = []
+        for i, behind in enumerate(hits):
+            bx, by, bw, bh = behind.x, behind.y, behind.w, behind.h
+            b_bottom = by + bh
+
+            for j, front in enumerate(hits):
+                if i == j:
+                    continue
+
+                fx, fy, fw, fh = front.x, front.y, front.w, front.h
+                f_bottom = fy + fh
+
+                # Front box must be genuinely "in front" (bottom edge lower)
+                if f_bottom <= b_bottom:
+                    continue
+
+                # Check horizontal overlap (need significant overlap, not just touching)
+                ox1 = max(bx, fx)
+                ox2 = min(bx + bw, fx + fw)
+                h_overlap = ox2 - ox1
+                if h_overlap < min(bw, fw) * 0.3:
+                    continue
+
+                # If behind box's bottom extends past front box's top, clip it
+                if b_bottom > fy:
+                    new_h = fy - by
+                    # Only clip if we keep at least 30% of the original height
+                    if new_h >= bh * 0.30:
+                        bh = new_h
+                        b_bottom = by + bh
+
+            if bh > 0:
+                result.append(SensitiveHit(
+                    x=bx, y=by, w=bw, h=bh,
+                    label=behind.label,
+                    confidence=behind.confidence,
+                    text_content=behind.text_content,
+                    identity=behind.identity
+                ))
+        return result
 
     def cleanup(self):
         if hasattr(self, "detector") and self.detector:

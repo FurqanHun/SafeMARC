@@ -456,7 +456,7 @@ All tuneable parameters for the vision and identity systems are stored in `QSett
 | `pdf_extract_zoom` | `2.0` | PDF rasterization zoom multiplier (range 1.0–4.0×); stored in QSettings |
 | `soft_ram_limit` | `1024 MB` (< 8 GB RAM) · `1536 MB` (8–16 GB) · `2048 MB` (> 16 GB) | RSS threshold above which OCR cache is pruned to the last 2 pages |
 | `hard_ram_limit` | `2048 MB` (< 8 GB RAM) · `3072 MB` (8–16 GB) · `4096 MB` (> 16 GB) | RSS threshold above which all caches are flushed and vision detectors are destroyed |
-| `max_ocr_cache_pages` | `50` (< 8 GB RAM) · `100` (8–16 GB) · `200` (> 16 GB) | Maximum pages retained in the in-memory OCR result cache |
+| `max_ocr_cache_pages` | `50` (< 8 GB RAM) · `100` (8–16 GB) · `200` (> 16 GB) | Maximum pages retained in the in-memory OCR result cache (oldest-first eviction) |
 | `preserve_session_cache` | `false` | When `true`, OCR cache is preserved across batch review sessions |
 
 The YuNet detection threshold is dynamically loaded from QSettings (`model_face_detect_yunet`), while NMS containment ratio (`0.40`), and SFace tiered margin values (`0.08 / 0.10 / 0.20`) are hard-coded constants in `vision.py` and `identity_manager.py`.

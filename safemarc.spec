@@ -18,7 +18,7 @@ a = Analysis(
     ] + mediapipe_datas,
     hiddenimports=[
         'pytesseract', 'cv2', 'numpy', 'fitz', 'PIL', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
-        'qdarktheme'
+        'qdarktheme', 'psutil'
     ] + mediapipe_hiddenimports,
     hookspath=[],
     hooksconfig={},

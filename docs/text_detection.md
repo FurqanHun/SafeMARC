@@ -113,7 +113,15 @@ For each page:
 
 Both passes are run and their hits are merged. A hit from the PyMuPDF pass for the same word always wins (100% conf) over the equivalent OCR hit, with IoU-based deduplication removing duplicates from the merged pool.
 
-**Per-image caching (`dbe17a4`):** Both the PyMuPDF word dict and the Tesseract `image_to_data` dict are cached against `(image_path, pdf_words identity)`. Subsequent pattern changes (the user adds/removes a regex) skip re-running OCR and only re-run `_scan_data_dict()` against the cached output. This makes pattern iteration nearly instantaneous.
+**Per-image caching (session-only, in-memory):** Both the PyMuPDF word dict and the Tesseract `image_to_data` dict are cached in-memory against `(image_path, pdf_words identity)`. Subsequent pattern changes (the user adds/removes a regex) skip re-running OCR and only re-run `_scan_data_dict()` against the cached output. This makes pattern iteration nearly instantaneous.
+
+The cache is **session-only** and never persisted to disk. It is governed by the RAM limits system in `MainWindow.reclaim_memory`:
+- **Soft limit breach** (`soft_ram_limit` exceeded) — the OCR cache is pruned to the 2 most recently accessed entries (`ocr_cache.keys()[:-2]` deleted).
+- **Hard limit breach** (`hard_ram_limit` exceeded) — the entire OCR cache is cleared (`ocr_cache.clear()`).
+- **Session end** — if `preserve_session_cache` is `false` (default), the cache is fully cleared at the end of each batch session.
+- **Maximum page count** — configurable via `max_ocr_cache_pages` QSetting (range 10–500); defaults: `50` pages (< 8 GB RAM), `100` pages (8–16 GB), `200` pages (> 16 GB).
+
+Legacy `.pkl` disk cache files from earlier versions are automatically deleted on first startup.
 
 ---
 

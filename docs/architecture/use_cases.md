@@ -37,6 +37,8 @@ graph TD
         UC3 --> UC3_I[Adjust Text Auto-Redact Confidence Slider]
         UC3 --> UC3_J[Adjust Body Detection Threshold Slider]
         UC3 --> UC3_K[Adjust Face Match Threshold Slider]
+        UC3 --> UC3_L[Adjust PDF Extraction Zoom Slider]
+        UC3 --> UC3_M[Adjust Soft and Hard RAM Limit Sliders]
         UC3_B --> UC3_B_1[Import Custom Patterns from .json/.smpat]
         UC3_B --> UC3_B_2[Export Custom Patterns to .json/.smpat]
     end
@@ -106,6 +108,12 @@ graph TD
     - **Face Match Threshold Slider**: Adjusts the SFace cosine similarity matching threshold (10-100%, default 40%) for identifying sensitive faces and mapping identities.
     - **Text Auto-Redact Cutoff Slider**: Customizes the minimum confidence score (0-100%, default 70%) needed for a text hit to be automatically marked for redaction. Low-confidence matches falling below this cutoff trigger an amber outline/suggested review state.
 - **Target Selection**: User clicks the "People" button to toggle identity checkboxes.
+- **Performance & RAM Governance**:
+  - **PDF Extraction Zoom Slider**: Range 1–4× (integer steps), default `2.0×`. Determines the zoom factor passed to PyMuPDF `fitz.Matrix` when rasterizing PDF pages to temporary PNG images. Saved as `pdf_extract_zoom` in QSettings.
+  - **Max OCR Cache Pages Slider**: Range 10–500 pages, default `50` (< 8 GB RAM) / `100` (8–16 GB) / `200` (> 16 GB). Controls the maximum number of page results retained in the in-memory OCR cache. Saved as `max_ocr_cache_pages` in QSettings.
+  - **Soft RAM Limit Slider**: Range 512 MB to total system RAM; steps of 256/512 MB. Defaults: `1024 MB` (< 8 GB RAM), `1536 MB` (8–16 GB), `2048 MB` (> 16 GB). OCR cache is pruned to the last 2 pages when this threshold is crossed.
+  - **Hard RAM Limit Slider**: Must be at least 512 MB above the Soft Limit; minimum 1024 MB. Defaults: `2048 MB` (< 8 GB RAM), `3072 MB` (8–16 GB), `4096 MB` (> 16 GB). All caches are flushed and active vision detectors are destroyed when this threshold is crossed.
+  - **OCR Cache Preservation** (`preserve_session_cache`): When checked, the in-memory OCR cache is retained across batch review sessions; when unchecked (default) it is fully cleared at the end of each session.
 - **Output Folder**: Global output folder is enabled by default. The user can toggle it, choose a custom folder path, or switch to per-file output. The preference is persisted across sessions via `QSettings`.
 - **Custom Patterns Import/Export**:
   - **Export**: User clicks the Export button next to custom patterns and chooses the format: password-protected `.smpat` or unencrypted `.json`. The `.smpat` format encrypts the patterns list with a password-derived key.

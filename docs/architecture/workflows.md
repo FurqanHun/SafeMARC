@@ -10,13 +10,14 @@ graph TD
     B --> C{Check File Type}
     
     C -- Image --> D1{Hit in Session Cache?}
-    C -- PDF --> E[Extract PDF pages into high-fidelity temp images]
+    C -- PDF --> E[Extract PDF pages: zoom=pdf_extract_zoom, default 2.0x]
     
     E --> D1
     D1 -- Yes --> F2[Load Cached Hits Instantly]
     D1 -- No --> D[Scan with face/text detectors & Update Cache]
+    D --> RECLAIM[reclaim_memory: check Soft/Hard RAM limits]
 
-    D --> F1{Face Mode?}
+    RECLAIM --> F1{Face Mode?}
     E --> F1
 
     F1 -- All --> F2[Show all detected hits]
@@ -112,10 +113,10 @@ graph TD
     B -- Yes --> C[2x linear upscaling] --> D
     B -- No --> D{Image Size / Max Dim?}
     
-    D -- "> 5000 px" --> E1[4 × 3 Tiling Grid]
-    D -- "3001 – 5000 px" --> E2[3 × 3 Tiling Grid]
-    D -- "1201 – 3000 px" --> E3[2 × 2 Tiling Grid]
-    D -- "≤ 1200 px" --> E4[1 × 1 Global Pass]
+    D -- ">= 5000 px" --> E1[4 × 3 Tiling Grid]
+    D -- "3500 – 4999 px" --> E2[3 × 3 Tiling Grid]
+    D -- "2000 – 3499 px" --> E3[2 × 2 Tiling Grid]
+    D -- "< 2000 px" --> E4[1 × 1 Global Pass]
     
     E1 --> F[Run EfficientDet-Lite2 on tiles]
     E2 --> F
@@ -124,7 +125,8 @@ graph TD
     
     F --> G[Category Filter: Keep 'person' only, drop 'face']
     G --> H[Translate tile coords to absolute coordinates]
-    H --> I[Standard IoU NMS: threshold 0.55]
+    H --> HS[del tile_img/rgb/mp/result: _reclaim_if_needed per tile]
+    HS --> I[Standard IoU NMS: threshold 0.55]
     
     I --> J{Sliver Filter: height >= width * 0.5?}
     J -- No --> K[Discard hit]
@@ -397,6 +399,43 @@ graph TD
     P --> Q[RAII try-finally Guard]
     Q --> R[cleanup_temp_resources full=True]
     R --> S[Completely destroy safemarc_temp]
+```
+
+
+---
+
+## Dynamic RAM Governance Workflow
+
+```mermaid
+graph TD
+    A[Load next batch item] --> B["reclaim_memory: read RSS via psutil.Process.memory_info().rss"]
+    B --> C{"RSS > soft_ram_limit?"}
+    C -- No --> DONE[No action: QPixmapCache.clear only]
+    C -- Yes --> D["Prune OCR cache: keep last 2 pages (ocr_cache keys[:-2] deleted)"]
+    D --> E{"RSS > hard_ram_limit?"}
+    E -- No --> F["gc.collect()"]
+    E -- Yes --> G[Flush entire OCR cache and user_selections_cache]
+    G --> H["scanner.cleanup(): VisionDetector.cleanup() — close ObjectDetector, release TFLite model"]
+    H --> F
+    F --> I{Platform?}
+    I -- Linux --> J["libc.malloc_trim(0)"]
+    I -- Windows --> K["kernel32.SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1)"]
+    J --> L["Log: [SafeMARC] Reclaimed memory. RAM usage: X MB"]
+    K --> L
+    DONE --> L
+
+    subgraph Defaults by system RAM
+        D1["< 8 GB: soft=1024 MB, hard=2048 MB"]
+        D2["8-16 GB: soft=1536 MB, hard=3072 MB"]
+        D3["> 16 GB: soft=2048 MB, hard=4096 MB"]
+    end
+
+    M["VisionDetector._reclaim_if_needed()"] --> N{"RSS > soft_ram_limit (QSettings)?"}
+    N -- No --> NODONE[No action]
+    N -- Yes --> O2["gc.collect()"]
+    O2 --> P2{Platform?}
+    P2 -- Linux --> Q2["libc.malloc_trim(0)"]
+    P2 -- Windows --> R2["kernel32.SetProcessWorkingSetSize(-1, -1)"]
 ```
 
 

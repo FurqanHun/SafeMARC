@@ -20,6 +20,7 @@ classDiagram
         +ObjectDetector detector
         +detect(image_path: str, match_identities: bool) List~SensitiveHit~
         +cleanup() void
+        -_reclaim_if_needed() void
         -_detect_faces(cv_image: ndarray, match_identities: bool, face_thresh: float) List~SensitiveHit~
         -_detect_bodies(cv_image: ndarray, match_identities: bool) List~SensitiveHit~
         -_depth_clip_bodies(hits: List~SensitiveHit~) List~SensitiveHit~
@@ -191,6 +192,7 @@ classDiagram
         +skip_current() void
         +go_previous() void
         +load_next_batch_item() void
+        +reclaim_memory() void
         +add_files() void
         +add_folder() void
         +add_dropped_paths(paths: List) void
@@ -262,6 +264,11 @@ classDiagram
         +IdentityManager identity_manager
         +Dict shortcut_buttons
         +Dict local_shortcuts
+        +QSlider slider_pdf_zoom
+        +QSlider slider_ocr_cache
+        +QSlider slider_soft_ram
+        +QSlider slider_hard_ram
+        +QCheckBox chk_preserve_cache
         +accept() void
         -_init_shortcuts_tab() void
         -_check_for_conflicts() void

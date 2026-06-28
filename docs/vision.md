@@ -405,10 +405,10 @@ Low-light or poorly exposed document scans degrade the body detector's performan
 ### 3.3 Adaptive Tiling Grid
 Large group photos (e.g. 6000 × 4000 pixels) contain small individuals that the detector's native receptive field cannot resolve. To solve this, SafeMARC implements an **adaptive tiling grid**:
 - Grid density scales dynamically based on the image's maximum dimension:
-  - **Max Dim > 5000 px**: 4 × 3 grid (12 tiles)
-  - **Max Dim > 3000 px**: 3 × 3 grid (9 tiles)
-  - **Max Dim > 1200 px**: 2 × 2 grid (4 tiles)
-  - **Max Dim ≤ 1200 px**: 1 × 1 pass (global only)
+  - **Max Dim ≥ 5000 px**: 4 × 3 grid (12 tiles)
+  - **Max Dim ≥ 3500 px**: 3 × 3 grid (9 tiles)
+  - **Max Dim ≥ 2000 px**: 2 × 2 grid (4 tiles)
+  - **Max Dim < 2000 px**: 1 × 1 pass (global only)
 - Tiles are scanned with a 100-pixel overlap to prevent individuals standing on boundary lines from being missed.
 - Detections from all tiles are pooled together and converted back to absolute image coordinates.
 
@@ -453,8 +453,42 @@ All tuneable parameters for the vision and identity systems are stored in `QSett
 | `model_face_match` | `0.40` | SFace cosine similarity threshold for identity acceptance |
 | `model_face_detect_yunet` | `0.70` | YuNet face detection confidence threshold |
 | `model_body_detect` | `0.25` | MediaPipe body detection score threshold |
+| `pdf_extract_zoom` | `2.0` | PDF rasterization zoom multiplier (range 1.0–4.0×); stored in QSettings |
+| `soft_ram_limit` | `1024 MB` (< 8 GB RAM) · `1536 MB` (8–16 GB) · `2048 MB` (> 16 GB) | RSS threshold above which OCR cache is pruned to the last 2 pages |
+| `hard_ram_limit` | `2048 MB` (< 8 GB RAM) · `3072 MB` (8–16 GB) · `4096 MB` (> 16 GB) | RSS threshold above which all caches are flushed and vision detectors are destroyed |
+| `max_ocr_cache_pages` | `50` (< 8 GB RAM) · `100` (8–16 GB) · `200` (> 16 GB) | Maximum pages retained in the in-memory OCR result cache |
+| `preserve_session_cache` | `false` | When `true`, OCR cache is preserved across batch review sessions |
 
 The YuNet detection threshold is dynamically loaded from QSettings (`model_face_detect_yunet`), while NMS containment ratio (`0.40`), and SFace tiered margin values (`0.08 / 0.10 / 0.20`) are hard-coded constants in `vision.py` and `identity_manager.py`.
+
+---
+
+## 5. Memory Management in VisionDetector
+
+Large batch runs — especially seminar-scale group photos or high-resolution PDFs — can produce transient RSS spikes during detection. `VisionDetector` includes a proactive memory reclamation helper to limit these spikes mid-scan.
+
+### 5.1 `_reclaim_if_needed()`
+
+A lightweight check called at strategic points inside `_detect_bodies()` and `detect()`:
+
+1. Read current process RSS via `psutil.Process.memory_info().rss`.
+2. Read `soft_ram_limit` from `QSettings` (defaults: `1024 MB` for < 8 GB RAM, `1536 MB` for 8–16 GB, `2048 MB` for > 16 GB).
+3. If RSS exceeds the soft limit:
+   - Run `gc.collect()` to release Python-managed objects.
+   - On **Linux**: call `ctypes.CDLL("libc.so.6").malloc_trim(0)` to release free glibc heap arenas back to the kernel immediately.
+   - On **Windows**: call `kernel32.SetProcessWorkingSetSize(handle, -1, -1)` to trim the process working set, producing the equivalent effect.
+
+### 5.2 Invocation Points
+
+| Location | Purpose |
+|---|---|
+| After Pass 1 (full-image detect) in `_detect_bodies` | Release the full-resolution `mp.Image` buffer and inference result before tiling begins |
+| After each tile in the adaptive tiling loop | Release per-tile `tile_img`, `tile_rgb`, `tile_mp`, and `tile_result` before the next tile allocates |
+| After `_detect_faces` and `_detect_bodies` return in `detect()` | Final per-image sweep after all inference is complete |
+
+### 5.3 Transient Spike Tolerance
+
+A temporary RSS spike above the soft limit during a single complex image (e.g. a 38-face seminar photo) is an **expected and acceptable tradeoff**. Constraining the scan resolution to prevent such spikes would degrade detection accuracy for small or distant faces. The key guarantee is that the spike is released immediately after the scan completes, not accumulated across the batch.
 
 ---
 

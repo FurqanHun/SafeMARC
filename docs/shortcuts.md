@@ -1,6 +1,6 @@
 # SafeMARC Keyboard Shortcuts
 
-SafeMARC's keyboard-driven workflow enables highly efficient document review. All **30 keyboard shortcuts** listed below are fully customizable and rebindable to your preferred key combinations in **Settings** (`Ctrl` + `,`) under the **Shortcuts** tab. Custom combinations persist across application restarts.
+SafeMARC's keyboard-driven workflow enables highly efficient document review. All **30 keyboard shortcuts** listed below are fully customizable and rebindable to your preferred key combinations in **Settings** (`Ctrl` + `Shift` + `S`) under the **Shortcuts** tab. Custom combinations persist across application restarts.
 
 ---
 
@@ -11,7 +11,7 @@ SafeMARC's keyboard-driven workflow enables highly efficient document review. Al
 | **Add Folder** (`add_folder`) | `Ctrl` + `Shift` + `O` | Add a whole folder of files to the review queue. |
 | **Remove Selected File** (`remove_file`) | `Delete` | Remove the currently selected file from the queue. |
 | **Clear Queue** (`clear_queue`) | `Ctrl` + `Shift` + `C` | Clears all files in the queue. |
-| **Open Settings** (`settings`) | `Ctrl` + `,` | Opens the settings panel. |
+| **Open Settings** (`settings`) | `Ctrl` + `Shift` + `S` | Opens the settings panel. |
 | **Paste from Clipboard** (`paste`) | `Ctrl` + `V` | Pastes an image from the system clipboard as a temporary review item. |
 | **Reset Splitter Layout** (`reset_layout`) | `Ctrl` + `Alt` + `R` | Resets the three-pane window divider splitters back to their default balanced sizes. |
 

@@ -2147,29 +2147,41 @@ class SafeMARCMainWindow(QMainWindow):
     def _on_shortcut_add_file(self):
         if self._is_input_focused():
             return
+        if not self.btn_add_file.isEnabled():
+            return
         self.add_files()
 
     def _on_shortcut_add_folder(self):
         if self._is_input_focused():
+            return
+        if not self.btn_add_folder.isEnabled():
             return
         self.add_folder()
 
     def _on_shortcut_remove_file(self):
         if self._is_input_focused():
             return
+        if not self.btn_remove.isEnabled():
+            return
         self.remove_selected_file()
 
     def _on_shortcut_settings(self):
         if self._is_input_focused():
+            return
+        if not self.btn_settings.isEnabled():
             return
         self.open_settings()
 
     def _on_shortcut_clear_queue(self):
         if self._is_input_focused():
             return
+        if not self.btn_clear.isEnabled():
+            return
         self.clear_queue()
 
     def _on_shortcut_paste(self):
+        if not self.btn_paste.isEnabled():
+            return
         focused = QApplication.focusWidget()
         from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
         if focused and isinstance(focused, (QLineEdit, QTextEdit, QPlainTextEdit)):
@@ -2238,6 +2250,9 @@ class SafeMARCMainWindow(QMainWindow):
 
         stop_shortcut = self.shortcuts_config.get("escape", "Esc")
         self.btn_stop_review.setToolTip(f"Stop the active batch review process ({stop_shortcut})")
+
+        settings_shortcut = self.shortcuts_config.get("settings", "Ctrl+Shift+S")
+        self.btn_settings.setToolTip(f"Open Configuration & Settings ({settings_shortcut})")
 
     def set_shortcuts_enabled(self, enabled: bool):
         """Enable or disable all window-level QShortcut instances to prevent interception during text entry."""

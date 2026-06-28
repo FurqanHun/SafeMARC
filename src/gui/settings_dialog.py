@@ -29,7 +29,7 @@ DEFAULT_SHORTCUTS = {
     "add_folder": "Ctrl+Shift+O",
     "remove_file": "Delete",
     "clear_queue": "Ctrl+Shift+C",
-    "settings": "Ctrl+,",
+    "settings": "Ctrl+Shift+S",
     "paste": "Ctrl+V",
     "reset_layout": "Ctrl+Alt+R",
     "zoom_in": "Ctrl+=",
@@ -62,7 +62,7 @@ SHORTCUT_METADATA = {
     "add_folder": {"label": "Add Folder", "category": "General", "default": "Ctrl+Shift+O"},
     "remove_file": {"label": "Remove Selected File", "category": "General", "default": "Delete"},
     "clear_queue": {"label": "Clear Queue", "category": "General", "default": "Ctrl+Shift+C"},
-    "settings": {"label": "Open Settings", "category": "General", "default": "Ctrl+,"},
+    "settings": {"label": "Open Settings", "category": "General", "default": "Ctrl+Shift+S"},
     "paste": {"label": "Paste from Clipboard", "category": "General", "default": "Ctrl+V"},
     "reset_layout": {"label": "Reset Splitter Layout", "category": "General", "default": "Ctrl+Alt+R"},
     

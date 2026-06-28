@@ -3018,12 +3018,13 @@ class SafeMARCMainWindow(QMainWindow):
                 pdf_words = page_data.get("words", None)
                 
         show_anim = True
+        anim_text = "Scanning document..."
         if hasattr(self.scanner, "text_detector") and self.scanner.text_detector.cached_image_path == self.current_file_path:
-            show_anim = False
+            anim_text = "Matching identities..."
             
         try:
             cache_key = self.get_current_cache_key()
-            hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim, cache_key=cache_key)
+            hits = self.run_scan_with_overlay(self.current_file_path, pdf_words=pdf_words, show_animation=show_anim, anim_text=anim_text, cache_key=cache_key)
             self.current_hits = hits
             is_pdf = bool(self.active_pdf_pages)
             pdf_source = self.active_pdf_source if is_pdf else None
@@ -3299,7 +3300,7 @@ class SafeMARCMainWindow(QMainWindow):
                 use_suffix=self.chk_suffix.isChecked()
             )
 
-    def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True, cache_key=None):
+    def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True, anim_text="Scanning document...", cache_key=None):
         ckey = cache_key if cache_key else path
         if self.scanner and ckey in self.scanner._scan_cache:
             # Instant cache hit!
@@ -3318,7 +3319,7 @@ class SafeMARCMainWindow(QMainWindow):
             return merged_hits
 
         if show_animation:
-            self.preview_widget.show_loading("Scanning document for sensitive data...")
+            self.preview_widget.show_loading(anim_text)
         from PySide6.QtCore import QEventLoop
         loop = QEventLoop()
         

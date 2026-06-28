@@ -144,6 +144,8 @@ class LoadingOverlay(QWidget):
             self.lbl_text.setText("Scanning" + "." * self.dots)
         elif "Processing" in base_text:
             self.lbl_text.setText("Processing" + "." * self.dots)
+        elif "Matching identities" in base_text:
+            self.lbl_text.setText("Matching identities" + "." * self.dots)
 
     def animate(self):
         self.angle = (self.angle + 6) % 360

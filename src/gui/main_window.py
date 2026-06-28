@@ -370,6 +370,200 @@ class PDFExtractWorker(QThread):
             self.error.emit(e)
 
 
+class PDFOCRWorker(QThread):
+    finished = Signal()
+
+    def __init__(self, scanner, pages, pdf_source, parent=None):
+        super().__init__(parent)
+        self.scanner = scanner
+        self.pages = pages
+        self.pdf_source = pdf_source
+        self.is_cancelled = False
+
+    def run(self):
+        import sys
+        if sys.platform != "win32":
+            try:
+                import os
+                os.nice(10)
+            except Exception:
+                pass
+        else:
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.GetCurrentProcess()
+                kernel32.SetPriorityClass(handle, 0x00004000)
+            except Exception:
+                pass
+
+        import cv2
+        import numpy as np
+        import tempfile
+        import subprocess
+        import pytesseract
+        import os
+        from src.utils.paths import pytesseract_env
+
+        total_pages = len(self.pages)
+        temp_dir = None
+        list_file_path = None
+        
+        try:
+            safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "ocr_batch")
+            os.makedirs(safemarc_temp, exist_ok=True)
+            temp_dir = tempfile.mkdtemp(prefix="pdf_ocr_", dir=safemarc_temp)
+            
+            ocr_image_paths = []
+            original_paths = []
+            scales = []
+
+            for idx, p in enumerate(self.pages):
+                if self.is_cancelled:
+                    return
+                
+                original_path = p["image_path"]
+                original_paths.append(original_path)
+                
+                if original_path in self.scanner.text_detector.ocr_cache:
+                    ocr_image_paths.append(None)
+                    scales.append(1.0)
+                    continue
+
+                cv_img = cv2.imread(original_path, cv2.IMREAD_GRAYSCALE)
+                if cv_img is not None:
+                    h_orig, w_orig = cv_img.shape[:2]
+                    max_dim = max(h_orig, w_orig)
+                    if max_dim >= 2000:
+                        scale = 1.0
+                    elif max_dim >= 1000:
+                        scale = 1.5
+                    else:
+                        scale = 2.0
+                    
+                    if scale != 1.0:
+                        cv_img = cv2.resize(cv_img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                    _, thresh = cv2.threshold(cv_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    
+                    temp_ocr_img_path = os.path.join(temp_dir, f"page_{idx + 1}_ocr.png")
+                    cv2.imwrite(temp_ocr_img_path, thresh)
+                    ocr_image_paths.append(temp_ocr_img_path)
+                    scales.append(scale)
+                else:
+                    ocr_image_paths.append(None)
+                    scales.append(1.0)
+
+            valid_ocr_paths = [path for path in ocr_image_paths if path is not None]
+            if not valid_ocr_paths:
+                return
+            
+            list_fd, list_file_path = tempfile.mkstemp(suffix=".txt", dir=temp_dir)
+            with os.fdopen(list_fd, "w", encoding="utf-8") as f_list:
+                for path in valid_ocr_paths:
+                    f_list.write(path + "\n")
+
+            tesseract_cmd = "tesseract"
+            if hasattr(pytesseract.pytesseract, "tesseract_cmd") and pytesseract.pytesseract.tesseract_cmd:
+                tesseract_cmd = pytesseract.pytesseract.tesseract_cmd
+
+            output_base = os.path.join(temp_dir, "batch_out")
+            
+            if self.is_cancelled:
+                return
+
+            with pytesseract_env():
+                startupinfo = None
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
+                
+                subprocess.run(
+                    [tesseract_cmd, list_file_path, output_base, "--psm", "3", "tsv"],
+                    capture_output=True,
+                    text=True,
+                    startupinfo=startupinfo,
+                    check=True
+                )
+
+            tsv_path = output_base + ".tsv"
+            if not os.path.exists(tsv_path):
+                return
+            
+            pages_data = {}
+            with open(tsv_path, "r", encoding="utf-8") as f:
+                header = f.readline().strip().split("\t")
+                col_map = {col: i for i, col in enumerate(header)}
+                
+                for line in f:
+                    if self.is_cancelled:
+                        return
+                    parts = line.strip("\n").split("\t")
+                    if len(parts) < len(header):
+                        parts.extend([""] * (len(header) - len(parts)))
+                    
+                    p_num = int(parts[col_map["page_num"]])
+                    if p_num not in pages_data:
+                        pages_data[p_num] = {
+                            "text": [], "level": [], "block_num": [], "par_num": [], "line_num": [],
+                            "left": [], "top": [], "width": [], "height": [], "conf": []
+                        }
+                    
+                    for col in ["level", "block_num", "par_num", "line_num", "left", "top", "width", "height"]:
+                        pages_data[p_num][col].append(int(parts[col_map[col]]))
+                    pages_data[p_num]["conf"].append(float(parts[col_map["conf"]]))
+                    pages_data[p_num]["text"].append(parts[col_map["text"]])
+
+            ocr_path_idx = 0
+            for idx, original_path in enumerate(original_paths):
+                if ocr_image_paths[idx] is None:
+                    continue
+                
+                tess_page_num = ocr_path_idx + 1
+                ocr_path_idx += 1
+                
+                if tess_page_num in pages_data:
+                    parsed_dict = pages_data[tess_page_num]
+                    cached_list = []
+                    p_orig = self.pages[idx]
+                    pdf_words = p_orig.get("words", None)
+                    if pdf_words:
+                        digital_data = {
+                            "text": [], "level": [], "block_num": [], "par_num": [], "line_num": [],
+                            "left": [], "top": [], "width": [], "height": [], "conf": []
+                        }
+                        for w in pdf_words:
+                            x0, y0, x1, y1, word_text, block_no, line_no, word_no = w
+                            digital_data["text"].append(word_text)
+                            digital_data["level"].append(5)
+                            digital_data["block_num"].append(block_no)
+                            digital_data["par_num"].append(0)
+                            digital_data["line_num"].append(line_no)
+                            digital_data["left"].append(int(x0))
+                            digital_data["top"].append(int(y0))
+                            digital_data["width"].append(int(x1 - x0))
+                            digital_data["height"].append(int(y1 - y0))
+                            digital_data["conf"].append(100.0)
+                        cached_list.append((digital_data, 1.0))
+                    
+                    cached_list.append((parsed_dict, scales[idx]))
+                    self.scanner.text_detector.ocr_cache[original_path] = cached_list
+
+        except Exception as e:
+            print(f"[PDFOCRWorker] Error during batch OCR pre-scan: {e}")
+        finally:
+            if temp_dir and os.path.exists(temp_dir):
+                import shutil
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+            self.finished.emit()
+
+    def cancel(self):
+        self.is_cancelled = True
+
+
 class PDFFinalizeWorker(QThread):
     progress = Signal(int, int)  # current, total
     finished = Signal(bool, list)
@@ -430,7 +624,10 @@ class PDFFinalizeWorker(QThread):
                     try:
                         with Image.open(p["image_path"]) as img:
                             w, h = img.size
-                        page_sizes.append((w / 4.0, h / 4.0))
+                        from PySide6.QtCore import QSettings
+                        settings = QSettings("SafeMARC", "SafeMARC")
+                        zoom_factor = float(settings.value("pdf_extract_zoom", 2.0))
+                        page_sizes.append((w / zoom_factor, h / zoom_factor))
                     except Exception:
                         page_sizes.append((595.0, 842.0))
                         
@@ -1714,6 +1911,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
         self.active_pdf_source = None
+        self.active_pdf_ocr_worker = None
 
         # Apply StrongFocus focus policy to all interactive widgets for a consistent tabbing experience
         interactive_widgets = [
@@ -1809,12 +2007,13 @@ class SafeMARCMainWindow(QMainWindow):
         self.is_batch_mode = False
         self.batch_index = -1
         self.batch_success_count = 0
+        self.cancel_active_pdf_ocr_worker()
         self.cleanup_temp_resources(full=False)
         self.pdf_nav_container.hide()
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
         self.active_pdf_index = -1
-        
+
         self.btn_previous.hide()
         self.btn_skip.hide()
         self.btn_redact_next.hide()
@@ -1843,6 +2042,15 @@ class SafeMARCMainWindow(QMainWindow):
         if self.btn_persistent_mode.isChecked():
             self.btn_persistent_mode.setChecked(False)
             self.preview_widget.set_persistent_mode(False)
+
+    def cancel_active_pdf_ocr_worker(self):
+        if getattr(self, "active_pdf_ocr_worker", None) is not None:
+            try:
+                self.active_pdf_ocr_worker.cancel()
+                self.active_pdf_ocr_worker.wait()
+            except Exception:
+                pass
+            self.active_pdf_ocr_worker = None
 
     def _is_input_focused(self):
         if QApplication.activeModalWidget() is not None:
@@ -2895,6 +3103,7 @@ class SafeMARCMainWindow(QMainWindow):
                     self.load_next_batch_item()
         self.update_stats()
         self.update_toolbar_state()
+        self.reclaim_memory()
 
     def clear_queue(self):
         self.file_list.clear()
@@ -2908,6 +3117,7 @@ class SafeMARCMainWindow(QMainWindow):
         if self.is_batch_mode:
             self.cancel_batch_mode()
         self.update_stats()
+        self.reclaim_memory()
 
     def on_paste(self):
         clipboard = QApplication.clipboard()
@@ -2961,8 +3171,10 @@ class SafeMARCMainWindow(QMainWindow):
                 "reviewed": False
             }
                 
+        self.reclaim_memory()
         file_path = item.data(Qt.UserRole)
         is_pdf = file_path.lower().endswith('.pdf')
+        self.cancel_active_pdf_ocr_worker()
         if not is_pdf:
             self.active_pdf_pages = []
             self.active_pdf_outputs = []
@@ -3176,6 +3388,17 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_index = 0
         self.batch_success_count = 0
 
+        # Clear OCR cache if preservation is False
+        from PySide6.QtCore import QSettings
+        settings = QSettings("SafeMARC", "SafeMARC")
+        preserve = str(settings.value("preserve_session_cache", "false")).lower() == "true"
+        if not preserve:
+            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                try:
+                    self.scanner.text_detector.ocr_cache.clear()
+                except Exception:
+                    pass
+
         for i in range(self.file_list.count()):
             from PySide6.QtGui import QColor
             self.file_list.item(i).setForeground(QColor("#E5E7EB"))
@@ -3257,10 +3480,22 @@ class SafeMARCMainWindow(QMainWindow):
                 self.load_next_batch_item()
                 return
             elif msg_box.clickedButton() == btn_pdf:
+                if self.active_pdf_pages:
+                    try:
+                        first_page = self.active_pdf_pages[0]["image_path"]
+                        parent_dir = os.path.dirname(first_page)
+                        if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
+                            import shutil
+                            shutil.rmtree(parent_dir)
+                            print(f"[SafeMARC] Cleaned up temp PDF folder on skip: {parent_dir}")
+                    except Exception as e:
+                        print(f"[SafeMARC] Failed to clean up temp PDF folder on skip: {e}")
+
                 self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
                 self.active_pdf_outputs = []
                 self.active_pdf_index = 0
+                self.reclaim_memory()
             else:
                 return
             
@@ -3292,6 +3527,7 @@ class SafeMARCMainWindow(QMainWindow):
         # Scenario B: Moving to the previous queue item
         if self.batch_index > 0:
             if self.active_pdf_pages and self.active_pdf_index == 0:
+                self.cancel_active_pdf_ocr_worker()
                 self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
                 self.active_pdf_outputs = []
@@ -3419,6 +3655,7 @@ class SafeMARCMainWindow(QMainWindow):
         item.setData(Qt.ForegroundRole, None)
 
     def load_next_batch_item(self):
+        self.reclaim_memory()
         can_go_back = bool(self.batch_index > 0 or (self.active_pdf_pages and self.active_pdf_index > 0))
         self.btn_previous.setEnabled(can_go_back)
 
@@ -3446,6 +3683,7 @@ class SafeMARCMainWindow(QMainWindow):
                     cache_key = f"{self.active_pdf_source}_page_{self.active_pdf_index}" if getattr(self, "active_pdf_pages", None) else None
                     hits = self.run_scan_with_overlay(page_path, pdf_words=pdf_words, cache_key=cache_key)
                     self.current_hits = hits
+                    self.reclaim_memory()
                     if self.chk_skip_review.isChecked():
                         self.user_selections_cache[cache_key] = {
                             "active_hits": hits,
@@ -3534,11 +3772,31 @@ class SafeMARCMainWindow(QMainWindow):
                     else:
                         self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
 
+                    if self.active_pdf_pages:
+                        try:
+                            first_page = self.active_pdf_pages[0]["image_path"]
+                            parent_dir = os.path.dirname(first_page)
+                            if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
+                                import shutil
+                                shutil.rmtree(parent_dir)
+                                print(f"[SafeMARC] Cleaned up temp PDF folder: {parent_dir}")
+                        except Exception as e:
+                            print(f"[SafeMARC] Failed to clean up temp PDF folder: {e}")
+
+                    if outputs:
+                        for path in outputs:
+                            if path and os.path.exists(path) and "safemarc_temp" in path:
+                                try:
+                                    os.remove(path)
+                                except Exception:
+                                    pass
+
                     self.pdf_nav_container.hide()
                     self.active_pdf_pages = []
                     self.active_pdf_outputs = []
                     self.batch_index += 1
                     self.title_label.setText("🛡️ SafeMARC")
+                    self.reclaim_memory()
                     QTimer.singleShot(0, self.load_next_batch_item)
 
                 def on_error(e):
@@ -3547,11 +3805,23 @@ class SafeMARCMainWindow(QMainWindow):
                     print(f"Error finalizing PDF: {e}")
                     self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
 
+                    if self.active_pdf_pages:
+                        try:
+                            first_page = self.active_pdf_pages[0]["image_path"]
+                            parent_dir = os.path.dirname(first_page)
+                            if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
+                                import shutil
+                                shutil.rmtree(parent_dir)
+                                print(f"[SafeMARC] Cleaned up temp PDF folder on error: {parent_dir}")
+                        except Exception as ex:
+                            print(f"[SafeMARC] Failed to clean up temp PDF folder on error: {ex}")
+
                     self.pdf_nav_container.hide()
                     self.active_pdf_pages = []
                     self.active_pdf_outputs = []
                     self.batch_index += 1
                     self.title_label.setText("🛡️ SafeMARC")
+                    self.reclaim_memory()
                     QTimer.singleShot(0, self.load_next_batch_item)
 
                 worker.finished.connect(on_finished)
@@ -3591,6 +3861,7 @@ class SafeMARCMainWindow(QMainWindow):
                 progress.close()
                 self._pdf_extract_worker = None
                 try:
+                    self.cancel_active_pdf_ocr_worker()
                     self.active_pdf_source = file_path
                     self.active_pdf_pages = pages
                     if is_backward:
@@ -3599,6 +3870,10 @@ class SafeMARCMainWindow(QMainWindow):
                         self.active_pdf_index = 0
                     self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
                     self.active_pdf_has_redactions = False
+
+                    self.active_pdf_ocr_worker = PDFOCRWorker(self.scanner, pages, file_path, self)
+                    self.active_pdf_ocr_worker.start()
+
                     QTimer.singleShot(0, self.load_next_batch_item)
                 except Exception as e:
                     self.is_navigating_backward = False
@@ -3629,6 +3904,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.current_hits = []
         
         # Clear PDF state for standard image
+        self.cancel_active_pdf_ocr_worker()
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
         self.active_pdf_index = -1
@@ -3643,6 +3919,7 @@ class SafeMARCMainWindow(QMainWindow):
             try:
                 hits = self.run_scan_with_overlay(file_path)
                 self.current_hits = hits
+                self.reclaim_memory()
                 if self.chk_skip_review.isChecked():
                     out_path = self.get_redacted_output_path(file_path)
                     success = self.scanner.redact(file_path, out_path, hits)
@@ -3722,8 +3999,150 @@ class SafeMARCMainWindow(QMainWindow):
                             print(f"[SafeMARC] Cleaned up temporary {sub} directory.")
                         except Exception as e:
                             print(f"[SafeMARC] Error cleaning up {sub}: {e}")
+        self.reclaim_memory()
+
+    def reclaim_memory(self, force_aggressive=False):
+        import gc
+        import os
+        from PySide6.QtGui import QPixmapCache
+        from PySide6.QtCore import QSettings
+        
+        settings = QSettings("SafeMARC", "SafeMARC")
+        
+        # Calculate dynamic defaults based on system RAM
+        try:
+            import psutil
+            total_ram = psutil.virtual_memory().total / (1024 ** 3)
+        except Exception:
+            total_ram = 8.0
+            
+        if total_ram < 8.0:
+            default_soft, default_hard = 1024, 2048
+        elif total_ram <= 16.0:
+            default_soft, default_hard = 1536, 3072
+        else:
+            default_soft, default_hard = 2048, 4096
+            
+        soft_limit = int(settings.value("soft_ram_limit", default_soft))
+        hard_limit = int(settings.value("hard_ram_limit", default_hard))
+        
+        # Get current process RSS memory in MB
+        current_rss = 0.0
+        try:
+            import psutil
+            process = psutil.Process(os.getpid())
+            current_rss = process.memory_info().rss / (1024 * 1024)
+        except Exception as e:
+            print(f"[SafeMARC] Failed to read memory usage: {e}")
+            
+        exceeded_hard = (current_rss > hard_limit) or force_aggressive
+        exceeded_soft = (current_rss > soft_limit) or exceeded_hard
+        
+        # Phase 1: Always clear QPixmapCache
+        QPixmapCache.clear()
+        
+        # Clean up scanner detectors if not actively reviewing a batch/PDF
+        # OR if we exceeded the hard limit (aggressively reclaim vision model memory)
+        cleaned_detectors = False
+        if exceeded_hard or (not getattr(self, "is_batch_mode", False) and not getattr(self, "active_pdf_pages", None)):
+            if hasattr(self, "scanner") and self.scanner:
+                try:
+                    self.scanner.cleanup()
+                    cleaned_detectors = True
+                except Exception as e:
+                    print(f"[SafeMARC] Failed to cleanup scanner during reclaim: {e}")
+                    
+        # Phase 2: Soft Limit Exceeded - Prune OCR cache to keep only the 2 most recent scanned pages
+        pruned_ocr = False
+        if exceeded_soft:
+            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                try:
+                    ocr_cache = self.scanner.text_detector.ocr_cache
+                    if len(ocr_cache) > 2:
+                        pruned_ocr = True
+                        keys = list(ocr_cache.keys())
+                        for k in keys[:-2]:
+                            ocr_cache.pop(k, None)
+                except Exception as e:
+                    print(f"[SafeMARC] Failed to prune OCR cache: {e}")
+                    
+        # Phase 3: Hard Limit Exceeded - Completely flush OCR cache and selections cache
+        cleared_ocr = False
+        if exceeded_hard:
+            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                try:
+                    self.scanner.text_detector.ocr_cache.clear()
+                    cleared_ocr = True
+                except Exception:
+                    pass
+            if hasattr(self, "user_selections_cache"):
+                self.user_selections_cache.clear()
+                
+        # If not in batch mode/active PDF and preserve is False, clear OCR cache completely
+        preserve = str(settings.value("preserve_session_cache", "false")).lower() == "true"
+        if not preserve and not getattr(self, "is_batch_mode", False) and not getattr(self, "active_pdf_pages", None):
+            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                try:
+                    self.scanner.text_detector.ocr_cache.clear()
+                    cleared_ocr = True
+                except Exception:
+                    pass
+
+        gc.collect()
+        
+        # Trim memory via malloc_trim (Linux) or SetProcessWorkingSetSize (Windows)
+        import sys
+        if sys.platform.startswith("linux"):
+            try:
+                import ctypes
+                libc = ctypes.CDLL("libc.so.6")
+                libc.malloc_trim(0)
+            except Exception:
+                pass
+        elif sys.platform.startswith("win32"):
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                kernel32.SetProcessWorkingSetSize(kernel32.GetCurrentProcess(), -1, -1)
+            except Exception:
+                pass
+        
+        # Log action if limits were exceeded or memory reclaimed
+        if exceeded_soft or exceeded_hard:
+            try:
+                import psutil
+                process = psutil.Process(os.getpid())
+                new_rss = process.memory_info().rss / (1024 * 1024)
+            except Exception:
+                new_rss = current_rss
+            reclaim_detail = []
+            if exceeded_hard:
+                reclaim_detail.append("Hard Limit Exceeded")
+            elif exceeded_soft:
+                reclaim_detail.append("Soft Limit Exceeded")
+            if cleaned_detectors:
+                reclaim_detail.append("released vision detectors")
+            if pruned_ocr:
+                reclaim_detail.append("pruned OCR cache")
+            if cleared_ocr:
+                reclaim_detail.append("cleared OCR cache")
+                
+            print(f"[SafeMARC] RAM watch triggered ({', '.join(reclaim_detail)}): {current_rss:.1f} MB -> {new_rss:.1f} MB (reclaimed {(current_rss - new_rss):.1f} MB).")
+        else:
+            print(f"[SafeMARC] Reclaimed memory. RAM usage: {current_rss:.1f} MB.")
 
     def closeEvent(self, event):
+        self.cancel_active_pdf_ocr_worker()
+        if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+            try:
+                self.scanner.text_detector.save_cache()
+            except Exception as e:
+                print(f"[SafeMARC] Failed to save OCR cache on close: {e}")
+        if hasattr(self, "scanner") and self.scanner:
+            try:
+                self.scanner.cleanup()
+            except Exception as e:
+                print(f"[SafeMARC] Failed to cleanup scanner on close: {e}")
         self.cleanup_temp_resources(full=True)
         event.accept()
 

@@ -31,14 +31,11 @@ class IdentityManager:
         # Cache of biometric SFace face embeddings, keyed by person name.
         self.sface_embeddings: Dict[str, List[np.ndarray]] = {}
         
-        sface_model = resource_path("assets/face_recognition_sface_2021dec.onnx")
-        if os.path.exists(sface_model):
-            try:
-                self.sface_recognizer = cv2.FaceRecognizerSF.create(sface_model, "")
-                self.use_sface = True
-                print("[IdentityManager] Using SFace deep learning model for recognition.")
-            except Exception as e:
-                print(f"[IdentityManager] SFace init failed ({e}), falling back to LBPH.")
+        self.sface_model = resource_path("assets/face_recognition_sface_2021dec.onnx")
+        if os.path.exists(self.sface_model):
+            self.use_sface = True
+            print("[IdentityManager] SFace model file found. Biometric recognition is available.")
+        
         if not self.use_sface:
             print("[IdentityManager] Using LBPH fallback (less accurate).")
             self.recognizer = cv2.face.LBPHFaceRecognizer_create(
@@ -46,6 +43,17 @@ class IdentityManager:
             )
         
         self.reload_identities()
+
+    def _get_sface_recognizer(self):
+        if self.sface_recognizer is None:
+            if self.use_sface and os.path.exists(self.sface_model):
+                try:
+                    print("[IdentityManager] Lazy-loading SFace model...")
+                    self.sface_recognizer = cv2.FaceRecognizerSF.create(self.sface_model, "")
+                except Exception as e:
+                    print(f"[IdentityManager] Failed to load SFace model lazily: {e}")
+                    self.use_sface = False
+        return self.sface_recognizer
 
     def _extract_face_crop(self, img: np.ndarray) -> np.ndarray:
         """
@@ -153,7 +161,7 @@ class IdentityManager:
                         if embedding is None:
                             # Fallback: Resize the unaligned crop to 112x112 if YuNet fails to locate landmarks.
                             aligned = cv2.resize(face_crop, (112, 112))
-                            embedding = self.sface_recognizer.feature(aligned)
+                            embedding = self._get_sface_recognizer().feature(aligned)
                         
                         try:
                             npy_path = img_path + ".sface.npy"
@@ -225,8 +233,8 @@ class IdentityManager:
 
         best = max(dets, key=lambda d: d[2] * d[3])
         try:
-            aligned = self.sface_recognizer.alignCrop(img, best)
-            return self.sface_recognizer.feature(aligned)
+            aligned = self._get_sface_recognizer().alignCrop(img, best)
+            return self._get_sface_recognizer().feature(aligned)
         except Exception as e:
             print(f"[IdentityManager] alignCrop failed during embedding: {e}")
             return None
@@ -247,7 +255,7 @@ class IdentityManager:
 
         if self.use_sface:
             try:
-                aligned = self.sface_recognizer.alignCrop(full_img, det_row)
+                aligned = self._get_sface_recognizer().alignCrop(full_img, det_row)
                 return self._match_sface_from_aligned(aligned, num_faces)
             except Exception as e:
                 print(f"[IdentityManager] alignCrop match failed ({e}), falling back to crop.")
@@ -267,7 +275,7 @@ class IdentityManager:
         match against all registered identities.
         """
         try:
-            embedding = self.sface_recognizer.feature(aligned_face)
+            embedding = self._get_sface_recognizer().feature(aligned_face)
             return self._rank_sface_embedding(embedding, num_faces)
         except Exception as e:
             print(f"SFace aligned match failed: {e}")
@@ -318,7 +326,7 @@ class IdentityManager:
         identity_scores = {}
         for name, ref_embeddings in self.sface_embeddings.items():
             scores = [
-                float(self.sface_recognizer.match(
+                float(self._get_sface_recognizer().match(
                     embedding, ref_emb, cv2.FaceRecognizerSF_FR_COSINE
                 ))
                 for ref_emb in ref_embeddings
@@ -358,7 +366,7 @@ class IdentityManager:
         """Crop-based SFace match used as fallback when alignCrop is unavailable."""
         try:
             aligned   = cv2.resize(face_image, (112, 112))
-            embedding = self.sface_recognizer.feature(aligned)
+            embedding = self._get_sface_recognizer().feature(aligned)
             return self._rank_sface_embedding(embedding, num_faces=1)
         except Exception as e:
             print(f"SFace match failed: {e}")

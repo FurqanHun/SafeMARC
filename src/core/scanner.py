@@ -31,6 +31,11 @@ class SafeScanner:
         print("[SafeScanner] Vision caches cleared.")
         
     def set_vision_mode(self, mode: str) -> None:
+        if hasattr(self, "vision_detector") and self.vision_detector:
+            try:
+                self.vision_detector.cleanup()
+            except Exception:
+                pass
         self.vision_detector = VisionDetector(mode=mode, identity_manager=self.identity_manager)
         self.detectors = [self.text_detector, self.vision_detector]
         self.clear_cache()

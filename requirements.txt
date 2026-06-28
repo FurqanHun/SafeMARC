@@ -9,8 +9,8 @@ numpy
 Pillow
 
 mediapipe
-
 pytesseract
+psutil
 
 pyinstaller
 pytest

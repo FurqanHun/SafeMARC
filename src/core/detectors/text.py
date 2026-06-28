@@ -12,9 +12,37 @@ from src.core.types import SensitiveHit
 class RegexDetector(BaseDetector):
     def __init__(self) -> None:
         self.custom_patterns: List[dict] = []
+        self.ocr_cache = {}  # Dict[str, List[Tuple[Dict, float]]] mapping image_path to list of (ocr_data, scale)
         self.cached_image_path: Optional[str] = None
-        self.cached_pdf_words: Optional[list] = None
-        self.cached_data_list: List[tuple] = []
+        self._load_cache()
+
+    def _load_cache(self) -> None:
+        import os
+        from PySide6.QtCore import QStandardPaths
+        # Purely in-memory now. Clean up any legacy disk cache to save space.
+        try:
+            cache_dir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+            if cache_dir:
+                cache_file = os.path.join(cache_dir, "ocr_cache.json")
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+                    print("[RegexDetector] Cleaned up legacy disk OCR cache file.")
+        except Exception as e:
+            print(f"[RegexDetector] Failed to clean up legacy disk cache: {e}")
+        self.ocr_cache = {}
+
+    def save_cache(self) -> None:
+        import os
+        from PySide6.QtCore import QStandardPaths
+        # Purely in-memory now. Delete legacy file if any exists.
+        try:
+            cache_dir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+            if cache_dir:
+                cache_file = os.path.join(cache_dir, "ocr_cache.json")
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+        except Exception:
+            pass
 
     def add_custom_pattern(self, label: str, pattern: str, is_regex: bool = False, is_whole_word: bool = False, keywords: Optional[List[str]] = None) -> None:
         if not is_regex:
@@ -36,14 +64,13 @@ class RegexDetector(BaseDetector):
         self.custom_patterns.clear()
 
     def detect(self, image_path: str, pdf_words: Optional[list] = None) -> List[SensitiveHit]:
+        self.cached_image_path = image_path
         if not self.custom_patterns:
             return []
             
-        if (image_path == self.cached_image_path and 
-            (pdf_words is self.cached_pdf_words or 
-             (pdf_words is not None and self.cached_pdf_words is not None and len(pdf_words) == len(self.cached_pdf_words)))):
+        if image_path in self.ocr_cache:
             hits = []
-            for data, scale in self.cached_data_list:
+            for data, scale in self.ocr_cache[image_path]:
                 hits.extend(self._scan_data_dict(data, scale))
         else:
             hits = []
@@ -85,8 +112,17 @@ class RegexDetector(BaseDetector):
 
             cv_img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
             if cv_img is not None:
-                scale = 2.0
-                cv_img = cv2.resize(cv_img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                h_orig, w_orig = cv_img.shape[:2]
+                max_dim = max(h_orig, w_orig)
+                if max_dim >= 2000:
+                    scale = 1.0
+                elif max_dim >= 1000:
+                    scale = 1.5
+                else:
+                    scale = 2.0
+
+                if scale != 1.0:
+                    cv_img = cv2.resize(cv_img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
                 _, thresh = cv2.threshold(cv_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 img = Image.fromarray(thresh)
                 
@@ -99,9 +135,14 @@ class RegexDetector(BaseDetector):
                 except Exception as e:
                     print(f"Tesseract OCR failed: {e}")
 
-            self.cached_image_path = image_path
-            self.cached_pdf_words = pdf_words
-            self.cached_data_list = new_cached_list
+            # Enforce max cache size limit
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            max_cache_size = int(settings.value("max_ocr_cache_pages", 100))
+            self.ocr_cache[image_path] = new_cached_list
+            while len(self.ocr_cache) > max_cache_size:
+                oldest = next(iter(self.ocr_cache))
+                self.ocr_cache.pop(oldest)
 
         def boxes_overlap_heavily(b1: SensitiveHit, b2: SensitiveHit) -> bool:
             x_left = max(b1.x, b2.x)

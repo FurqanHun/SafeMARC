@@ -864,6 +864,223 @@ class SettingsDialog(QDialog):
         model_layout.addStretch()
         self.tabs.addTab(self.tab_model, "Model Settings")
 
+        # Performance Tab
+        self.tab_performance = QWidget()
+        self.tab_performance.setStyleSheet("background-color: #111827; border: none;")
+        perf_layout = QVBoxLayout(self.tab_performance)
+        perf_layout.setContentsMargins(20, 20, 20, 20)
+        perf_layout.setSpacing(15)
+
+        lbl_perf_title = QLabel("Performance & Memory Optimization Settings")
+        lbl_perf_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #10B981;")
+        perf_layout.addWidget(lbl_perf_title)
+
+        lbl_perf_desc = QLabel("Optimize SafeMARC responsiveness and memory usage. Adjusting these settings helps prevent high RAM usage during large batch reviews.")
+        lbl_perf_desc.setWordWrap(True)
+        lbl_perf_desc.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 10px;")
+        perf_layout.addWidget(lbl_perf_desc)
+
+        pdf_zoom_box = QHBoxLayout()
+        lbl_pdf_zoom = QLabel("PDF Extract Zoom:")
+        lbl_pdf_zoom.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_pdf_zoom = QSlider(Qt.Horizontal)
+        self.slider_pdf_zoom.setRange(1, 4)
+        zoom_val = float(self.settings.value("pdf_extract_zoom", 2.0))
+        self.slider_pdf_zoom.setValue(int(zoom_val))
+        self.lbl_pdf_zoom_val = QLabel("")
+        self.lbl_pdf_zoom_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 160px;")
+        
+        def pdf_zoom_changed(val):
+            zoom_map = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.0}
+            z = zoom_map.get(val, 2.0)
+            label_map = {
+                1.0: "1.0x (Fast, Low RAM)",
+                2.0: "2.0x (Normal, Low RAM)",
+                3.0: "3.0x (High, Medium RAM)",
+                4.0: "4.0x (Ultra, High RAM)"
+            }
+            self.lbl_pdf_zoom_val.setText(label_map.get(z, "2.0x"))
+            self.settings.setValue("pdf_extract_zoom", z)
+        
+        self.slider_pdf_zoom.valueChanged.connect(pdf_zoom_changed)
+        pdf_zoom_changed(self.slider_pdf_zoom.value())
+        
+        pdf_zoom_box.addWidget(lbl_pdf_zoom)
+        pdf_zoom_box.addWidget(self.slider_pdf_zoom, 1)
+        pdf_zoom_box.addWidget(self.lbl_pdf_zoom_val)
+        perf_layout.addLayout(pdf_zoom_box)
+
+        def get_default_max_ocr_cache():
+            try:
+                import psutil
+                total_ram = psutil.virtual_memory().total / (1024 ** 3)
+            except Exception:
+                total_ram = 8.0
+            if total_ram < 8.0:
+                return 50
+            elif total_ram <= 16.0:
+                return 100
+            else:
+                return 200
+
+        ocr_cache_box = QHBoxLayout()
+        lbl_ocr_cache = QLabel("Max OCR Cache Pages:")
+        lbl_ocr_cache.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_ocr_cache = QSlider(Qt.Horizontal)
+        self.slider_ocr_cache.setRange(10, 500)
+        default_cache = get_default_max_ocr_cache()
+        cache_val = int(self.settings.value("max_ocr_cache_pages", default_cache))
+        self.slider_ocr_cache.setValue(cache_val)
+        self.lbl_ocr_cache_val = QLabel(f"{cache_val} pages")
+        self.lbl_ocr_cache_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 160px;")
+        
+        def ocr_cache_changed(val):
+            self.lbl_ocr_cache_val.setText(f"{val} pages")
+            self.settings.setValue("max_ocr_cache_pages", val)
+            
+        self.slider_ocr_cache.valueChanged.connect(ocr_cache_changed)
+        ocr_cache_changed(self.slider_ocr_cache.value())
+        
+        ocr_cache_box.addWidget(lbl_ocr_cache)
+        ocr_cache_box.addWidget(self.slider_ocr_cache, 1)
+        ocr_cache_box.addWidget(self.lbl_ocr_cache_val)
+        perf_layout.addLayout(ocr_cache_box)
+
+        # Dynamic RAM limits based on user's system RAM
+        def get_default_ram_limits():
+            try:
+                import psutil
+                total_ram = psutil.virtual_memory().total / (1024 ** 3)
+            except Exception:
+                total_ram = 8.0
+            if total_ram < 8.0:
+                return 1024, 2048
+            elif total_ram <= 16.0:
+                return 1536, 3072
+            else:
+                return 2048, 4096
+
+        try:
+            import psutil
+            total_ram_mb = int(psutil.virtual_memory().total / (1024 * 1024))
+        except Exception:
+            total_ram_mb = 8192
+        total_ram_mb = max(total_ram_mb, 2048)
+
+        soft_ram_box = QHBoxLayout()
+        lbl_soft_ram = QLabel("Soft RAM Limit:")
+        lbl_soft_ram.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_soft_ram = QSlider(Qt.Horizontal)
+        self.slider_soft_ram.setRange(512, total_ram_mb)
+        self.slider_soft_ram.setSingleStep(256)
+        self.slider_soft_ram.setPageStep(512)
+        default_soft, default_hard = get_default_ram_limits()
+        soft_val = int(self.settings.value("soft_ram_limit", default_soft))
+        soft_val = max(512, min(soft_val, total_ram_mb))
+        self.slider_soft_ram.setValue(soft_val)
+        self.lbl_soft_ram_val = QLabel(f"{soft_val} MB")
+        self.lbl_soft_ram_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 160px;")
+        
+        soft_ram_box.addWidget(lbl_soft_ram)
+        soft_ram_box.addWidget(self.slider_soft_ram, 1)
+        soft_ram_box.addWidget(self.lbl_soft_ram_val)
+        perf_layout.addLayout(soft_ram_box)
+
+        hard_ram_box = QHBoxLayout()
+        lbl_hard_ram = QLabel("Hard RAM Limit:")
+        lbl_hard_ram.setStyleSheet("color: #E5E7EB; font-size: 13px; font-weight: 500; min-width: 180px;")
+        self.slider_hard_ram = QSlider(Qt.Horizontal)
+        self.slider_hard_ram.setRange(1024, total_ram_mb)
+        self.slider_hard_ram.setSingleStep(512)
+        self.slider_hard_ram.setPageStep(1024)
+        hard_val = int(self.settings.value("hard_ram_limit", default_hard))
+        hard_val = max(1024, min(hard_val, total_ram_mb))
+        self.slider_hard_ram.setValue(hard_val)
+        self.lbl_hard_ram_val = QLabel(f"{hard_val} MB")
+        self.lbl_hard_ram_val.setStyleSheet("color: #10B981; font-size: 13px; font-weight: bold; min-width: 160px;")
+        
+        hard_ram_box.addWidget(lbl_hard_ram)
+        hard_ram_box.addWidget(self.slider_hard_ram, 1)
+        hard_ram_box.addWidget(self.lbl_hard_ram_val)
+        perf_layout.addLayout(hard_ram_box)
+
+        def soft_ram_changed(val):
+            val = (val // 256) * 256
+            val = max(512, val)
+            self.lbl_soft_ram_val.setText(f"{val} MB")
+            self.settings.setValue("soft_ram_limit", val)
+            if self.slider_hard_ram.value() < val + 512:
+                new_hard = min(val + 512, total_ram_mb)
+                self.slider_hard_ram.blockSignals(True)
+                self.slider_hard_ram.setValue(new_hard)
+                self.lbl_hard_ram_val.setText(f"{new_hard} MB")
+                self.settings.setValue("hard_ram_limit", new_hard)
+                self.slider_hard_ram.blockSignals(False)
+                
+        def hard_ram_changed(val):
+            val = (val // 512) * 512
+            val = max(1024, val)
+            soft_curr = self.slider_soft_ram.value()
+            if val < soft_curr + 512:
+                val = min(soft_curr + 512, total_ram_mb)
+                self.slider_hard_ram.blockSignals(True)
+                self.slider_hard_ram.setValue(val)
+                self.slider_hard_ram.blockSignals(False)
+            self.lbl_hard_ram_val.setText(f"{val} MB")
+            self.settings.setValue("hard_ram_limit", val)
+
+        self.slider_soft_ram.valueChanged.connect(soft_ram_changed)
+        self.slider_hard_ram.valueChanged.connect(hard_ram_changed)
+        
+        soft_ram_changed(self.slider_soft_ram.value())
+        hard_ram_changed(self.slider_hard_ram.value())
+
+        self.chk_preserve_cache = QCheckBox("Preserve OCR cache across batch reviews (current session only)")
+        preserve_val = self.settings.value("preserve_session_cache")
+        preserve_cache = True if str(preserve_val).lower() == "true" else False
+        self.chk_preserve_cache.setChecked(preserve_cache)
+        
+        def preserve_cache_toggled(checked):
+            self.settings.setValue("preserve_session_cache", checked)
+            
+        self.chk_preserve_cache.toggled.connect(preserve_cache_toggled)
+        perf_layout.addWidget(self.chk_preserve_cache)
+
+        self.btn_reset_perf = QPushButton("Reset to Defaults")
+        self.btn_reset_perf.setCursor(Qt.PointingHandCursor)
+        self.btn_reset_perf.setStyleSheet("""
+            QPushButton {
+                background-color: #1F2937;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin-top: 15px;
+            }
+            QPushButton:hover {
+                background-color: #374151;
+                border-color: #E11D48;
+                color: #FFFFFF;
+            }
+        """)
+        
+        def reset_perf_defaults():
+            self.slider_pdf_zoom.setValue(2)
+            self.slider_ocr_cache.setValue(get_default_max_ocr_cache())
+            self.chk_preserve_cache.setChecked(False)
+            d_soft, d_hard = get_default_ram_limits()
+            self.slider_soft_ram.setValue(d_soft)
+            self.slider_hard_ram.setValue(d_hard)
+            
+        self.btn_reset_perf.clicked.connect(reset_perf_defaults)
+        perf_layout.addWidget(self.btn_reset_perf, 0, Qt.AlignLeft)
+
+        perf_layout.addStretch()
+        self.tabs.addTab(self.tab_performance, "Performance")
+
         # Shortcuts tab initialization.
         self.tab_shortcuts = QWidget()
         self.tab_shortcuts.setStyleSheet("background-color: #111827; border: none;")
@@ -895,6 +1112,12 @@ class SettingsDialog(QDialog):
             self.slider_fm,
             self.slider_tm,
             self.btn_reset_model,
+            self.slider_pdf_zoom,
+            self.slider_ocr_cache,
+            self.slider_soft_ram,
+            self.slider_hard_ram,
+            self.chk_preserve_cache,
+            self.btn_reset_perf,
             self.btn_reset_all_shortcuts,
             self.close_btn
         ]

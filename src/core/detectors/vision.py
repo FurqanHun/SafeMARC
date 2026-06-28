@@ -200,9 +200,13 @@ class VisionDetector(BaseDetector):
         if self.mode == "text":
             return []
         if self.mode == "faces":
-            return self._detect_faces(cv_image, match_identities)
+            res = self._detect_faces(cv_image, match_identities)
+            self._reclaim_if_needed()
+            return res
         if self.mode == "bodies":
-            return self._detect_bodies(cv_image, match_identities)
+            res = self._detect_bodies(cv_image, match_identities)
+            self._reclaim_if_needed()
+            return res
         return []
 
     def _detect_faces(self, cv_image: np.ndarray, match_identities: bool, face_thresh: Optional[float] = None) -> List[SensitiveHit]:
@@ -254,8 +258,13 @@ class VisionDetector(BaseDetector):
         settings = QSettings("SafeMARC", "SafeMARC")
         bd_val = float(settings.value("model_body_detect", 0.25))
 
-        if not hasattr(self, "_active_bd_val") or self._active_bd_val != bd_val:
+        if not hasattr(self, "_active_bd_val") or self._active_bd_val != bd_val or not getattr(self, "detector", None):
             print(f"[DEBUG] Recreating ObjectDetector with active threshold: {bd_val:.2f}")
+            if hasattr(self, "detector") and self.detector:
+                try:
+                    self.detector.close()
+                except Exception:
+                    pass
             self._active_bd_val = bd_val
             model_path = resource_path("assets/efficientdet_lite2.tflite")
             base_options = mp_python.BaseOptions(model_asset_path=model_path)
@@ -311,14 +320,20 @@ class VisionDetector(BaseDetector):
                     ))
 
         all_detections = list(full_dets)
+        
+        # Clean up Pass 1 variables
+        del rgb_image
+        del mp_image
+        del result
+        self._reclaim_if_needed()
 
         # Pass 2: Adaptive tiling — grid density scales with image size
         max_dim = max(w, h)
         if max_dim >= 5000:
             cols, rows = 4, 3
-        elif max_dim >= 3000:
+        elif max_dim >= 3500:
             cols, rows = 3, 3
-        elif max_dim >= 1200:
+        elif max_dim >= 2000:
             cols, rows = 2, 2
         else:
             cols, rows = 0, 0  # No tiling for small images
@@ -371,6 +386,12 @@ class VisionDetector(BaseDetector):
                                     tw, th,
                                     float(cat.score)
                                 ))
+                # Clean up local tile variables to release memory early
+                del tile_img
+                del tile_rgb
+                del tile_mp
+                del tile_result
+                self._reclaim_if_needed()
 
         # Scale coordinates back to original resolution if upscaled
         if upscale_factor > 1:
@@ -513,3 +534,41 @@ class VisionDetector(BaseDetector):
                 self.detector.close()
             except Exception:
                 pass
+            self.detector = None
+        if hasattr(self, "_active_bd_val"):
+            delattr(self, "_active_bd_val")
+
+    def _reclaim_if_needed(self):
+        try:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            current_rss = process.memory_info().rss / (1024 * 1024)
+        except Exception:
+            current_rss = 0
+        
+        try:
+            from PySide6.QtCore import QSettings
+            settings = QSettings("SafeMARC", "SafeMARC")
+            soft_limit = int(settings.value("soft_ram_limit", 1500))
+        except Exception:
+            soft_limit = 1500
+        
+        if current_rss > soft_limit:
+            import gc
+            gc.collect()
+            import sys
+            if sys.platform.startswith("linux"):
+                try:
+                    import ctypes
+                    libc = ctypes.CDLL("libc.so.6")
+                    libc.malloc_trim(0)
+                except Exception:
+                    pass
+            elif sys.platform.startswith("win32"):
+                try:
+                    import ctypes
+                    kernel32 = ctypes.windll.kernel32
+                    kernel32.SetProcessWorkingSetSize(kernel32.GetCurrentProcess(), -1, -1)
+                except Exception:
+                    pass

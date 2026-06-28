@@ -12,56 +12,68 @@ class PDFHandler:
         Returns a list of dicts with file paths and word bounding boxes:
         [{"image_path": str, "words": list}]
         """
+        from PySide6.QtCore import QSettings
+        settings = QSettings("SafeMARC", "SafeMARC")
+        zoom = float(settings.value("pdf_extract_zoom", 2.0))
+
         doc = fitz.open(pdf_path)
         safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
         os.makedirs(safemarc_temp, exist_ok=True)
         temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_", dir=safemarc_temp)
         pages_data = []
         
-        for page_num in range(len(doc)):
-            if progress_callback:
-                try:
-                    progress_callback(page_num + 1, len(doc))
-                except Exception:
-                    pass
-            page = doc.load_page(page_num)
-            zoom = 4.0
-            mat = fitz.Matrix(zoom, zoom)
-            pix = page.get_pixmap(matrix=mat)
-            
-            out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
-            pix.save(out_path)
-            
-            # Extract word bounding boxes: (x0, y0, x1, y1, text, block, line, word).
-            words = []
-            for w in page.get_text("words"):
-                x0, y0, x1, y1, text, block_no, line_no, word_no = w
-                words.append((x0 * zoom, y0 * zoom, x1 * zoom, y1 * zoom, text, block_no, line_no, word_no))
+        try:
+            for page_num in range(len(doc)):
+                if progress_callback:
+                    try:
+                        progress_callback(page_num + 1, len(doc))
+                    except Exception:
+                        pass
+                page = doc.load_page(page_num)
+                mat = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
                 
-            rect = page.rect
-            pages_data.append({
-                "image_path": out_path,
-                "words": words,
-                "width": rect.width,
-                "height": rect.height
-            })
+                out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
+                pix.save(out_path)
+                
+                # Extract word bounding boxes: (x0, y0, x1, y1, text, block, line, word).
+                words = []
+                for w in page.get_text("words"):
+                    x0, y0, x1, y1, text, block_no, line_no, word_no = w
+                    words.append((x0 * zoom, y0 * zoom, x1 * zoom, y1 * zoom, text, block_no, line_no, word_no))
+                    
+                rect = page.rect
+                pages_data.append({
+                    "image_path": out_path,
+                    "words": words,
+                    "width": rect.width,
+                    "height": rect.height
+                })
+        finally:
+            doc.close()
             
         return pages_data
 
     @staticmethod
     def extract_first_page(pdf_path: str) -> Optional[str]:
         doc = fitz.open(pdf_path)
-        if len(doc) > 0:
-            safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
-            os.makedirs(safemarc_temp, exist_ok=True)
-            temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_", dir=safemarc_temp)
-            page = doc.load_page(0)
-            zoom = 4.0
-            mat = fitz.Matrix(zoom, zoom)
-            pix = page.get_pixmap(matrix=mat)
-            out_path = os.path.join(temp_dir, "page_1.png")
-            pix.save(out_path)
-            return out_path
+        try:
+            if len(doc) > 0:
+                from PySide6.QtCore import QSettings
+                settings = QSettings("SafeMARC", "SafeMARC")
+                zoom = float(settings.value("pdf_extract_zoom", 2.0))
+
+                safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp", "pdf")
+                os.makedirs(safemarc_temp, exist_ok=True)
+                temp_dir = tempfile.mkdtemp(prefix="safemarc_pdf_", dir=safemarc_temp)
+                page = doc.load_page(0)
+                mat = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
+                out_path = os.path.join(temp_dir, "page_1.png")
+                pix.save(out_path)
+                return out_path
+        finally:
+            doc.close()
         return None
 
     @staticmethod
@@ -73,6 +85,7 @@ class PDFHandler:
             return False
             
         temp_files = []
+        doc = None
         try:
             output_dir = os.path.dirname(output_pdf_path)
             if output_dir:
@@ -92,12 +105,15 @@ class PDFHandler:
                     if page_sizes and idx < len(page_sizes):
                         orig_w, orig_h = page_sizes[idx]
                     else:
+                        from PySide6.QtCore import QSettings
+                        settings = QSettings("SafeMARC", "SafeMARC")
+                        zoom_factor = float(settings.value("pdf_extract_zoom", 2.0))
                         if width > 1500 or height > 1500:
-                            orig_w, orig_h = width / 4.0, height / 4.0
+                            orig_w, orig_h = width / zoom_factor, height / zoom_factor
                         else:
                             orig_w, orig_h = width, height
                             
-                    # Downscale 4x extracted PDF pages to 2x zoom to optimize final file size
+                    # Downscale extracted PDF pages to 2x zoom to optimize final file size
                     is_pdf_extracted = (page_sizes is not None) or (width > 1500 or height > 1500)
                     if is_pdf_extracted:
                         target_w = int(orig_w * 2.0)
@@ -118,12 +134,16 @@ class PDFHandler:
                 page.insert_image(page.rect, filename=temp_jpg)
                 
             doc.save(output_pdf_path, garbage=4, deflate=True)
-            doc.close()
             return True
         except Exception as e:
             print(f"Failed to build PDF: {e}")
             return False
         finally:
+            if doc is not None:
+                try:
+                    doc.close()
+                except Exception:
+                    pass
             for temp_file in temp_files:
                 try:
                     if os.path.exists(temp_file):

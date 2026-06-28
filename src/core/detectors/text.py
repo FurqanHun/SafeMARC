@@ -138,7 +138,16 @@ class RegexDetector(BaseDetector):
             # Enforce max cache size limit
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
-            max_cache_size = int(settings.value("max_ocr_cache_pages", 100))
+            
+            # Determine dynamic default based on RAM if not set
+            try:
+                import psutil
+                tot_ram = psutil.virtual_memory().total / (1024 ** 3)
+            except Exception:
+                tot_ram = 8.0
+            
+            default_cache = 50 if tot_ram < 8.0 else (100 if tot_ram <= 16.0 else 200)
+            max_cache_size = int(settings.value("max_ocr_cache_pages", default_cache))
             self.ocr_cache[image_path] = new_cached_list
             while len(self.ocr_cache) > max_cache_size:
                 oldest = next(iter(self.ocr_cache))

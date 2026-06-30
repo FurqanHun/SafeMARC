@@ -25,6 +25,15 @@ class SafeScanner:
         self._scan_cache = {}
         print("[SafeScanner] Session scan caches cleared.")
         
+    def clear_scan_cache_only(self) -> None:
+        self._scan_cache = {}
+        print("[SafeScanner] Filter scan cache cleared.")
+        
+    def clear_text_cache(self) -> None:
+        self._regex_cache = {}
+        self._scan_cache = {}
+        print("[SafeScanner] Text/Regex cache cleared.")
+        
     def clear_vision_cache(self) -> None:
         self._vision_cache = {}
         self._scan_cache = {}
@@ -42,7 +51,7 @@ class SafeScanner:
  
     def set_face_redaction_mode(self, mode: str) -> None:
         self.face_redaction_mode = mode
-        self.clear_cache()
+        self.clear_scan_cache_only()
  
     def set_text_patterns(self, patterns_list: List[dict]) -> None:
         self.text_detector.clear_custom_patterns()
@@ -55,7 +64,7 @@ class SafeScanner:
                     is_whole_word=p.get("whole_word", False),
                     keywords=p.get("keywords")
                 )
-        self.clear_cache()
+        self.clear_text_cache()
  
     def scan(self, file_path: str, pdf_words: Optional[list] = None, cache_key: Optional[str] = None) -> List[SensitiveHit]:
         """Runs all detectors and returns combined hits."""

@@ -2966,7 +2966,7 @@ class SafeMARCMainWindow(QMainWindow):
                     cb.setChecked(False)
                     cb.blockSignals(False)
                 if self.scanner:
-                    self.scanner._scan_cache.clear()
+                    self.scanner.clear_scan_cache_only()
                 self._rescan_current()
             btn_clear.clicked.connect(on_clear_all)
             
@@ -2989,13 +2989,13 @@ class SafeMARCMainWindow(QMainWindow):
                 self.scanner.target_identities.remove(name)
         print(f"Target identities: {self.scanner.target_identities}")
         if self.scanner:
-            self.scanner._scan_cache.clear()
+            self.scanner.clear_scan_cache_only()
         self._rescan_current()
 
     def _clear_target_identities(self):
         self.scanner.target_identities = []
         if self.scanner:
-            self.scanner._scan_cache.clear()
+            self.scanner.clear_scan_cache_only()
         self._rescan_current()
 
     def _rescan_current(self):
@@ -3020,7 +3020,7 @@ class SafeMARCMainWindow(QMainWindow):
         show_anim = True
         anim_text = "Scanning document..."
         if hasattr(self.scanner, "text_detector") and self.scanner.text_detector.cached_image_path == self.current_file_path:
-            anim_text = "Matching identities..."
+            anim_text = "Processing..."
             
         try:
             cache_key = self.get_current_cache_key()
@@ -3302,6 +3302,21 @@ class SafeMARCMainWindow(QMainWindow):
 
     def run_scan_with_overlay(self, path, pdf_words=None, show_animation=True, anim_text="Scanning document...", cache_key=None):
         ckey = cache_key if cache_key else path
+        
+        # If both sub-caches exist, the scan is purely a fast filter operation on the main thread (<1ms)
+        if self.scanner and ckey in self.scanner._vision_cache and ckey in self.scanner._regex_cache and ckey not in self.scanner._scan_cache:
+            merged_hits = list(self.scanner.scan(path, pdf_words=pdf_words, cache_key=ckey))
+            for ph in self.preview_widget.persistent_manual_hits:
+                if not any(ph.x == h.x and ph.y == h.y and ph.w == h.w and ph.h == h.h for h in merged_hits):
+                    merged_hits.append(ph)
+            if ckey in self.user_selections_cache:
+                cached_data = self.user_selections_cache[ckey]
+                cached_hits = cached_data.get("active_hits", []) if isinstance(cached_data, dict) else cached_data
+                for ch in cached_hits:
+                    if ch.label == "MANUAL" and not any(ch.x == h.x and ch.y == h.y and ch.w == h.w and ch.h == h.h for h in merged_hits):
+                        merged_hits.append(ch)
+            return merged_hits
+
         if self.scanner and ckey in self.scanner._scan_cache:
             # Instant cache hit!
             merged_hits = list(self.scanner._scan_cache[ckey])

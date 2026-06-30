@@ -4109,9 +4109,11 @@ class SafeMARCMainWindow(QMainWindow):
         # Phase 3: Hard Limit Exceeded - Completely flush OCR cache and selections cache
         cleared_ocr = False
         if exceeded_hard:
-            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+            if hasattr(self, "scanner") and self.scanner:
                 try:
-                    self.scanner.text_detector.ocr_cache.clear()
+                    self.scanner.clear_cache()
+                    if hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                        self.scanner.text_detector.ocr_cache.clear()
                     cleared_ocr = True
                 except Exception:
                     pass
@@ -4121,9 +4123,11 @@ class SafeMARCMainWindow(QMainWindow):
         # If not in batch mode/active PDF and preserve is False, clear OCR cache completely
         preserve = str(settings.value("preserve_session_cache", "false")).lower() == "true"
         if not preserve and not getattr(self, "is_batch_mode", False) and not getattr(self, "active_pdf_pages", None):
-            if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+            if hasattr(self, "scanner") and self.scanner:
                 try:
-                    self.scanner.text_detector.ocr_cache.clear()
+                    self.scanner.clear_cache()
+                    if hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
+                        self.scanner.text_detector.ocr_cache.clear()
                     cleared_ocr = True
                 except Exception:
                     pass

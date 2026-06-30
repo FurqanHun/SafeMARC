@@ -1580,7 +1580,7 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_rescan = QPushButton()
         self.btn_rescan.setIcon(svg_to_icon(SVG_REFRESH))
         self.btn_rescan.setToolTip("Rescan current image (F5)")
-        self.btn_rescan.clicked.connect(self._rescan_current)
+        self.btn_rescan.clicked.connect(self.on_manual_rescan)
 
         tool_style = """
             QPushButton {
@@ -2089,7 +2089,7 @@ class SafeMARCMainWindow(QMainWindow):
     def _on_shortcut_rescan(self):
         if self._is_input_focused():
             return
-        self._rescan_current()
+        self.on_manual_rescan()
 
     def _on_shortcut_start_redact(self):
         self.on_return_pressed()
@@ -2996,6 +2996,15 @@ class SafeMARCMainWindow(QMainWindow):
         self.scanner.target_identities = []
         if self.scanner:
             self.scanner.clear_scan_cache_only()
+        self._rescan_current()
+
+    def on_manual_rescan(self):
+        """Forces a true re-evaluation by dropping the cache for the current image."""
+        if self.scanner:
+            self.scanner.clear_cache()
+        if hasattr(self.scanner, "text_detector"):
+            self.scanner.text_detector.cached_image_path = None
+            self.scanner.text_detector.cached_text = None
         self._rescan_current()
 
     def _rescan_current(self):

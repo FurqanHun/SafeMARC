@@ -39,6 +39,8 @@ classDiagram
         +add_custom_pattern(label: str, pattern: str, is_regex: bool, is_whole_word: bool, keywords: List) void
         +detect(file_path: str, pdf_words: list) List~SensitiveHit~
         -_scan_data_dict(data: dict, scale: float) List~SensitiveHit~
+        +_load_cache() void
+        +save_cache() void
     }
     
     class SafeScanner {
@@ -53,6 +55,8 @@ classDiagram
         +Dict _regex_cache
         +Dict _scan_cache
         +clear_cache() void
+        +clear_scan_cache_only() void
+        +clear_text_cache() void
         +clear_vision_cache() void
         +set_vision_mode(mode: str) void
         +set_face_redaction_mode(mode: str) void
@@ -98,6 +102,7 @@ classDiagram
         -_match_sface_from_aligned(aligned_face: ndarray, num_faces: int) Optional~str~
         -_match_sface(face_image: ndarray) Optional~str~
         -_match_lbph(face_image: ndarray) Optional~str~
+        +_get_sface_recognizer() void
     }
 
     BaseDetector <|-- VisionDetector
@@ -138,6 +143,16 @@ classDiagram
         +Signal error
         +str file_path
         +run() void
+    }
+
+        class PDFOCRWorker {
+        +Signal finished
+        +SafeScanner scanner
+        +List pages
+        +str pdf_source
+        +bool is_cancelled
+        +run() void
+        +cancel() void
     }
 
     class PDFFinalizeWorker {
@@ -187,6 +202,9 @@ classDiagram
         +QLabel pdf_total_label
         +List active_pdf_pages
         +List active_pdf_outputs
+        +QPushButton btn_toggle_search
+        +QLineEdit txt_search_patterns
+        +QLineEdit txt_custom_regex
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -204,13 +222,45 @@ classDiagram
         -_show_regions_selector() void
         -_toggle_target_identity(name: str, checked: bool) void
         -_toggle_active_region(name: str, checked: bool) void
+        +on_manual_rescan() void
         -_rescan_current() void
         -_on_pdf_page_changed(value: int) void
         -_finalize_pdf_redaction() void
         +on_quick_add_identity(hit: SensitiveHit) void
         +toggle_persistent_mode(checked: bool) void
         +cleanup_temp_resources(full: bool) void
-        +handle_sigint(signum, frame) void
+        +toggle_draw_mode() void
+        +update_toolbar_state() void
+        +cancel_batch_mode() void
+        +cancel_active_pdf_ocr_worker() void
+        +_is_input_focused() void
+        +update_review_button_tooltips() void
+        +set_shortcuts_enabled() void
+        +on_return_pressed() void
+        +on_escape_pressed() void
+        +open_settings() void
+        +add_pattern_row() void
+        +remove_pattern_row() void
+        +focus_last_pattern_field() void
+        +_filter_queue_list() void
+        +_filter_text_patterns() void
+        +update_text_patterns() void
+        +on_vision_mode_changed() void
+        +_clear_target_identities() void
+        +dragEnterEvent() void
+        +dropEvent() void
+        +is_path_in_list() void
+        +remove_selected_file() void
+        +clear_queue() void
+        +on_paste() void
+        +on_file_selected() void
+        +get_current_cache_key() void
+        +get_redacted_output_path() void
+        +run_scan_with_overlay() void
+        +_undo_queue_item() void
+        +update_stats() void
+        +closeEvent() void
+        +showEvent() void
     }
 
     class PreviewWidget {
@@ -246,6 +296,12 @@ classDiagram
         +clear_hit_focus() void
         +show_loading(text: str) void
         +hide_loading() void
+        +on_hit_toggled() void
+        +resizeEvent() void
+        +wheelEvent() void
+        +mousePressEvent() void
+        +mouseMoveEvent() void
+        +mouseReleaseEvent() void
     }
 
     class SelectableHitItem {
@@ -269,7 +325,6 @@ classDiagram
         +QSlider slider_soft_ram
         +QSlider slider_hard_ram
         +QCheckBox chk_preserve_cache
-        +accept() void
         -_init_shortcuts_tab() void
         -_check_for_conflicts() void
         -_on_shortcut_changed(key: str, seq: str) void
@@ -405,6 +460,7 @@ classDiagram
     SafeMARCMainWindow *-- PatternLineEdit
     SafeMARCMainWindow *-- PDFExtractWorker : manages
     SafeMARCMainWindow *-- PDFFinalizeWorker : manages
+    SafeMARCMainWindow *-- PDFOCRWorker : manages
     SafeMARCMainWindow *-- ScanWorker : manages
     SafeMARCMainWindow ..> SettingsDialog : opens
     SafeMARCMainWindow ..> PersistentRangeDialog : opens

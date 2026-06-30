@@ -83,10 +83,10 @@ graph TD
   1. The application parses the current queue item.
   2. If it's a PDF, pages are extracted as temporary high-fidelity images.
   3. The scanning engine uses computer vision (YuNet DNN for faces, MediaPipe for bodies) and text patterns to map sensitive hits.
-  4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition, and bodies are spatially mapped to recognized faces to inherit their identities.
+  4. If face mode is Blacklist or Whitelist, detected faces are matched against known identities using SFace DNN recognition. Changing the filter checkboxes instantly recalculates matches using the in-memory `_vision_cache`, bypassing the worker thread for instantaneous, sub-millisecond feedback.
   5. Hits are filtered based on the active face/body redaction mode and selected target identities.
   6. The user toggles boxes or creates custom redaction shapes via the Draw Tool (`D`).
-  7. The user can press `F5` at any point to rescan the current document with the active regional and text pattern filters while preserving custom manual selections.
+  7. The user can press `F5` at any point to force a true manual rescan of the current document, which explicitly flushes all vision, text, and hit caches for the image before rescanning, guaranteeing a fresh ML re-evaluation.
   8. The user submits via "Redact Next", skips with "Skip", or navigates back with "Go Previous".
   9. On skipping, the user can choose to skip the active PDF page, skip all remaining pages (which fast-forwards to the compilation step), or skip the entire PDF file.
   10. While performing heavy PDF operations (such as page extraction or compilation), background QThread workers run asynchronously, and the user receives page-by-page progress updates via a dark-themed LoadingDialog.
@@ -112,7 +112,7 @@ graph TD
   - **PDF Extraction Zoom Slider**: Range 1–4× (integer steps), default `2.0×`. Determines the zoom factor passed to PyMuPDF `fitz.Matrix` when rasterizing PDF pages to temporary PNG images. Saved as `pdf_extract_zoom` in QSettings.
   - **Max OCR Cache Pages Slider**: Range 10–500 pages, default `50` (< 8 GB RAM) / `100` (8–16 GB) / `200` (> 16 GB). Controls the maximum number of page results retained in the in-memory OCR cache. Saved as `max_ocr_cache_pages` in QSettings.
   - **Soft RAM Limit Slider**: Range 512 MB to total system RAM; steps of 256/512 MB. Defaults: `1024 MB` (< 8 GB RAM), `1536 MB` (8–16 GB), `2048 MB` (> 16 GB). OCR cache is pruned to the last 2 pages when this threshold is crossed.
-  - **Hard RAM Limit Slider**: Must be at least 512 MB above the Soft Limit; minimum 1024 MB. Defaults: `2048 MB` (< 8 GB RAM), `3072 MB` (8–16 GB), `4096 MB` (> 16 GB). All caches are flushed and active vision detectors are destroyed when this threshold is crossed.
+  - **Hard RAM Limit Slider**: Must be at least 512 MB above the Soft Limit; minimum 1024 MB. Defaults: `2048 MB` (< 8 GB RAM), `3072 MB` (8–16 GB), `4096 MB` (> 16 GB). The entire OCR cache, `_vision_cache`, `_regex_cache`, and `_scan_cache` are explicitly flushed, and active vision detectors are destroyed when this threshold is crossed to aggressively safeguard memory.
   - **OCR Cache Preservation** (`preserve_session_cache`): When checked, the in-memory OCR cache is retained across batch review sessions; when unchecked (default) it is fully cleared at the end of each session.
 - **Output Folder**: Global output folder is enabled by default. The user can toggle it, choose a custom folder path, or switch to per-file output. The preference is persisted across sessions via `QSettings`.
 - **Custom Patterns Import/Export**:

@@ -69,7 +69,7 @@ btn_settings.setIcon(svg_to_icon(SVG_SETTINGS))
    widget.setCursor(Qt.PointingHandCursor)
    ```
 2. **Dynamic Loading Overlays & Dialogs**:
-   - For short, in-window processes (like image scanning or identity training), a semi-transparent, dark `LoadingOverlay` containing a custom rotating spinner and clear, user-friendly labels (e.g., *"Scanning document..."*, *"Retraining face recognition model..."*) locks the preview/dialog area.
+   - For short, in-window processes (like image scanning or identity training), a semi-transparent, dark `LoadingOverlay` containing a custom rotating spinner and clear, user-friendly labels (e.g., *"Scanning document..."*, *"Retraining face recognition model..."*) locks the preview/dialog area. If an operation (like changing filter selections) hits the in-memory array caches, the `LoadingOverlay` is explicitly bypassed to provide zero-flicker instantaneous feedback.
    - For long-running asynchronous tasks (like PDF page extraction or final PDF compilation), a dedicated `LoadingDialog` modal window is used. It features a matching dark-theme layout, custom fonts, an animated spinner, and a native `QProgressBar` reporting granular page-by-page progress in real-time, preventing the GUI from freezing.
 3. **Interactive 1:1 Aspect-Ratio Crop Editor**: When cropping face references inside `FaceCropDialog`, always lock the crop selection to a 1:1 square ratio with responsive, translucent drag handles. The system must also auto-detect the face region via YuNet DNN to pre-focus the crop selection for the user.
 

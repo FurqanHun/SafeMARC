@@ -9,15 +9,18 @@ graph TD
     A[Add files to queue] --> B[Click Start Review]
     B --> C{Check File Type}
     
-    C -- Image --> D1{Hit in Session Cache?}
+    C -- Image --> D1{Hit in Full _scan_cache?}
     C -- PDF --> E[Extract PDF pages: zoom=pdf_extract_zoom, default 2.0x]
     
     E --> D1
-    D1 -- Yes --> F2[Load Cached Hits Instantly]
-    D1 -- No --> D[Scan with face/text detectors & Update Cache]
+    D1 -- Yes --> F2[Load Full Cached Hits Instantly <1ms]
+    D1 -- No --> D2{Hit in Both Sub-caches<br/>_vision_cache & _regex_cache?}
+    D2 -- Yes --> F1_BYPASS[Bypass Thread: Synchronous Main-Thread Array Filter]
+    D2 -- No --> D[Spawn ScanWorker Thread: Scan with face/text detectors]
     D --> RECLAIM[reclaim_memory: check Soft/Hard RAM limits]
 
     RECLAIM --> F1{Face Mode?}
+    F1_BYPASS --> F1
     E --> F1
 
     F1 -- All --> F2[Show all detected hits]
@@ -414,7 +417,7 @@ graph TD
     C -- Yes --> D["Prune OCR cache: keep last 2 pages (ocr_cache keys[:-2] deleted)"]
     D --> E{"RSS > hard_ram_limit?"}
     E -- No --> F["gc.collect()"]
-    E -- Yes --> G[Flush entire OCR cache and user_selections_cache]
+    E -- Yes --> G[Flush entire OCR cache, _vision_cache, _regex_cache, and user_selections_cache]
     G --> H["scanner.cleanup(): VisionDetector.cleanup() — close ObjectDetector, release TFLite model"]
     H --> F
     F --> I{Platform?}

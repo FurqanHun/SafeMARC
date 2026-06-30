@@ -34,7 +34,7 @@ SafeMARC's keyboard-driven workflow enables highly efficient document review. Al
 | :--- | :--- | :--- |
 | **Toggle Draw Mode** (`toggle_draw`) | `D` | Switches the pointer to Draw mode to manually draw a custom redaction box. |
 | **Toggle Persistent Draw Mode** (`toggle_persistent`) | `Shift` + `D` | Switches pointer to Draw mode and prompts for persistent propagation scope (propagates manual boxes across pages/files). |
-| **Rescan Current File** (`rescan`) | `F5` | Re-scans the currently active file with current settings and filters. |
+| **Rescan Current File** (`rescan`) | `F5` | Forces a true manual rescan of the current document by explicitly dropping all ML and OCR caches before re-evaluating. |
 
 ---
 

@@ -1,4 +1,4 @@
-# Regular expression patterns for sensitive data detection.
+"""Regular expression patterns for sensitive data detection."""
 
 PREDEFINED_PATTERNS = {
     "pk_cnic": {

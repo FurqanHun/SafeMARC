@@ -249,6 +249,7 @@ class ShortcutRebindButton(QPushButton):
         super().focusOutEvent(event)
 
 class SettingsDialog(QDialog):
+    """Provides a tabbed configuration interface for general preferences, identities, model tuning, shortcuts, and performance limits."""
     def __init__(self, scanner, parent=None):
         super().__init__(parent)
         self.scanner = scanner
@@ -864,7 +865,6 @@ class SettingsDialog(QDialog):
         model_layout.addStretch()
         self.tabs.addTab(self.tab_model, "Model Settings")
 
-        # Performance Tab
         self.tab_performance = QWidget()
         self.tab_performance.setStyleSheet("background-color: #111827; border: none;")
         perf_layout = QVBoxLayout(self.tab_performance)
@@ -946,7 +946,6 @@ class SettingsDialog(QDialog):
         ocr_cache_box.addWidget(self.lbl_ocr_cache_val)
         perf_layout.addLayout(ocr_cache_box)
 
-        # Dynamic RAM limits based on user's system RAM
         def get_default_ram_limits():
             try:
                 import psutil
@@ -1081,7 +1080,6 @@ class SettingsDialog(QDialog):
         perf_layout.addStretch()
         self.tabs.addTab(self.tab_performance, "Performance")
 
-        # Shortcuts tab initialization.
         self.tab_shortcuts = QWidget()
         self.tab_shortcuts.setStyleSheet("background-color: #111827; border: none;")
         self._init_shortcuts_tab()
@@ -1095,7 +1093,6 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(self.close_btn)
         layout.addLayout(btn_layout)
 
-        # Apply StrongFocus focus policy.
         settings_widgets = [
             self.tabs,
             self.chk_global_output,
@@ -1125,7 +1122,6 @@ class SettingsDialog(QDialog):
             if hasattr(w, "setFocusPolicy"):
                 w.setFocusPolicy(Qt.StrongFocus)
         
-        # Initialize local keyboard shortcuts for the Identities page.
         self.local_shortcuts = {}
         for key in ["id_add_person", "id_rename_person", "id_del_person", "id_import_identities", "id_export_identities", "id_add_image"]:
             val = self.settings.value(f"shortcut_{key}", DEFAULT_SHORTCUTS[key])
@@ -1155,7 +1151,6 @@ class SettingsDialog(QDialog):
         self._clear_grid()
         if not self.identity_manager: return
         
-        # Permanent identities.
         identities_dir = self.identity_manager.identities_dir
         if os.path.exists(identities_dir):
             for name in sorted(os.listdir(identities_dir)):
@@ -1166,7 +1161,6 @@ class SettingsDialog(QDialog):
                     item.setData(Qt.UserRole, {"name": name, "is_session": False})
                     self.list_people.addItem(item)
                     
-        # Session identities.
         session_dir = os.path.join(identities_dir, "session_temp")
         if os.path.exists(session_dir):
             for name in sorted(os.listdir(session_dir)):
@@ -1712,7 +1706,6 @@ class SettingsDialog(QDialog):
         if folder:
             self.txt_output_dir.setText(folder)
             self.settings.setValue("global_output_dir", folder)
-            # Create the directory if it does not exist.
             os.makedirs(folder, exist_ok=True)
             if self.parent():
                 if hasattr(self.parent(), "update_global_output_settings"):
@@ -1806,7 +1799,6 @@ class SettingsDialog(QDialog):
             cat_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #10B981;")
             cat_layout.addWidget(cat_title)
 
-            # Grid layout for shortcuts.
             grid = QGridLayout()
             grid.setSpacing(8)
             grid.setColumnStretch(0, 1) # Action label layout sizing.
@@ -1860,7 +1852,6 @@ class SettingsDialog(QDialog):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        # Global Reset All Button
         self.btn_reset_all_shortcuts = QPushButton("Reset All Shortcuts to Defaults")
         self.btn_reset_all_shortcuts.setCursor(Qt.PointingHandCursor)
         self.btn_reset_all_shortcuts.setStyleSheet("""
@@ -1883,7 +1874,6 @@ class SettingsDialog(QDialog):
         self.btn_reset_all_shortcuts.clicked.connect(self._reset_all_shortcuts)
         layout.addWidget(self.btn_reset_all_shortcuts, 0, Qt.AlignLeft)
 
-        # Check for conflicts.
         self._check_for_conflicts()
 
     def _on_shortcut_changed(self, key: str, new_seq: str):
@@ -1891,7 +1881,6 @@ class SettingsDialog(QDialog):
         if hasattr(self, "local_shortcuts") and key in self.local_shortcuts:
             self.local_shortcuts[key].setKey(QKeySequence(new_seq))
         
-        # Propagate to MainWindow if it has the update method
         if self.parent() and hasattr(self.parent(), "update_shortcut_key"):
             self.parent().update_shortcut_key(key, new_seq)
             
@@ -1933,7 +1922,6 @@ class SettingsDialog(QDialog):
             self._check_for_conflicts()
 
     def _check_for_conflicts(self):
-        # Scan buttons for duplicates.
         seq_to_keys = {}
         for key, btn in self.shortcut_buttons.items():
             seq = btn.current_sequence.strip()
@@ -2203,7 +2191,6 @@ class FaceCropDialog(QDialog):
         self.crop_label.setFixedSize(scaled_w, scaled_h)
         self.scale_factor = scale
         
-        # Auto-focus the crop box on the largest detected face using YuNet.
         yunet_path = resource_path("assets/face_detection_yunet_2023mar.onnx")
         faces = []
         if os.path.exists(yunet_path):

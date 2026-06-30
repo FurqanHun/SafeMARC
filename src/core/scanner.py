@@ -6,18 +6,20 @@ from src.core.types import SensitiveHit
 from src.core.identity_manager import IdentityManager
 
 class SafeScanner:
+    """Orchestrates detection engines, state caches, and identity filtering for redaction scanning."""
+
     def __init__(self, vision_mode: str = "faces"):
         self.identity_manager = IdentityManager()
         self.vision_detector = VisionDetector(mode=vision_mode, identity_manager=self.identity_manager)
         self.text_detector = RegexDetector()
         self.detectors = [self.text_detector, self.vision_detector]
         self.redactor = Redactor()
-        self.face_redaction_mode: str = "ALL"  # "ALL", "BLACKLIST", "WHITELIST"
-        self.target_identities: List[str] = [] # Names to filter on.
+        self.face_redaction_mode: str = "ALL"
+        self.target_identities: List[str] = []
         
-        self._vision_cache: Dict[str, List[SensitiveHit]] = {}  # Map of file path to SensitiveHit list.
-        self._regex_cache: Dict[str, List[SensitiveHit]] = {}   # Map of file path to SensitiveHit list.
-        self._scan_cache: Dict[str, List[SensitiveHit]] = {}    # Map of cache key to SensitiveHit list.
+        self._vision_cache: Dict[str, List[SensitiveHit]] = {}
+        self._regex_cache: Dict[str, List[SensitiveHit]] = {}
+        self._scan_cache: Dict[str, List[SensitiveHit]] = {}
         
     def clear_cache(self) -> None:
         self._vision_cache = {}

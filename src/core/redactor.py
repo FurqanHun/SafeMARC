@@ -7,6 +7,8 @@ from src.core.types import SensitiveHit
 
 
 class Redactor:
+    """Applies destructive pixel-level obfuscation to image arrays based on coordinate hits."""
+
     def apply(
         self, input_path: str, output_path: str, hits: List[SensitiveHit]
     ) -> bool:

@@ -32,7 +32,7 @@ SafeMARC adopts a **minimalist, formal, and non-redundant** commenting philosoph
 ### 2.1 General Principles
 * **No Conversational Comments**: Avoid chatty or informal notes, personal remarks, or instructions (e.g., `# Let's do this now`, `# Loop through everything`).
 * **No Redundant Comments**: Do not write comments that restate what the code clearly does. If a variable, method, or class name is self-explanatory, do not comment on it.
-* **Documential Focus**: Comments should explain *why* something is done or specify the structure of non-obvious data types, rather than describing *how* basic code works.
+* **Documentational Focus**: Comments should explain *why* something is done or specify the structure of non-obvious data types, rather than describing *how* basic code works. If the code is inherently complex and hard for another person to understand, phrasing the explanation in a formal, documentational way is permitted. However, this exception is strictly reserved for difficult-to-understand code.
 
 ### 2.2 Formatting and Placement
 * **Docstrings**: Use Python triple-quoted docstrings (`"""`) for modules, classes, and public methods to document their high-level intent, inputs, and outputs.

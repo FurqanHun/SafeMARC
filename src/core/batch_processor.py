@@ -7,6 +7,8 @@ from src.core.types import SensitiveHit
 SUPPORTED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.pdf', '.webp', '.bmp', '.tiff'}
 
 class BatchProcessor:
+    """Coordinates recursive file discovery, path resolution, and batch processing pipelines."""
+
     def __init__(self, scanner: SafeScanner = None):
         self.scanner = scanner or SafeScanner()
 
@@ -26,6 +28,7 @@ class BatchProcessor:
         return files
 
     def get_output_path(self, input_path: str, output_dir: str = None, use_suffix: bool = False) -> str:
+        """Resolves the destination path based on output constraints and suffix requirements."""
         base_dir = os.path.dirname(input_path)
         file_name = os.path.basename(input_path)
         name, ext = os.path.splitext(file_name)

@@ -13,11 +13,9 @@ from src.core.types import SensitiveHit
 from src.utils.paths import resource_path
 
 
-_YUNET_SCORE_THRESH = 0.70   # Higher threshold reduces lip/eye false positives.
+_YUNET_SCORE_THRESH = 0.70
 _YUNET_NMS_THRESH   = 0.30
 _YUNET_TOP_K        = 5000
-
-# Downscale images wider/taller than this before the large-face detection pass.
 _LARGE_FACE_MAX_DIM = 640
 
 
@@ -53,6 +51,8 @@ def _is_matching_face_body(fx: int, fy: int, fw: int, fh: int, bx: int, by: int,
 
 
 class VisionDetector(BaseDetector):
+    """Encapsulates facial and full-body detection models, including multi-scale tracking and memory reclamation."""
+
     def __init__(self, mode: str = "faces", identity_manager=None):
         self.mode = mode
         self.identity_manager = identity_manager
@@ -86,8 +86,6 @@ class VisionDetector(BaseDetector):
                     "face_detection_yunet_2023mar.onnx"
                 )
 
-    # Thread-local YuNet instances (keyed by input size).
-
     def _get_yunet(self, w: int, h: int, thresh: float) -> cv2.FaceDetectorYN:
         """Native-resolution thread-local YuNet, re-created when size or threshold changes."""
         if (getattr(self._local, "yunet", None) is None
@@ -108,8 +106,6 @@ class VisionDetector(BaseDetector):
             self._local.yunet_thresh_small = thresh
         return self._local.yunet_small
 
-    # Multi-scale detection and Non-Maximum Suppression (NMS) merging.
-
     def _multi_scale_detect(self, cv_image: np.ndarray, w_img: int, h_img: int, face_thresh: float) -> list:
         """
         Run YuNet at native resolution, then at a downscaled resolution when
@@ -119,13 +115,11 @@ class VisionDetector(BaseDetector):
         """
         all_dets = []
 
-        # Pass 1: Run YuNet at native resolution to detect small and medium faces.
         yunet = self._get_yunet(w_img, h_img, face_thresh)
         _, dets = yunet.detect(cv_image)
         if dets is not None:
             all_dets.extend(dets.tolist())
 
-        # Pass 2: Run YuNet on a downscaled image to detect large, close-up portrait faces.
         if max(w_img, h_img) > _LARGE_FACE_MAX_DIM:
             scale = _LARGE_FACE_MAX_DIM / max(w_img, h_img)
             sw = max(1, int(w_img * scale))
@@ -137,7 +131,6 @@ class VisionDetector(BaseDetector):
             if dets_s is not None:
                 for d in dets_s.tolist():
                     d_up = list(d)
-                    # Scale the bounding box and 5 landmarks (indices 0-13) back to native coords.
                     for i in range(14):
                         d_up[i] = d_up[i] / scale
                     all_dets.append(d_up)
@@ -321,7 +314,6 @@ class VisionDetector(BaseDetector):
 
         all_detections = list(full_dets)
         
-        # Clean up Pass 1 variables
         del rgb_image
         del mp_image
         del result
@@ -386,7 +378,6 @@ class VisionDetector(BaseDetector):
                                     tw, th,
                                     float(cat.score)
                                 ))
-                # Clean up local tile variables to release memory early
                 del tile_img
                 del tile_rgb
                 del tile_mp
@@ -466,12 +457,8 @@ class VisionDetector(BaseDetector):
                         confidence=face.confidence,
                         identity=face.identity
                     ))
-
-        # Depth-ordered clipping: trim back-row boxes so they don't cover front-row faces.
-        # In a group photo, "in front" means the person's bottom edge is lower in the image.
         hits = self._depth_clip_bodies(hits)
 
-        # Final pass: remove slivers produced by depth clipping or face-guided recovery.
         hits = [h for h in hits if h.h >= h.w * 0.5]
 
         return hits

@@ -1,3 +1,6 @@
+"""
+Command-line interface (CLI) module for running SafeMARC batch processing operations without the GUI.
+"""
 import argparse
 import sys
 from typing import List

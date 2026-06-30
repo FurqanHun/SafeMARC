@@ -1,3 +1,6 @@
+"""
+Application entry point. Initializes global crash logging, configures the UI, and starts the event loop.
+"""
 import sys
 import signal
 import faulthandler

@@ -5,6 +5,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 
 class PDFHandler:
+    """Provides utility methods for PDF page extraction, word boundary parsing, and PDF reconstruction."""
     @staticmethod
     def extract_pages(pdf_path: str, progress_callback: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
         """
@@ -36,7 +37,6 @@ class PDFHandler:
                 out_path = os.path.join(temp_dir, f"page_{page_num + 1}.png")
                 pix.save(out_path)
                 
-                # Extract word bounding boxes: (x0, y0, x1, y1, text, block, line, word).
                 words = []
                 for w in page.get_text("words"):
                     x0, y0, x1, y1, text, block_no, line_no, word_no = w
@@ -113,7 +113,6 @@ class PDFHandler:
                         else:
                             orig_w, orig_h = width, height
                             
-                    # Downscale extracted PDF pages to 2x zoom to optimize final file size
                     is_pdf_extracted = (page_sizes is not None) or (width > 1500 or height > 1500)
                     if is_pdf_extracted:
                         target_w = int(orig_w * 2.0)

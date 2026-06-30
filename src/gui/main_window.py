@@ -663,6 +663,7 @@ def apply_focus_indicators(parent):
 
 
 class QuickAddIdentityDialog(QDialog):
+    """Dialog for quickly adding a new identity or selecting an existing one during review."""
     def __init__(self, existing_names, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Identity")
@@ -781,6 +782,7 @@ class FocusEventFilter(QObject):
 
 
 class SafeMARCMainWindow(QMainWindow):
+    """Primary application GUI controller. Manages layout, state caching, threading, and batch processing logic."""
     def __init__(self):
         super().__init__()
 
@@ -1021,7 +1023,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(self.splitter, 1)
 
-        # === Sidebar (File Queue & Settings) ===
         sidebar_widget = QWidget()
         sidebar_layout = QVBoxLayout(sidebar_widget)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
@@ -1181,7 +1182,6 @@ class SafeMARCMainWindow(QMainWindow):
         lbl_settings_title.setStyleSheet("font-weight: 700; font-size: 11px; color: #10B981; letter-spacing: 0.5px; text-transform: uppercase;")
         settings_layout.addWidget(lbl_settings_title)
 
-        # Vision Mode Dropdown
         self.cmb_vision_mode = QComboBox()
         self.cmb_vision_mode.addItem("Faces Only", "faces")
         self.cmb_vision_mode.addItem("Full Body", "bodies")
@@ -1293,13 +1293,11 @@ class SafeMARCMainWindow(QMainWindow):
 
 
 
-        # === Right Panel (Settings & Redaction Rules) ===
         right_panel_widget = QWidget()
         right_panel_layout = QVBoxLayout(right_panel_widget)
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         right_panel_layout.setSpacing(0)
 
-        # Text Patterns Card (Styled Card instead of native GroupBox)
         text_card = QWidget()
         text_card.setObjectName("textCard")
         text_card.setStyleSheet("""
@@ -1418,7 +1416,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.txt_search_patterns.setVisible(False)
         text_layout.addWidget(self.txt_search_patterns)
         
-        # Scroll Area for Text Patterns
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("""
@@ -1528,7 +1525,6 @@ class SafeMARCMainWindow(QMainWindow):
 
         self.splitter.addWidget(sidebar_widget)
 
-        # === Preview Area ===
         preview_container = QWidget()
         preview_layout = QVBoxLayout(preview_container)
         preview_layout.setContentsMargins(0, 0, 0, 0)
@@ -1543,11 +1539,9 @@ class SafeMARCMainWindow(QMainWindow):
         self.preview_widget.identityRequested.connect(self.on_quick_add_identity)
         preview_layout.addWidget(self.preview_widget)
 
-        # Draw and Zoom Tools
         draw_layout = QHBoxLayout()
         draw_layout.setSpacing(8)
         
-        # Center-align the entire toolbar by placing stretch on both sides
         draw_layout.addStretch(1)
         
         self.btn_draw_mode = QPushButton(" Draw Box")
@@ -1666,7 +1660,6 @@ class SafeMARCMainWindow(QMainWindow):
         draw_layout.addStretch(1)
         preview_layout.addLayout(draw_layout)
         
-        # Shortcuts
         from PySide6.QtGui import QShortcut
         self.shortcut_draw = QShortcut(QKeySequence(self.shortcuts_config["toggle_draw"]), self)
         self.shortcut_draw.activated.connect(self._on_shortcut_draw)
@@ -1689,7 +1682,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_rescan = QShortcut(QKeySequence(self.shortcuts_config["rescan"]), self)
         self.shortcut_rescan.activated.connect(self._on_shortcut_rescan)
 
-        # Action Buttons
         actions_layout = QHBoxLayout()
         
         self.btn_previous = QPushButton(" Previous")
@@ -1823,7 +1815,6 @@ class SafeMARCMainWindow(QMainWindow):
         preview_layout.addLayout(actions_layout)
         preview_layout.addWidget(self.btn_start_review)
 
-        # Batch Navigation Shortcuts
         from PySide6.QtGui import QShortcut
         self.shortcut_start_redact = QShortcut(QKeySequence(self.shortcuts_config["redact_next"]), self)
         self.shortcut_start_redact.activated.connect(self._on_shortcut_start_redact)
@@ -1831,14 +1822,12 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_start_redact_ent = QShortcut(QKeySequence(self.shortcuts_config["redact_next_alt"]), self)
         self.shortcut_start_redact_ent.activated.connect(self._on_shortcut_start_redact)
 
-        # Skip Shortcuts (Space or S)
         self.shortcut_skip_space = QShortcut(QKeySequence(self.shortcuts_config["skip_space"]), self)
         self.shortcut_skip_space.activated.connect(self._on_shortcut_skip_space)
 
         self.shortcut_skip_s = QShortcut(QKeySequence(self.shortcuts_config["skip_s"]), self)
         self.shortcut_skip_s.activated.connect(self._on_shortcut_skip_s)
 
-        # Previous Shortcuts (Backspace or P)
         self.shortcut_prev_bs = QShortcut(QKeySequence(self.shortcuts_config["previous_bs"]), self)
         self.shortcut_prev_bs.activated.connect(self._on_shortcut_previous)
 
@@ -1848,7 +1837,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_escape = QShortcut(QKeySequence(self.shortcuts_config["escape"]), self)
         self.shortcut_escape.activated.connect(self._on_shortcut_escape)
 
-        # Global Application Shortcuts
         self.shortcut_add_file = QShortcut(QKeySequence(self.shortcuts_config["add_file"]), self)
         self.shortcut_add_file.activated.connect(self._on_shortcut_add_file)
 
@@ -1882,7 +1870,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.shortcut_reset_layout = QShortcut(QKeySequence(self.shortcuts_config["reset_layout"]), self)
         self.shortcut_reset_layout.activated.connect(self._on_shortcut_reset_layout)
 
-        # Hit Navigation/Toggle Shortcuts
         self.shortcut_hit_next = QShortcut(QKeySequence(self.shortcuts_config["hit_next"]), self)
         self.shortcut_hit_next.activated.connect(self._on_shortcut_hit_next)
 
@@ -1896,7 +1883,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.user_selections_cache = {}
         self.current_hits = []
         
-        # Batch Mode State
         self.is_batch_mode = False
         try:
             from src.core.patterns import REGIONS
@@ -1906,14 +1892,12 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_index = -1
         self.batch_success_count = 0
         
-        # PDF Sub-loop State
         self.active_pdf_pages = []
         self.active_pdf_index = -1
         self.active_pdf_outputs = []
         self.active_pdf_source = None
         self.active_pdf_ocr_worker = None
 
-        # Apply StrongFocus focus policy to all interactive widgets for a consistent tabbing experience
         interactive_widgets = [
             self.btn_settings,
             self.file_list,
@@ -1953,7 +1937,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.focus_filter = FocusEventFilter(self)
         QApplication.instance().installEventFilter(self.focus_filter)
 
-        # Sync visibility of face mode controls
         self.on_vision_mode_changed(self.cmb_vision_mode.currentIndex())
 
     def _apply_default_splitter_sizes(self):
@@ -1977,7 +1960,6 @@ class SafeMARCMainWindow(QMainWindow):
                 scope = dialog.get_selected_scope()
                 pdf_source = self.active_pdf_source if is_pdf else None
                 self.preview_widget.set_persistent_mode(True, scope=scope, pdf_source=pdf_source)
-                # Automatically activate Draw mode.
                 if not self.btn_draw_mode.isChecked():
                     self.btn_draw_mode.setChecked(True)
                     self.toggle_draw_mode(True)
@@ -2025,7 +2007,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.file_list.setEnabled(True)
         self.update_toolbar_state()
         
-        # Re-enable controls when batch review stops.
         self.btn_settings.setEnabled(True)
         self.btn_add_file.setEnabled(True)
         self.btn_add_folder.setEnabled(True)
@@ -2033,12 +2014,10 @@ class SafeMARCMainWindow(QMainWindow):
         self.btn_remove.setEnabled(True)
         self.btn_clear.setEnabled(True)
         
-        # Reset draw mode.
         if self.btn_draw_mode.isChecked():
             self.btn_draw_mode.setChecked(False)
             self.toggle_draw_mode(False)
 
-        # Reset persistent mode.
         if self.btn_persistent_mode.isChecked():
             self.btn_persistent_mode.setChecked(False)
             self.preview_widget.set_persistent_mode(False)
@@ -2680,7 +2659,6 @@ class SafeMARCMainWindow(QMainWindow):
     def on_vision_mode_changed(self, index):
         mode = self.cmb_vision_mode.itemData(index)
         
-        # Hide/show face mode controls based on mode
         if mode in ("faces", "bodies"):
             if hasattr(self, "lbl_face_mode"):
                 self.lbl_face_mode.show()
@@ -2724,7 +2702,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.scanner.set_face_redaction_mode(internal_mode)
         print(f"Face redaction mode set to: {internal_mode}")
         
-        # Show/hide Select People button based on mode
         if text in ("Blacklist", "Whitelist"):
             self.btn_select_people.show()
         else:
@@ -2738,21 +2715,17 @@ class SafeMARCMainWindow(QMainWindow):
             
         from PySide6.QtWidgets import QMessageBox
         
-        # Retrieve existing identity names.
         existing_names = sorted(list(set(self.scanner.identity_manager.identity_map.values())))
         
         dialog = QuickAddIdentityDialog(existing_names, self)
         if dialog.exec() == QDialog.Accepted:
             name = dialog.get_name()
             if name:
-                # Check if identity exists.
                 if name in existing_names:
-                    # Determine if identity is session-specific or permanent.
                     is_session = False
                     if os.path.exists(os.path.join(self.scanner.identity_manager.session_temp, name)):
                         is_session = True
                 else:
-                    # Prompt user to select storage type.
                     msg = QMessageBox(self)
                     msg.setWindowTitle("Save Type")
                     msg.setText(f"How do you want to save '{name}'?")
@@ -2770,7 +2743,6 @@ class SafeMARCMainWindow(QMainWindow):
                 if img is not None:
                     face_crop = img[hit.y:hit.y+hit.h, hit.x:hit.x+hit.w]
                     
-                    # Write temporary face crop to file.
                     temp_path = os.path.join(self.scanner.identity_manager.identities_dir, "temp_quick_add.jpg")
                     cv2.imwrite(temp_path, face_crop)
                     
@@ -2850,7 +2822,6 @@ class SafeMARCMainWindow(QMainWindow):
             QMenu { background-color: #1F2937; color: #E5E7EB; border: 1px solid #374151; padding: 10px; border-radius: 8px; }
         """)
         
-        # Get all identities.
         all_names = sorted(self.scanner.identity_manager.identity_map.values())
         
         if not all_names:
@@ -2862,7 +2833,6 @@ class SafeMARCMainWindow(QMainWindow):
             layout.setContentsMargins(5, 5, 5, 5)
             layout.setSpacing(8)
             
-            # Header label.
             lbl_header = QLabel("Target Selection")
             lbl_header.setStyleSheet("font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;")
             layout.addWidget(lbl_header)
@@ -2885,7 +2855,6 @@ class SafeMARCMainWindow(QMainWindow):
             """)
             layout.addWidget(txt_search)
             
-            # Checkboxes.
             checkboxes = []
             for name in all_names:
                 chk = QCheckBox(name)
@@ -2911,7 +2880,6 @@ class SafeMARCMainWindow(QMainWindow):
                 menu.adjustSize()
             txt_search.textChanged.connect(filter_checkboxes)
                 
-            # Quick actions layout.
             layout.addSpacing(4)
             btn_layout = QHBoxLayout()
             btn_layout.setSpacing(8)
@@ -3073,7 +3041,6 @@ class SafeMARCMainWindow(QMainWindow):
     def add_dropped_paths(self, paths):
         for path in paths:
             if os.path.isdir(path):
-                # Recursively add supported files.
                 for root, _, files in os.walk(path):
                     for f in files:
                         if f.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
@@ -3107,7 +3074,6 @@ class SafeMARCMainWindow(QMainWindow):
             
         for item in selected_items:
             path = item.data(Qt.UserRole)
-            # Clear preview if removed item is currently loaded.
             if path == self.current_file_path:
                 self.preview_widget.clear_preview()
                 self.current_file_path = None
@@ -3119,12 +3085,10 @@ class SafeMARCMainWindow(QMainWindow):
             for k in keys_to_remove:
                 self.user_selections_cache.pop(k, None)
             
-            # Handle batch mode index adjustment.
             if self.is_batch_mode:
                 if row < self.batch_index:
                     self.batch_index -= 1
                 elif row == self.batch_index:
-                    # Advance batch if current item was removed.
                     self.load_next_batch_item()
         self.update_stats()
         self.update_toolbar_state()
@@ -3138,7 +3102,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.user_selections_cache.clear()
         self.update_toolbar_state()
         
-        # Reset batch mode if active
         if self.is_batch_mode:
             self.cancel_batch_mode()
         self.update_stats()
@@ -3153,12 +3116,10 @@ class SafeMARCMainWindow(QMainWindow):
             if image.isNull():
                 return
             
-            # Use system temp directory
             import tempfile
             temp_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "clipboard")
             os.makedirs(temp_dir, exist_ok=True)
             
-            # Create unique filename
             import time
             timestamp = int(time.time() * 1000)
             temp_path = os.path.join(temp_dir, f"paste_{timestamp}.png")
@@ -3167,7 +3128,6 @@ class SafeMARCMainWindow(QMainWindow):
                 print(f"Pasted image from clipboard to: {temp_path}")
                 self.add_dropped_paths([temp_path])
                 
-                # Optional: select the new item and load it
                 for i in range(self.file_list.count()):
                     item = self.file_list.item(i)
                     if item.data(Qt.UserRole) == temp_path:
@@ -3184,7 +3144,6 @@ class SafeMARCMainWindow(QMainWindow):
 
 
     def on_file_selected(self, item):
-        # If user manually clicks an item during batch mode, cancel batch mode
         if self.is_batch_mode and self.file_list.row(item) != self.batch_index:
             self.cancel_batch_mode()
             
@@ -3209,7 +3168,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.current_file_path = file_path
         self.current_hits = []
         
-        # Load preview
         if is_pdf:
             try:
                 preview_page = PDFHandler.extract_first_page(file_path)
@@ -3220,7 +3178,6 @@ class SafeMARCMainWindow(QMainWindow):
         elif file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
             
-        # Restore any cached manual boxes or scan results for this newly selected file
         ckey = self.get_current_cache_key(file_path)
         has_scanner_cache = self.scanner and ckey in self.scanner._scan_cache
         has_selection_cache = ckey in self.user_selections_cache
@@ -3359,7 +3316,6 @@ class SafeMARCMainWindow(QMainWindow):
         if show_animation:
             self.preview_widget.hide_loading()
             
-        # Start with AI-detected hits
         merged_hits = list(worker.hits)
         
         # Inject persistent manual hits from the preview widget
@@ -3396,7 +3352,6 @@ class SafeMARCMainWindow(QMainWindow):
 
         out_path = self.get_redacted_output_path(self.current_file_path)
         
-        # Handle PDF sub-loop
         if self.active_pdf_pages:
             self.active_pdf_index += 1
             self.load_next_batch_item()
@@ -3461,7 +3416,6 @@ class SafeMARCMainWindow(QMainWindow):
             focused.clearFocus()
         self.setFocus()
 
-        # Update UI state
         self.btn_start_review.hide()
         self.btn_previous.show()
         self.btn_skip.show()
@@ -3558,13 +3512,11 @@ class SafeMARCMainWindow(QMainWindow):
                 "reviewed": True
             }
             
-        # Scenario A: Inside a PDF sub-loop
         if self.active_pdf_pages and self.active_pdf_index > 0:
             self.active_pdf_index -= 1
             self.load_next_batch_item()
             return
             
-        # Scenario B: Moving to the previous queue item
         if self.batch_index > 0:
             if self.active_pdf_pages and self.active_pdf_index == 0:
                 self.cancel_active_pdf_ocr_worker()
@@ -3943,7 +3895,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.current_file_path = file_path
         self.current_hits = []
         
-        # Clear PDF state for standard image
         self.cancel_active_pdf_ocr_worker()
         self.active_pdf_pages = []
         self.active_pdf_outputs = []
@@ -3952,7 +3903,6 @@ class SafeMARCMainWindow(QMainWindow):
         
         self.update_toolbar_state()
         
-        # Attempt to load and auto-scan
         if file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
             
@@ -4006,7 +3956,6 @@ class SafeMARCMainWindow(QMainWindow):
                 self.batch_index += 1
                 QTimer.singleShot(0, self.load_next_batch_item)
         else:
-            # Skip unhandled file types for now
             self.is_navigating_backward = False
             self.batch_index += 1
             QTimer.singleShot(0, self.load_next_batch_item)
@@ -4030,7 +3979,6 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception as e:
                     print(f"[SafeMARC] Error cleaning up temporary directory: {e}")
             else:
-                # Keep clipboard images intact so queue is not broken, only clean intermediate pdf/redacted
                 for sub in ["pdf", "redacted"]:
                     sub_path = os.path.join(safemarc_temp, sub)
                     if os.path.exists(sub_path):
@@ -4049,7 +3997,6 @@ class SafeMARCMainWindow(QMainWindow):
         
         settings = QSettings("SafeMARC", "SafeMARC")
         
-        # Calculate dynamic defaults based on system RAM
         try:
             import psutil
             total_ram = psutil.virtual_memory().total / (1024 ** 3)
@@ -4066,7 +4013,6 @@ class SafeMARCMainWindow(QMainWindow):
         soft_limit = int(settings.value("soft_ram_limit", default_soft))
         hard_limit = int(settings.value("hard_ram_limit", default_hard))
         
-        # Get current process RSS memory in MB
         current_rss = 0.0
         try:
             import psutil
@@ -4078,7 +4024,6 @@ class SafeMARCMainWindow(QMainWindow):
         exceeded_hard = (current_rss > hard_limit) or force_aggressive
         exceeded_soft = (current_rss > soft_limit) or exceeded_hard
         
-        # Phase 1: Always clear QPixmapCache
         QPixmapCache.clear()
         
         # Clean up scanner detectors if not actively reviewing a batch/PDF
@@ -4092,7 +4037,6 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception as e:
                     print(f"[SafeMARC] Failed to cleanup scanner during reclaim: {e}")
                     
-        # Phase 2: Soft Limit Exceeded - Prune OCR cache to keep only the 2 most recent scanned pages
         pruned_ocr = False
         if exceeded_soft:
             if hasattr(self, "scanner") and self.scanner and hasattr(self.scanner, "text_detector") and self.scanner.text_detector:
@@ -4106,7 +4050,6 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception as e:
                     print(f"[SafeMARC] Failed to prune OCR cache: {e}")
                     
-        # Phase 3: Hard Limit Exceeded - Completely flush OCR cache and selections cache
         cleared_ocr = False
         if exceeded_hard:
             if hasattr(self, "scanner") and self.scanner:
@@ -4120,7 +4063,6 @@ class SafeMARCMainWindow(QMainWindow):
             if hasattr(self, "user_selections_cache"):
                 self.user_selections_cache.clear()
                 
-        # If not in batch mode/active PDF and preserve is False, clear OCR cache completely
         preserve = str(settings.value("preserve_session_cache", "false")).lower() == "true"
         if not preserve and not getattr(self, "is_batch_mode", False) and not getattr(self, "active_pdf_pages", None):
             if hasattr(self, "scanner") and self.scanner:
@@ -4134,7 +4076,6 @@ class SafeMARCMainWindow(QMainWindow):
 
         gc.collect()
         
-        # Trim memory via malloc_trim (Linux) or SetProcessWorkingSetSize (Windows)
         import sys
         if sys.platform.startswith("linux"):
             try:
@@ -4151,7 +4092,6 @@ class SafeMARCMainWindow(QMainWindow):
             except Exception:
                 pass
         
-        # Log action if limits were exceeded or memory reclaimed
         if exceeded_soft or exceeded_hard:
             try:
                 import psutil
@@ -4289,7 +4229,6 @@ class PersistentRangeDialog(QDialog):
         btn_layout.addWidget(self.btn_save)
         layout.addLayout(btn_layout)
         
-        # Configure tab order explicitly
         prev_radio = None
         for val, radio in self.options:
             if prev_radio:

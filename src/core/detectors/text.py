@@ -10,16 +10,17 @@ from src.core.types import SensitiveHit
 
 
 class RegexDetector(BaseDetector):
+    """Executes OCR and matches custom regular expressions or patterns against extracted text data."""
+
     def __init__(self) -> None:
         self.custom_patterns: List[dict] = []
-        self.ocr_cache = {}  # Dict[str, List[Tuple[Dict, float]]] mapping image_path to list of (ocr_data, scale)
+        self.ocr_cache = {}
         self.cached_image_path: Optional[str] = None
         self._load_cache()
 
     def _load_cache(self) -> None:
         import os
         from PySide6.QtCore import QStandardPaths
-        # Purely in-memory now. Clean up any legacy disk cache to save space.
         try:
             cache_dir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
             if cache_dir:
@@ -34,7 +35,6 @@ class RegexDetector(BaseDetector):
     def save_cache(self) -> None:
         import os
         from PySide6.QtCore import QStandardPaths
-        # Purely in-memory now. Delete legacy file if any exists.
         try:
             cache_dir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
             if cache_dir:
@@ -135,11 +135,9 @@ class RegexDetector(BaseDetector):
                 except Exception as e:
                     print(f"Tesseract OCR failed: {e}")
 
-            # Enforce max cache size limit
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")
             
-            # Determine dynamic default based on RAM if not set
             try:
                 import psutil
                 tot_ram = psutil.virtual_memory().total / (1024 ** 3)
@@ -291,7 +289,6 @@ class RegexDetector(BaseDetector):
                             else:
                                 continue
                         elif label == "EU IBAN":
-                            # Validate IBAN checksum.
                             iban_clean = match_text.replace(" ", "").replace("-", "").upper()
                             if len(iban_clean) >= 15:
                                 rearranged = iban_clean[4:] + iban_clean[:4]

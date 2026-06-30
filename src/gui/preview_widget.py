@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QRectF, QSettings
 from src.core.types import SensitiveHit
 
 class SelectableHitItem(QGraphicsRectItem):
+    """Visual representation of a detected sensitive region, supporting selection and styling states."""
     def __init__(self, hit: SensitiveHit, on_toggle: Callable, is_selected: bool = True):
         super().__init__(QRectF(hit.x, hit.y, hit.w, hit.h))
         self.hit = hit
@@ -173,6 +174,7 @@ class LoadingOverlay(QWidget):
 
 
 class PreviewWidget(QGraphicsView):
+    """Interactive canvas for viewing documents and managing automated or manual redaction regions."""
     identityRequested = Signal(object) # Emits SensitiveHit.
     
     def __init__(self):

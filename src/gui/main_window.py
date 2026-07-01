@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 import os
 import qdarktheme
 from PySide6.QtWidgets import (
@@ -550,7 +552,7 @@ class PDFOCRWorker(QThread):
                     self.scanner.text_detector.ocr_cache[original_path] = cached_list
 
         except Exception as e:
-            print(f"[PDFOCRWorker] Error during batch OCR pre-scan: {e}")
+            logger.error(f"[PDFOCRWorker] Error during batch OCR pre-scan: {e}")
         finally:
             if temp_dir and os.path.exists(temp_dir):
                 import shutil
@@ -2626,7 +2628,7 @@ class SafeMARCMainWindow(QMainWindow):
                                 "keywords": p_info["keywords"]
                             })
         except Exception as e:
-            print(f"Error loading predefined patterns: {e}")
+            logger.error(f"Error loading predefined patterns: {e}")
             
         # 2. Gather custom patterns from rows
         for i in range(self.text_patterns_layout.count()):
@@ -2690,7 +2692,7 @@ class SafeMARCMainWindow(QMainWindow):
                 from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self.load_next_batch_item)
         except Exception as e:
-            print(f"Error switching vision mode: {e}")
+            logger.error(f"Error switching vision mode: {e}")
 
     def _update_face_mode(self, text):
         if not self.scanner:
@@ -2703,7 +2705,7 @@ class SafeMARCMainWindow(QMainWindow):
         }
         internal_mode = mode_map.get(text, "ALL")
         self.scanner.set_face_redaction_mode(internal_mode)
-        print(f"Face redaction mode set to: {internal_mode}")
+        logger.info(f"Face redaction mode set to: {internal_mode}")
         
         if text in ("Blacklist", "Whitelist"):
             self.btn_select_people.show()
@@ -2958,7 +2960,7 @@ class SafeMARCMainWindow(QMainWindow):
         else:
             if name in self.scanner.target_identities:
                 self.scanner.target_identities.remove(name)
-        print(f"Target identities: {self.scanner.target_identities}")
+        logger.info(f"Target identities: {self.scanner.target_identities}")
         if self.scanner:
             self.scanner.clear_scan_cache_only()
         self._rescan_current()
@@ -3020,7 +3022,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.preview_widget.display_hits(hits, is_pdf=is_pdf, pdf_source=pdf_source, cached_active_hits=cached_active_hits, reviewed=reviewed)
             self.btn_redact_next.setEnabled(bool(hits))
         except Exception as e:
-            print(f"Re-scan failed: {e}")
+            logger.error(f"Re-scan failed: {e}")
 
     def add_files(self):
         exts = " ".join([f"*{ext}" for ext in SUPPORTED_EXTENSIONS])
@@ -3128,7 +3130,7 @@ class SafeMARCMainWindow(QMainWindow):
             temp_path = os.path.join(temp_dir, f"paste_{timestamp}.png")
             
             if image.save(temp_path, "PNG"):
-                print(f"Pasted image from clipboard to: {temp_path}")
+                logger.info(f"Pasted image from clipboard to: {temp_path}")
                 self.add_dropped_paths([temp_path])
                 
                 for i in range(self.file_list.count()):
@@ -3177,7 +3179,7 @@ class SafeMARCMainWindow(QMainWindow):
                 if preview_page:
                     self.preview_widget.load_image(preview_page)
             except Exception as e:
-                print(f"Failed to load PDF preview: {e}")
+                logger.error(f"Failed to load PDF preview: {e}")
         elif file_path.lower().endswith(tuple(SUPPORTED_EXTENSIONS)):
             self.preview_widget.load_image(file_path)
             
@@ -3484,9 +3486,9 @@ class SafeMARCMainWindow(QMainWindow):
                         if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
                             import shutil
                             shutil.rmtree(parent_dir)
-                            print(f"[SafeMARC] Cleaned up temp PDF folder on skip: {parent_dir}")
+                            logger.info(f"[SafeMARC] Cleaned up temp PDF folder on skip: {parent_dir}")
                     except Exception as e:
-                        print(f"[SafeMARC] Failed to clean up temp PDF folder on skip: {e}")
+                        logger.error(f"[SafeMARC] Failed to clean up temp PDF folder on skip: {e}")
 
                 self.pdf_nav_container.hide()
                 self.active_pdf_pages = []
@@ -3641,7 +3643,7 @@ class SafeMARCMainWindow(QMainWindow):
                     if success:
                         self.active_pdf_outputs[idx] = temp_path
                 except Exception as e:
-                    print(f"Error finalizing redaction for page {idx + 1}: {e}")
+                    logger.error(f"Error finalizing redaction for page {idx + 1}: {e}")
 
     def _undo_queue_item(self, index):
         item = self.file_list.item(index)
@@ -3718,7 +3720,7 @@ class SafeMARCMainWindow(QMainWindow):
                             self.setFocus()
                 except Exception as e:
                     self.is_navigating_backward = False
-                    print(f"Error processing page: {e}")
+                    logger.error(f"Error processing page: {e}")
                     self.user_selections_cache[cache_key] = {
                         "active_hits": [],
                         "reviewed": True
@@ -3774,9 +3776,9 @@ class SafeMARCMainWindow(QMainWindow):
                             if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
                                 import shutil
                                 shutil.rmtree(parent_dir)
-                                print(f"[SafeMARC] Cleaned up temp PDF folder: {parent_dir}")
+                                logger.info(f"[SafeMARC] Cleaned up temp PDF folder: {parent_dir}")
                         except Exception as e:
-                            print(f"[SafeMARC] Failed to clean up temp PDF folder: {e}")
+                            logger.error(f"[SafeMARC] Failed to clean up temp PDF folder: {e}")
 
                     if outputs:
                         for path in outputs:
@@ -3797,7 +3799,7 @@ class SafeMARCMainWindow(QMainWindow):
                 def on_error(e):
                     progress.close()
                     self._pdf_finalize_worker = None
-                    print(f"Error finalizing PDF: {e}")
+                    logger.error(f"Error finalizing PDF: {e}")
                     self.file_list.item(self.batch_index).setForeground(QColor("#d32f2f"))
 
                     if self.active_pdf_pages:
@@ -3807,9 +3809,9 @@ class SafeMARCMainWindow(QMainWindow):
                             if os.path.exists(parent_dir) and "safemarc_pdf_" in os.path.basename(parent_dir):
                                 import shutil
                                 shutil.rmtree(parent_dir)
-                                print(f"[SafeMARC] Cleaned up temp PDF folder on error: {parent_dir}")
+                                logger.error(f"[SafeMARC] Cleaned up temp PDF folder on error: {parent_dir}")
                         except Exception as ex:
-                            print(f"[SafeMARC] Failed to clean up temp PDF folder on error: {ex}")
+                            logger.error(f"[SafeMARC] Failed to clean up temp PDF folder on error: {ex}")
 
                     self.pdf_nav_container.hide()
                     self.active_pdf_pages = []
@@ -3873,7 +3875,7 @@ class SafeMARCMainWindow(QMainWindow):
                 except Exception as e:
                     self.is_navigating_backward = False
                     item.setForeground(QColor("#d32f2f"))
-                    print(f"Error handling extracted PDF: {e}")
+                    logger.error(f"Error handling extracted PDF: {e}")
                     self.batch_index += 1
                     QTimer.singleShot(0, self.load_next_batch_item)
 
@@ -3882,7 +3884,7 @@ class SafeMARCMainWindow(QMainWindow):
                 self._pdf_extract_worker = None
                 self.is_navigating_backward = False
                 item.setForeground(QColor("#d32f2f"))
-                print(f"Error extracting PDF: {e}")
+                logger.error(f"Error extracting PDF: {e}")
                 self.batch_index += 1
                 QTimer.singleShot(0, self.load_next_batch_item)
 
@@ -3955,7 +3957,7 @@ class SafeMARCMainWindow(QMainWindow):
             except Exception as e:
                 self.is_navigating_backward = False
                 item.setForeground(QColor("#d32f2f"))
-                print(f"Error processing {file_path}: {e}")
+                logger.error(f"Error processing {file_path}: {e}")
                 self.batch_index += 1
                 QTimer.singleShot(0, self.load_next_batch_item)
         else:
@@ -3970,7 +3972,7 @@ class SafeMARCMainWindow(QMainWindow):
             self.txt_queue_search.setVisible(count > 0)
 
     def cleanup_temp_resources(self, full=False):
-        print(f"[SafeMARC] Cleaning up temporary resources (full={full})...")
+        logger.info(f"[SafeMARC] Cleaning up temporary resources (full={full})...")
         import shutil
         import tempfile
         safemarc_temp = os.path.join(tempfile.gettempdir(), "safemarc_temp")
@@ -3978,18 +3980,18 @@ class SafeMARCMainWindow(QMainWindow):
             if full:
                 try:
                     shutil.rmtree(safemarc_temp)
-                    print("[SafeMARC] Successfully cleaned up entire safemarc_temp directory.")
+                    logger.info("[SafeMARC] Successfully cleaned up entire safemarc_temp directory.")
                 except Exception as e:
-                    print(f"[SafeMARC] Error cleaning up temporary directory: {e}")
+                    logger.error(f"[SafeMARC] Error cleaning up temporary directory: {e}")
             else:
                 for sub in ["pdf", "redacted"]:
                     sub_path = os.path.join(safemarc_temp, sub)
                     if os.path.exists(sub_path):
                         try:
                             shutil.rmtree(sub_path)
-                            print(f"[SafeMARC] Cleaned up temporary {sub} directory.")
+                            logger.info(f"[SafeMARC] Cleaned up temporary {sub} directory.")
                         except Exception as e:
-                            print(f"[SafeMARC] Error cleaning up {sub}: {e}")
+                            logger.error(f"[SafeMARC] Error cleaning up {sub}: {e}")
         self.reclaim_memory()
 
     def reclaim_memory(self, force_aggressive=False):
@@ -4022,7 +4024,7 @@ class SafeMARCMainWindow(QMainWindow):
             process = psutil.Process(os.getpid())
             current_rss = process.memory_info().rss / (1024 * 1024)
         except Exception as e:
-            print(f"[SafeMARC] Failed to read memory usage: {e}")
+            logger.error(f"[SafeMARC] Failed to read memory usage: {e}")
             
         exceeded_hard = (current_rss > hard_limit) or force_aggressive
         exceeded_soft = (current_rss > soft_limit) or exceeded_hard
@@ -4038,7 +4040,7 @@ class SafeMARCMainWindow(QMainWindow):
                     self.scanner.cleanup()
                     cleaned_detectors = True
                 except Exception as e:
-                    print(f"[SafeMARC] Failed to cleanup scanner during reclaim: {e}")
+                    logger.error(f"[SafeMARC] Failed to cleanup scanner during reclaim: {e}")
                     
         pruned_ocr = False
         if exceeded_soft:
@@ -4051,7 +4053,7 @@ class SafeMARCMainWindow(QMainWindow):
                         for k in keys[:-2]:
                             ocr_cache.pop(k, None)
                 except Exception as e:
-                    print(f"[SafeMARC] Failed to prune OCR cache: {e}")
+                    logger.error(f"[SafeMARC] Failed to prune OCR cache: {e}")
                     
         cleared_ocr = False
         if exceeded_hard:
@@ -4114,9 +4116,9 @@ class SafeMARCMainWindow(QMainWindow):
             if cleared_ocr:
                 reclaim_detail.append("cleared OCR cache")
                 
-            print(f"[SafeMARC] RAM watch triggered ({', '.join(reclaim_detail)}): {current_rss:.1f} MB -> {new_rss:.1f} MB (reclaimed {(current_rss - new_rss):.1f} MB).")
+            logger.debug(f"[SafeMARC] RAM watch triggered ({', '.join(reclaim_detail)}): {current_rss:.1f} MB -> {new_rss:.1f} MB (reclaimed {(current_rss - new_rss):.1f} MB).")
         else:
-            print(f"[SafeMARC] Reclaimed memory. RAM usage: {current_rss:.1f} MB.")
+            logger.debug(f"[SafeMARC] Reclaimed memory. RAM usage: {current_rss:.1f} MB.")
 
     def closeEvent(self, event):
         self.cancel_active_pdf_ocr_worker()
@@ -4124,12 +4126,12 @@ class SafeMARCMainWindow(QMainWindow):
             try:
                 self.scanner.text_detector.save_cache()
             except Exception as e:
-                print(f"[SafeMARC] Failed to save OCR cache on close: {e}")
+                logger.error(f"[SafeMARC] Failed to save OCR cache on close: {e}")
         if hasattr(self, "scanner") and self.scanner:
             try:
                 self.scanner.cleanup()
             except Exception as e:
-                print(f"[SafeMARC] Failed to cleanup scanner on close: {e}")
+                logger.error(f"[SafeMARC] Failed to cleanup scanner on close: {e}")
         self.cleanup_temp_resources(full=True)
         event.accept()
 

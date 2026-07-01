@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 import re
 from typing import List, Optional
 
@@ -27,9 +29,9 @@ class RegexDetector(BaseDetector):
                 cache_file = os.path.join(cache_dir, "ocr_cache.json")
                 if os.path.exists(cache_file):
                     os.remove(cache_file)
-                    print("[RegexDetector] Cleaned up legacy disk OCR cache file.")
+                    logger.debug("[RegexDetector] Cleaned up legacy disk OCR cache file.")
         except Exception as e:
-            print(f"[RegexDetector] Failed to clean up legacy disk cache: {e}")
+            logger.error(f"[RegexDetector] Failed to clean up legacy disk cache: {e}")
         self.ocr_cache = {}
 
     def save_cache(self) -> None:
@@ -58,7 +60,7 @@ class RegexDetector(BaseDetector):
                 "keywords": keywords or []
             })
         except re.error as e:
-            print(f"Failed to compile regex pattern '{pattern}': {e}")
+            logger.error(f"Failed to compile regex pattern '{pattern}': {e}")
 
     def clear_custom_patterns(self) -> None:
         self.custom_patterns.clear()
@@ -133,7 +135,7 @@ class RegexDetector(BaseDetector):
                     ocr_hits = self._scan_data_dict(ocr_data, scale=scale)
                     hits.extend(ocr_hits)
                 except Exception as e:
-                    print(f"Tesseract OCR failed: {e}")
+                    logger.error(f"Tesseract OCR failed: {e}")
 
             from PySide6.QtCore import QSettings
             settings = QSettings("SafeMARC", "SafeMARC")

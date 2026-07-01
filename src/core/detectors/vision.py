@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 import os
 import threading
 from typing import List, Optional
@@ -73,7 +75,7 @@ class VisionDetector(BaseDetector):
             options = vision.ObjectDetectorOptions(
                 base_options=base_options, score_threshold=bd_val, max_results=100
             )
-            print(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {bd_val:.2f}")
+            logger.debug(f"[DEBUG] Initializing ObjectDetector with dynamic threshold: {bd_val:.2f}")
             self.detector = vision.ObjectDetector.create_from_options(options)
 
         elif self.mode == "faces":
@@ -252,7 +254,7 @@ class VisionDetector(BaseDetector):
         bd_val = float(settings.value("model_body_detect", 0.25))
 
         if not hasattr(self, "_active_bd_val") or self._active_bd_val != bd_val or not getattr(self, "detector", None):
-            print(f"[DEBUG] Recreating ObjectDetector with active threshold: {bd_val:.2f}")
+            logger.debug(f"[DEBUG] Recreating ObjectDetector with active threshold: {bd_val:.2f}")
             if hasattr(self, "detector") and self.detector:
                 try:
                     self.detector.close()
@@ -271,7 +273,7 @@ class VisionDetector(BaseDetector):
         try:
             faces = self._detect_faces(cv_image, match_identities=match_identities, face_thresh=_YUNET_SCORE_THRESH)
         except Exception as e:
-            print(f"[DEBUG] Face detection in body scan failed: {e}")
+            logger.error(f"[DEBUG] Face detection in body scan failed: {e}")
 
         # Adaptive CLAHE contrast enhancement for low-light images
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)

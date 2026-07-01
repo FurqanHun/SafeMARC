@@ -8,90 +8,81 @@ import os
 import logging
 from src.utils.paths import get_app_data_dir
 
-class TeeStream:
-    def __init__(self, original_stream, log_file):
-        self.original_stream = original_stream
-        self.log_file = log_file
-
-    def write(self, data):
-        if self.original_stream is not None:
-            try:
-                self.original_stream.write(data)
-            except Exception:
-                pass
-        try:
-            self.log_file.write(data)
-            self.log_file.flush()
-        except Exception:
-            pass
-
-    def flush(self):
-        if self.original_stream is not None:
-            try:
-                self.original_stream.flush()
-            except Exception:
-                pass
-        try:
-            self.log_file.flush()
-        except Exception:
-            pass
-
-    def fileno(self):
-        if self.original_stream is not None and hasattr(self.original_stream, 'fileno'):
-            try:
-                return self.original_stream.fileno()
-            except Exception:
-                pass
-        if self.log_file is not None and hasattr(self.log_file, 'fileno'):
-            try:
-                return self.log_file.fileno()
-            except Exception:
-                pass
-        raise AttributeError("TeeStream object has no attribute 'fileno'")
-
-original_stdout = sys.stdout
-original_stderr = sys.stderr
-
 try:
     log_dir = get_app_data_dir()
     log_path = os.path.join(log_dir, "safemarc.log")
-    log_file_obj = open(log_path, "w", encoding="utf-8", buffering=1)
     
-    # Write C-level segfaults directly to the log file.
+    # Enable VT100 ANSI escape sequences on Windows 10+
+    if sys.platform == "win32":
+        os.system('')
+        
+    # C-level faulthandler
+    log_file_obj = open(log_path, "a", encoding="utf-8", buffering=1)
     faulthandler.enable(file=log_file_obj)
     
-    sys.stdout = TeeStream(sys.stdout, log_file_obj)
-    sys.stderr = TeeStream(sys.stderr, log_file_obj)
+    # Define custom SUCCESS level
+    logging.SUCCESS = 25
+    logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+    setattr(logging.Logger, 'success', lambda self, message, *args, **kws: self._log(logging.SUCCESS, message, args, **kws))
+
+    class ColorFormatter(logging.Formatter):
+        grey = "\x1b[38;20m"
+        green = "\x1b[32;20m"
+        yellow = "\x1b[33;20m"
+        red = "\x1b[31;20m"
+        bold_red = "\x1b[31;1m"
+        cyan = "\x1b[36;20m"
+        reset = "\x1b[0m"
+        
+        FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+        FORMATS = {
+            logging.DEBUG: cyan + FORMAT + reset,
+            logging.INFO: grey + FORMAT + reset,
+            logging.SUCCESS: green + FORMAT + reset,
+            logging.WARNING: yellow + FORMAT + reset,
+            logging.ERROR: red + FORMAT + reset,
+            logging.CRITICAL: bold_red + FORMAT + reset
+        }
+
+        def format(self, record):
+            log_fmt = self.FORMATS.get(record.levelno)
+            formatter = logging.Formatter(log_fmt)
+            return formatter.format(record)
+
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
     
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(ColorFormatter())
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[file_handler, stream_handler]
+    )
+    logger = logging.getLogger(__name__)
+
     def uncaught_exception_handler(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
             return
-        import traceback
-        tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        sys.stderr.write("".join(tb_lines) + "\n")
+        logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+        
     sys.excepthook = uncaught_exception_handler
 
     import threading
     def thread_exception_handler(args):
-        import traceback
-        tb_lines = traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
-        sys.stderr.write(f"Uncaught exception in thread {args.thread.name}:\n" + "".join(tb_lines) + "\n")
+        logger.critical(f"Uncaught exception in thread {args.thread.name}", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+        
     threading.excepthook = thread_exception_handler
     
-    print(f"[SafeMARC] Logging initialized. Logs are saved persistently to: {log_path}")
+    logger.info(f"Logging initialized. Logs are saved persistently to: {log_path}")
 except Exception as e:
-    sys.stdout = original_stdout
-    sys.stderr = original_stderr
     try:
         faulthandler.enable()
     except Exception:
         pass
-    if sys.stdout is not None and hasattr(sys.stdout, "write"):
-        try:
-            print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
-        except Exception:
-            pass
+    print(f"[SafeMARC] Failed to initialize file logging ({e}), falling back to console.")
 
 def run_gui():
     import shutil
@@ -235,12 +226,12 @@ def run_gui():
     try:
         sys.exit(app.exec())
     except KeyboardInterrupt:
-        print("\n[SafeMARC] Caught KeyboardInterrupt. Exiting cleanly...")
+        logging.getLogger(__name__).info("Caught KeyboardInterrupt. Exiting cleanly...")
     finally:
         if os.path.exists(safemarc_temp):
             try:
                 shutil.rmtree(safemarc_temp)
-                print("[SafeMARC] RAII Guard: Successfully cleared temporary resources on termination.")
+                logging.getLogger(__name__).debug("RAII Guard: Successfully cleared temporary resources on termination.")
             except Exception:
                 pass
 
@@ -257,6 +248,6 @@ if __name__ == "__main__":
     
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-        print("[SafeMARC] Enhanced debug logging enabled.")
+        logging.getLogger(__name__).debug("Enhanced debug logging enabled.")
         
     run_gui()

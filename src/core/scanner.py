@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from typing import List, Dict, Optional
 from src.core.detectors.text import RegexDetector
 from src.core.detectors.vision import VisionDetector
@@ -25,21 +27,21 @@ class SafeScanner:
         self._vision_cache = {}
         self._regex_cache = {}
         self._scan_cache = {}
-        print("[SafeScanner] Session scan caches cleared.")
+        logger.debug("[SafeScanner] Session scan caches cleared.")
         
     def clear_scan_cache_only(self) -> None:
         self._scan_cache = {}
-        print("[SafeScanner] Filter scan cache cleared.")
+        logger.debug("[SafeScanner] Filter scan cache cleared.")
         
     def clear_text_cache(self) -> None:
         self._regex_cache = {}
         self._scan_cache = {}
-        print("[SafeScanner] Text/Regex cache cleared.")
+        logger.debug("[SafeScanner] Text/Regex cache cleared.")
         
     def clear_vision_cache(self) -> None:
         self._vision_cache = {}
         self._scan_cache = {}
-        print("[SafeScanner] Vision caches cleared.")
+        logger.debug("[SafeScanner] Vision caches cleared.")
         
     def set_vision_mode(self, mode: str) -> None:
         if hasattr(self, "vision_detector") and self.vision_detector:
@@ -72,31 +74,31 @@ class SafeScanner:
         """Runs all detectors and returns combined hits."""
         ckey = cache_key if cache_key else file_path
         if ckey in self._scan_cache:
-            print(f"  [CACHE] Reusing {len(self._scan_cache[ckey])} cached scan hits for {ckey}.")
+            logger.debug(f"  [CACHE] Reusing {len(self._scan_cache[ckey])} cached scan hits for {ckey}.")
             return list(self._scan_cache[ckey])
  
         all_hits = []
-        print(f"Scanning: {file_path}")
+        logger.info(f"Scanning: {file_path}")
  
         if ckey in self._regex_cache:
-            print(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
+            logger.debug(f"  [CACHE] Reusing {len(self._regex_cache[ckey])} cached regex hits for {ckey}.")
             regex_hits = self._regex_cache[ckey]
         else:
             try:
                 regex_hits = self.text_detector.detect(file_path, pdf_words=pdf_words)
             except Exception as e:
-                print(f"RegexDetector failed: {e}")
+                logger.error(f"RegexDetector failed: {e}")
                 regex_hits = []
             self._regex_cache[ckey] = list(regex_hits)
  
         if ckey in self._vision_cache:
-            print(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
+            logger.debug(f"  [CACHE] Reusing {len(self._vision_cache[ckey])} cached vision hits for {ckey}.")
             vision_hits = self._vision_cache[ckey]
         else:
             try:
                 vision_hits = self.vision_detector.detect(file_path, match_identities=True)
             except Exception as e:
-                print(f"VisionDetector failed: {e}")
+                logger.error(f"VisionDetector failed: {e}")
                 vision_hits = []
             self._vision_cache[ckey] = list(vision_hits)
  
@@ -111,19 +113,19 @@ class SafeScanner:
                 elif self.face_redaction_mode == "BLACKLIST":
                     if hit.identity and hit.identity in self.target_identities:
                         final_hits.append(hit)
-                        print(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
+                        logger.info(f"  [BLACKLIST] KEEP '{hit.identity}' (in target list)")
                     else:
-                        print(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
+                        logger.info(f"  [BLACKLIST] SKIP identity='{hit.identity}' targets={self.target_identities}")
                 elif self.face_redaction_mode == "WHITELIST":
                     if hit.identity and hit.identity in self.target_identities:
-                        print(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
+                        logger.info(f"  [WHITELIST] PROTECT '{hit.identity}' (whitelisted)")
                     else:
                         final_hits.append(hit)
-                        print(f"  [WHITELIST] REDACT identity='{hit.identity}'")
+                        logger.info(f"  [WHITELIST] REDACT identity='{hit.identity}'")
             else:
                 final_hits.append(hit)
 
-        print(f"[SafeScanner] Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")
+        logger.debug(f"[SafeScanner] Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")
         self._scan_cache[ckey] = list(final_hits)
         return final_hits
 

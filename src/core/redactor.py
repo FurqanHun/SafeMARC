@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 import os
 from typing import List
 
@@ -19,7 +21,7 @@ class Redactor:
         image = cv2.imread(input_path)
 
         if image is None:
-            print(f"❌ Error: Could not read image at {input_path}")
+            logger.error(f"Error: Could not read image at {input_path}")
             return False
 
         for hit in hits:
@@ -31,11 +33,14 @@ class Redactor:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        success = cv2.imwrite(output_path, image)
-
-        if success:
-            print(f"✅ Redacted image saved to: {output_path}")
-        else:
-            print(f"❌ Failed to save image to: {output_path}")
-
-        return success
+        try:
+            success = cv2.imwrite(output_path, image)
+            if success:
+                logger.success(f"Redacted image saved to: {output_path}")
+                return True
+            else:
+                logger.error(f"Failed to save image to: {output_path}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to save image to {output_path}: {e}")
+            return False

@@ -771,6 +771,9 @@ class FocusEventFilter(QObject):
         if event is not None:
             if event.type() == QEvent.FocusIn:
                 try:
+                    import shiboken6
+                    if not shiboken6.isValid(self.main_window):
+                        return super().eventFilter(obj, event)
                     from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
                     if isinstance(obj, (QLineEdit, QTextEdit, QPlainTextEdit)):
                         self.main_window.set_shortcuts_enabled(False)

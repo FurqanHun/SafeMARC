@@ -3,6 +3,7 @@ import os
 import unittest
 from PySide6.QtWidgets import QApplication, QListWidgetItem
 from PySide6.QtCore import Qt
+from unittest.mock import patch
 
 from src.gui.main_window import SafeMARCMainWindow
 from src.core.types import SensitiveHit
@@ -28,18 +29,26 @@ class TestPDFNavigation(unittest.TestCase):
         QMessageBox.warning = cls.original_warning
         QMessageBox.critical = cls.original_critical
 
-    def test_pdf_navigation_lifecycle(self):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_pdf_navigation_lifecycle(self, mock_safescanner):
         class MockScanner:
             _scan_cache = {}
+            _vision_cache = {}
+            _regex_cache = {}
+            identity_manager = None
             def clear_cache(self):
+                pass
+            def clear_vision_cache(self):
+                pass
+            def set_vision_mode(self, mode):
                 pass
             def redact(self, path, out, hits):
                 return True
             def scan(self, path, pdf_words=None):
                 return []
 
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         window.is_batch_mode = True
         window.batch_index = 0
         window.chk_auto_skip.setChecked(False)
@@ -121,18 +130,26 @@ class TestPDFNavigation(unittest.TestCase):
         window.file_list.clear()
         QApplication.processEvents()
 
-    def test_skip_remaining_pages(self):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_skip_remaining_pages(self, mock_safescanner):
         class MockScanner:
             _scan_cache = {}
+            _vision_cache = {}
+            _regex_cache = {}
+            identity_manager = None
             def clear_cache(self):
+                pass
+            def clear_vision_cache(self):
+                pass
+            def set_vision_mode(self, mode):
                 pass
             def redact(self, path, out, hits):
                 return True
             def scan(self, path, pdf_words=None):
                 return []
 
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         window.is_batch_mode = True
         window.batch_index = 0
         window.chk_auto_skip.setChecked(False)

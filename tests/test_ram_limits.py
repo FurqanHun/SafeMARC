@@ -24,9 +24,21 @@ class MockScanner:
         self.text_detector = MockDetector()
         self.cleaned = False
         self.identity_manager = None
+        self._scan_cache = {}
+        self._vision_cache = {}
+        self._regex_cache = {}
         
     def cleanup(self):
         self.cleaned = True
+        
+    def clear_cache(self):
+        pass
+        
+    def clear_vision_cache(self):
+        pass
+        
+    def set_vision_mode(self, mode):
+        pass
 
 
 class TestRAMLimits(unittest.TestCase):
@@ -64,9 +76,10 @@ class TestRAMLimits(unittest.TestCase):
         dialog.deleteLater()
 
     @patch('psutil.Process')
-    def test_reclaim_memory_soft_limit_exceeded(self, mock_process_class):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_reclaim_memory_soft_limit_exceeded(self, mock_safescanner, mock_process_class):
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         window.is_batch_mode = True  # Avoid clearing cache due to not being in batch
         
         # Mock current process RSS to return 500 MB
@@ -99,9 +112,10 @@ class TestRAMLimits(unittest.TestCase):
         window.deleteLater()
 
     @patch('psutil.Process')
-    def test_reclaim_memory_hard_limit_exceeded(self, mock_process_class):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_reclaim_memory_hard_limit_exceeded(self, mock_safescanner, mock_process_class):
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         window.is_batch_mode = True  # Avoid clearing cache due to not being in batch
         
         # Mock current process RSS to return 1200 MB

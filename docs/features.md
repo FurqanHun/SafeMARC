@@ -114,7 +114,7 @@
 - [x] **Queue Protection in Batch Mode**: Queue-modifying controls (Add File, Add Folder, Clear Queue, Paste, Remove) and the Settings dialog are automatically disabled while batch review is active to prevent modification during processing, while vision checklists and pattern configuration controls remain fully enabled.
 - [x] **Rebindable Shortcuts Settings**: Dedicated settings panel tab to interactively rebind, conflict-check, and persist all 30 keyboard shortcuts using QSettings.
 - [x] **AI Engine & Environment Diagnostics**: A dynamic `ClickableStatusLabel` in the main toolbar providing one-click access to the `EngineStatusDialog`, which validates installation state and path locations of AI engines (YuNet face detection model, SFace face recognition model, MediaPipe body silhouette detector, and Tesseract OCR).
-- [x] **CLI Interface**: Robust command-line batch processing via `src/cli/cli.py` supporting `-i/--input`, `-o/--output-dir`, `--use-suffix`, `--faces`, `--redact-body`, and `--text` flags.
+- [x] **Diagnostics Interface**: Simplified headless flags via `main.py --version` and `main.py --debug` which immediately launch the standard UI while pushing deep-engine SFace, Region, and OCR validation traces natively to the console log stream.
 - [x] **Cross-Platform Memory Trimming**: After each memory reclamation cycle, heap pages are released back to the OS using `malloc_trim(0)` on Linux and `SetProcessWorkingSetSize` on Windows, ensuring that freed Python/C++ allocations are immediately visible to system monitoring tools.
 - [x] **Cross-Platform Compatibility**: Fully safe and optimized file path handling across Linux and Windows.
 - [x] **Graceful Shutdown**: Instant and clean `Ctrl+C` signal handling in the GUI.

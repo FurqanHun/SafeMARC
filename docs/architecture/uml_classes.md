@@ -31,6 +31,7 @@ classDiagram
         -_multi_scale_detect(cv_image: ndarray, w_img: int, h_img: int, face_thresh: float) list
         -_nms(detections: list, iou_thresh: float, use_iou: bool) list
         -_yunet_model_path
+        -_active_bd_val
     }
     
     class RegexDetector {
@@ -171,7 +172,6 @@ classDiagram
     }
 
     class LoadingDialog {
-        +QProgressBar progress_bar
         +update_progress(current: int, total: int) void
         +label
     }
@@ -200,6 +200,10 @@ classDiagram
         +QLabel pdf_total_label
         +List active_pdf_pages
         +List active_pdf_outputs
+        +bool active_pdf_has_redactions
+        +bool is_navigating_backward
+        +PDFExtractWorker _pdf_extract_worker
+        +PDFFinalizeWorker _pdf_finalize_worker
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -287,9 +291,7 @@ classDiagram
         +current_file_path
         +settings
         +batch_success_count
-        +status_label
         +batch_index
-        +title_label
         +current_hits
     }
 
@@ -370,7 +372,6 @@ classDiagram
         -_browse_global_dir() void
         -_delete_individual_image(img_path: str, person_name: str, is_session: bool) void
         +settings
-        +progress_bar
         +tabs
     }
 
@@ -441,6 +442,8 @@ classDiagram
         +workspace_card
         +raw_image_path
         +cropped_image
+        +raw_img
+        +scale_factor
     }
 
     class NewIdentityDialog {
@@ -464,9 +467,6 @@ classDiagram
         +List hits
         +run() void
     }
-    class KeyboardFocusFilter {
-        +eventFilter(obj: QObject, event: QEvent) bool
-    }
 
     SafeMARCMainWindow *-- PreviewWidget
     SafeMARCMainWindow *-- ClickableStatusLabel
@@ -487,5 +487,4 @@ classDiagram
     SettingsDialog ..> NewIdentityDialog : opens
     FaceCropDialog *-- InteractiveCropLabel
     FocusEventFilter ..> SafeMARCMainWindow : filters focus events for
-    KeyboardFocusFilter ..> SafeMARCMainWindow : globally filters focus events
 ```

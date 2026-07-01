@@ -122,6 +122,31 @@ for match in pattern.finditer(content):
             # Action: Remove these from the markdown file programmatically or manually.
 ```
 
+## 4. Mathematical Validation (AST vs UML Set Difference)
+
+To guarantee that the UML diagram is strictly 1:1 with the codebase and eliminate human error, use an automated set difference script.
+
+**Workflow for Automated Verification:**
+1. **Extract AST Classes**: Use an AST script (similar to the one in Step 1) to recursively traverse `src/` and output a JSON dictionary mapping every class to its exact bytecode methods, properties, and signals.
+2. **Extract UML Classes**: Write a script to parse `uml_classes.md` using Regex to extract the methods, attributes, and signals defined in the Mermaid class diagrams.
+3. **Filter Exclusions**: Apply a filter to the AST properties to exclude explicitly ignored UI prefixes (e.g., `btn_`, `lbl_`) as per the diagram's rules.
+4. **Calculate Set Differences**: Use Python sets to compute `ast_methods - uml_methods` and `uml_methods - ast_methods` (and similarly for properties/signals). 
+5. **Iterate**: The script will print exact discrepancies. Update the Markdown using targeted replacement (as in Step 2) until the script outputs **zero discrepancies**.
+
+```python
+# Example logic for strict mathematical comparison:
+ast_attributes = set(ast_class_info['attributes'])
+ast_attributes = {attr for attr in ast_attributes if not attr.startswith(ignored_prefixes)}
+
+missing_in_uml = ast_attributes - uml_info['attributes']
+extra_in_uml = uml_info['attributes'] - ast_attributes
+
+if missing_in_uml:
+    print(f"Missing in UML: {missing_in_uml}")
+if extra_in_uml:
+    print(f"Extra in UML (stale): {extra_in_uml}")
+```
+
 ## Summary for AI Agents
 When tasked with synchronizing `docs/architecture/` files in the future:
 1. **Do not use `sed`** for complex multi-line edits.
@@ -129,3 +154,4 @@ When tasked with synchronizing `docs/architecture/` files in the future:
 3. **Filter GUI Noise**: When extracting properties via `ast.Assign` or `ast.AnnAssign`, strip out common Qt GUI prefixes (`btn_`, `lbl_`, etc.) so the architecture diagrams reflect pure system state.
 4. **Use Python Regex (`re.DOTALL | re.MULTILINE`)** to target specific blocks for injection.
 5. **Always perform a reverse-check** to delete deprecated methods and variables that are no longer in the codebase.
+6. **Perform Strict Set Difference Validation**: Write and run a verification script to mathematically prove that AST properties matches UML properties 1:1, ensuring zero human error.

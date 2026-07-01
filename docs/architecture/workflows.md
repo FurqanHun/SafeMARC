@@ -638,36 +638,3 @@ sequenceDiagram
     end
 ```
 
----
-
-## Headless CLI Batch Processing Workflow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Terminal
-    participant CLI as cli.py
-    participant BP as BatchProcessor
-    participant SC as SafeScanner
-    participant FW as PDFFinalizeWorker
-
-    User->>CLI: run `safemarc --input dir --output-dir out --faces --text`
-    CLI->>CLI: Parse arguments & validate paths
-    CLI->>BP: Initialize BatchProcessor(use_suffix, output_dir)
-    CLI->>SC: Initialize SafeScanner(faces, text, redact_body, etc.)
-    loop For each supported file in input directory
-        CLI->>BP: process(file_path, output_dir)
-        alt Is PDF File
-            BP->>FW: Extract pages and scan using SafeScanner
-            FW->>FW: Apply Redactions
-            FW-->>BP: Finalized PDF path
-        else Is Image File
-            BP->>SC: scan(file_path)
-            SC-->>BP: Detected SensitiveHits
-            BP->>BP: Apply Redactor.apply()
-        end
-        BP-->>CLI: Yield processed output_path
-        CLI->>User: Print progress (e.g., "[OK] Processed file.pdf")
-    end
-    CLI->>User: Exit (0)
-```

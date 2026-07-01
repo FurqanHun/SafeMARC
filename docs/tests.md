@@ -52,3 +52,40 @@ Once pytest finishes collecting and running all 58 tests, the session hook `pyte
    ```text
    [Cleanup] Cleared temporary test files at /tmp/safemarc_temp
    ```
+
+---
+
+## Headless CI/CD & Mocking Policies
+
+SafeMARC is deeply integrated with PySide6 for its UI and heavy ML frameworks (OpenCV, ONNX, MediaPipe) for its backend. This presents unique challenges when running tests in a headless CI/CD environment (like GitHub Actions via `xvfb-run`).
+
+To ensure the test suite remains fast and doesn't crash with `Fatal Python error: Aborted` (Segmentation Faults), the following rules **must** be adhered to:
+
+### 1. Mock `SafeScanner` During UI Tests
+Never instantiate the real `SafeScanner` during GUI tests unless absolutely necessary. While the ML models (YuNet, MediaPipe) are lightweight in file size, initializing the real engine binds deep C++ resources (OpenCV DNN handles, TFLite interpreters) that can leak or cause segmentation faults when instantiated repeatedly in rapid succession within a headless Qt test loop.
+Always patch the scanner during window initialization:
+```python
+@patch('src.gui.main_window.SafeScanner')
+def test_example(self, mock_safescanner):
+    class MockScanner:
+        _scan_cache = {}
+        _vision_cache = {}
+        _regex_cache = {}
+        identity_manager = None
+        def clear_cache(self): pass
+        def clear_vision_cache(self): pass
+        def set_vision_mode(self, mode): pass
+        def redact(self, path, out, hits): return True
+        def scan(self, path, pdf_words=None): return []
+
+    mock_safescanner.return_value = MockScanner()
+    window = SafeMARCMainWindow()
+```
+
+### 2. Guard Global Event Filters with `shiboken6`
+Global PySide6 event filters (like `FocusEventFilter`) can receive events long after `window.deleteLater()` has been called during test teardowns. Calling Python methods on a deleted C++ object causes a hard crash. Always verify the object is valid using `shiboken6.isValid()`:
+```python
+import shiboken6
+if not shiboken6.isValid(self.main_window):
+    return super().eventFilter(obj, event)
+```

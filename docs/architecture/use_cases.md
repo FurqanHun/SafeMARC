@@ -11,6 +11,7 @@ graph TD
     User --> UC3[Configure Redaction Options]
     User --> UC4[Manage Identities]
     User --> UC5[Rebind Keyboard Shortcuts]
+    User --> UC6[Batch Process via Command Line]
     
     subgraph Queue Management
         UC1 --> UC1_A[Add Files via Dialog]
@@ -59,6 +60,11 @@ graph TD
         UC5 --> UC5_B[Rebind Action Keyboard Shortcut]
         UC5 --> UC5_C[Verify Keybinding Conflicts]
         UC5 --> UC5_D[Reset Individual or All Shortcuts]
+    end
+
+    subgraph CLI / Automation
+        UC6 --> UC6_A[Run safemarc --input --output-dir]
+        UC6 --> UC6_B[Trigger Headless Batch Review]
     end
 ```
 
@@ -148,3 +154,12 @@ graph TD
   5. The user can click "Reset" next to any rebound shortcut to revert it to its default, or click "Reset All Shortcuts to Defaults" to reset all shortcuts at once.
   6. Settings are saved in `QSettings` and dynamically applied to the main window shortcuts instantly without requiring an application restart.
 
+### Use Case 6: Batch Process via Command Line
+- **Actors**: User
+- **Preconditions**: SafeMARC CLI is available in the terminal.
+- **Trigger**: User runs `safemarc --input <path> --output-dir <path>` from the terminal.
+- **Main Workflow**:
+  1. SafeMARC parses CLI arguments (e.g., `--faces`, `--redact-body`, `--text`).
+  2. The headless batch processor is initialized.
+  3. SafeMARC automatically redacts all input files according to the flags and saves them in the output directory.
+  4. Process completes and exits without showing any UI.

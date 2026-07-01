@@ -2,6 +2,8 @@
 
 This document contains a comprehensive UML class diagram detailing the properties, methods, and relationships between the core classes of the SafeMARC application.
 
+> **Note**: For clarity, Qt GUI widgets (e.g. `btn_`, `lbl_`, `txt_`) have been explicitly filtered out of this diagram to highlight pure application state.
+
 ## Core & Detection Layer
 
 ```mermaid
@@ -28,19 +30,19 @@ classDiagram
         -_get_yunet_small(w: int, h: int, thresh: float) FaceDetectorYN
         -_multi_scale_detect(cv_image: ndarray, w_img: int, h_img: int, face_thresh: float) list
         -_nms(detections: list, iou_thresh: float, use_iou: bool) list
+        -_yunet_model_path
     }
     
     class RegexDetector {
         +List custom_patterns
         +str cached_image_path
-        +List cached_pdf_words
-        +List cached_data_list
         +clear_custom_patterns() void
         +add_custom_pattern(label: str, pattern: str, is_regex: bool, is_whole_word: bool, keywords: List) void
         +detect(file_path: str, pdf_words: list) List~SensitiveHit~
         -_scan_data_dict(data: dict, scale: float) List~SensitiveHit~
         +_load_cache() void
         +save_cache() void
+        +ocr_cache
     }
     
     class SafeScanner {
@@ -103,6 +105,7 @@ classDiagram
         -_match_sface(face_image: ndarray) Optional~str~
         -_match_lbph(face_image: ndarray) Optional~str~
         +_get_sface_recognizer() void
+        +sface_model
     }
 
     BaseDetector <|-- VisionDetector
@@ -169,9 +172,8 @@ classDiagram
 
     class LoadingDialog {
         +QProgressBar progress_bar
-        +QLabel spinner_label
-        +QLabel status_label
         +update_progress(current: int, total: int) void
+        +label
     }
 ```
 
@@ -188,23 +190,16 @@ classDiagram
         +BatchProcessor processor
         +PreviewWidget preview_widget
         +QListWidget file_list
-        +QComboBox cmb_face_mode
-        +QLabel lbl_count
         +Dict active_regions
         +Dict user_selections_cache
         +Dict shortcuts_config
         +str active_pdf_source
         +int active_pdf_index
-        +bool is_navigating_backward
-        +QShortcut shortcut_rescan
         +QFrame pdf_nav_container
         +QSpinBox pdf_page_spin
         +QLabel pdf_total_label
         +List active_pdf_pages
         +List active_pdf_outputs
-        +QPushButton btn_toggle_search
-        +QLineEdit txt_search_patterns
-        +QLineEdit txt_custom_regex
         +start_batch() void
         +redact_current() void
         +skip_current() void
@@ -284,6 +279,18 @@ classDiagram
         -_on_shortcut_paste() void
         -_on_shortcut_reset_layout() void
         -_show_engine_status_popup() void
+        +splitter
+        +is_batch_mode
+        +active_pdf_ocr_worker
+        +text_patterns_layout
+        +focus_filter
+        +current_file_path
+        +settings
+        +batch_success_count
+        +status_label
+        +batch_index
+        +title_label
+        +current_hits
     }
 
     class PreviewWidget {
@@ -341,13 +348,7 @@ classDiagram
     class SettingsDialog {
         +SafeScanner scanner
         +IdentityManager identity_manager
-        +Dict shortcut_buttons
         +Dict local_shortcuts
-        +QSlider slider_pdf_zoom
-        +QSlider slider_ocr_cache
-        +QSlider slider_soft_ram
-        +QSlider slider_hard_ram
-        +QCheckBox chk_preserve_cache
         -_init_shortcuts_tab() void
         -_check_for_conflicts() void
         -_on_shortcut_changed(key: str, seq: str) void
@@ -368,6 +369,9 @@ classDiagram
         -_on_global_output_toggled(checked: bool) void
         -_browse_global_dir() void
         -_delete_individual_image(img_path: str, person_name: str, is_session: bool) void
+        +settings
+        +progress_bar
+        +tabs
     }
 
     class ShortcutRebindButton {
@@ -381,12 +385,12 @@ classDiagram
     }
 
     class PersistentRangeDialog {
-        +bool is_pdf
         +get_selected_scope() str
     }
 
     class FocusEventFilter {
         +eventFilter(obj: QObject, event: QEvent) bool
+        +main_window
     }
 
     class ClickableStatusLabel {
@@ -395,19 +399,16 @@ classDiagram
     }
 
     class EngineStatusDialog {
-        +SafeScanner scanner
+
     }
 
     class QuickAddIdentityDialog {
         +QComboBox combo_name
-        +QPushButton btn_save
-        +QPushButton btn_cancel
         +get_name() str
         -_on_save() void
     }
 
     class LoadingOverlay {
-        +QLabel lbl_text
         +QWidget spinner_spacer
         +QTimer timer
         +QTimer pulse_timer
@@ -435,18 +436,14 @@ classDiagram
 
     class FaceCropDialog {
         +InteractiveCropLabel crop_label
-        +QPushButton btn_confirm
-        +QPushButton btn_cancel
-        +ndarray face_image
-        +ndarray full_image
         -_load_and_detect() void
         -_on_confirm() void
+        +workspace_card
+        +raw_image_path
+        +cropped_image
     }
 
     class NewIdentityDialog {
-        +QLineEdit txt_name
-        +QPushButton btn_save
-        +QPushButton btn_cancel
         +get_name() str
         -_on_save() void
     }
@@ -467,15 +464,6 @@ classDiagram
         +List hits
         +run() void
     }
-
-    class TeeStream {
-        +original_stream: stream
-        +log_file: file
-        +write(data: str) void
-        +flush() void
-        +fileno() int
-    }
-
     class KeyboardFocusFilter {
         +eventFilter(obj: QObject, event: QEvent) bool
     }

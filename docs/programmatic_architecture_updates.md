@@ -8,12 +8,12 @@ This guide outlines the programmatic approach used to synchronize SafeMARC's `do
 
 Before modifying the documentation, always extract the *actual* state of the codebase by parsing the Abstract Syntax Tree (AST). This avoids relying on outdated human knowledge or partial searches.
 
-**Example: Extracting Classes and Methods**
 ```python
 import ast
 import os
 
-class_methods = {}
+class_data = {}
+ui_prefixes = ('btn_', 'lbl_', 'txt_', 'chk_', 'cmb_', 'tab_', 'shortcut_', 'slider_', 'radio_', 'grid_', 'scroll_', 'list_', 'search_')
 
 for root, _, files in os.walk('src'):
     for file in files:
@@ -24,9 +24,36 @@ for root, _, files in os.walk('src'):
             
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
-                class_methods[node.name] = set(methods)
+                cls_name = node.name
+                if cls_name not in class_data:
+                    class_data[cls_name] = {'methods': set(), 'props': set()}
+                
+                for body_node in node.body:
+                    # Capture class-level type hints
+                    if isinstance(body_node, ast.AnnAssign) and isinstance(body_node.target, ast.Name):
+                        if not body_node.target.id.startswith(ui_prefixes):
+                            class_data[cls_name]['props'].add(body_node.target.id)
+                            
+                    # Capture class-level assigns (e.g. Qt Signals)
+                    elif isinstance(body_node, ast.Assign):
+                        for target in body_node.targets:
+                            if isinstance(target, ast.Name):
+                                if not target.id.startswith(ui_prefixes):
+                                    class_data[cls_name]['props'].add(target.id)
+                                    
+                    # Capture methods and __init__ variables
+                    elif isinstance(body_node, ast.FunctionDef):
+                        class_data[cls_name]['methods'].add(body_node.name)
+                        if body_node.name == "__init__":
+                            for init_node in ast.walk(body_node):
+                                if isinstance(init_node, ast.Assign):
+                                    for target in init_node.targets:
+                                        if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
+                                            if not target.attr.startswith(ui_prefixes):
+                                                class_data[cls_name]['props'].add(target.attr)
 ```
+
+> **Note**: To maintain a clean architecture diagram, we explicitly filter out GUI noise (e.g., PySide6 widgets prefixed with `btn_`, `lbl_`) from the property lists.
 
 ## 2. Safely Injecting Missing Elements (Regex)
 
@@ -98,6 +125,7 @@ for match in pattern.finditer(content):
 ## Summary for AI Agents
 When tasked with synchronizing `docs/architecture/` files in the future:
 1. **Do not use `sed`** for complex multi-line edits.
-2. **Do not assume codebase state**; run an AST script to build a dictionary of the actual classes and functions.
-3. **Use Python Regex (`re.DOTALL | re.MULTILINE`)** to target specific blocks for injection.
-4. **Always perform a reverse-check** to delete deprecated methods and variables that are no longer in the codebase.
+2. **Do not assume codebase state**; run an AST script to build a dictionary of the actual classes, functions, and properties.
+3. **Filter GUI Noise**: When extracting properties via `ast.Assign` or `ast.AnnAssign`, strip out common Qt GUI prefixes (`btn_`, `lbl_`, etc.) so the architecture diagrams reflect pure system state.
+4. **Use Python Regex (`re.DOTALL | re.MULTILINE`)** to target specific blocks for injection.
+5. **Always perform a reverse-check** to delete deprecated methods and variables that are no longer in the codebase.

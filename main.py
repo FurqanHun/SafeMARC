@@ -244,12 +244,19 @@ def run_gui():
             except Exception:
                 pass
 
-def run_cli():
-    from src.cli.cli import main
-    main()
-
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        run_cli()
-    else:
-        run_gui()
+    import argparse
+    from src.version import __version__
+    import logging
+
+    parser = argparse.ArgumentParser(description="SafeMARC")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("--debug", action="store_true", help="Enable enhanced debug logging")
+    
+    args, unknown = parser.parse_known_args()
+    
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+        print("[SafeMARC] Enhanced debug logging enabled.")
+        
+    run_gui()

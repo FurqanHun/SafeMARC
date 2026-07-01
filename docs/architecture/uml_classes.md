@@ -261,6 +261,29 @@ classDiagram
         +update_stats() void
         +closeEvent() void
         +showEvent() void
+        -_apply_default_splitter_sizes() void
+        -_on_shortcut_draw() void
+        -_on_shortcut_persistent() void
+        -_on_shortcut_zoom_in() void
+        -_on_shortcut_zoom_out() void
+        -_on_shortcut_zoom_reset() void
+        -_on_shortcut_rescan() void
+        -_on_shortcut_start_redact() void
+        -_on_shortcut_skip_space() void
+        -_on_shortcut_skip_s() void
+        -_on_shortcut_previous() void
+        -_on_shortcut_escape() void
+        -_on_shortcut_hit_next() void
+        -_on_shortcut_hit_prev() void
+        -_on_shortcut_hit_toggle() void
+        -_on_shortcut_add_file() void
+        -_on_shortcut_add_folder() void
+        -_on_shortcut_remove_file() void
+        -_on_shortcut_settings() void
+        -_on_shortcut_clear_queue() void
+        -_on_shortcut_paste() void
+        -_on_shortcut_reset_layout() void
+        -_show_engine_status_popup() void
     }
 
     class PreviewWidget {
@@ -354,6 +377,7 @@ classDiagram
         +update_style() void
         +keyPressEvent(event) void
         +focusOutEvent(event) void
+        -_on_clicked() void
     }
 
     class PersistentRangeDialog {
@@ -406,6 +430,7 @@ classDiagram
         +mousePressEvent(event) void
         +mouseMoveEvent(event) void
         +mouseReleaseEvent(event) void
+        -_get_handle_at() void
     }
 
     class FaceCropDialog {

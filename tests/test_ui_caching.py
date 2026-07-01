@@ -3,6 +3,7 @@ import unittest
 from PySide6.QtWidgets import QApplication
 
 from src.gui.main_window import SafeMARCMainWindow
+from unittest.mock import patch
 
 
 class TestUICaching(unittest.TestCase):
@@ -12,16 +13,24 @@ class TestUICaching(unittest.TestCase):
         if cls.app is None:
             cls.app = QApplication(sys.argv)
 
-    def test_manual_file_selection_caching(self):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_manual_file_selection_caching(self, mock_safescanner):
         class MockScanner:
             _scan_cache = {}
+            _vision_cache = {}
+            _regex_cache = {}
+            identity_manager = None
             def clear_cache(self):
+                pass
+            def clear_vision_cache(self):
+                pass
+            def set_vision_mode(self, mode):
                 pass
             def redact(self, path, out, hits):
                 return True
         
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QListWidgetItem
@@ -50,16 +59,24 @@ class TestUICaching(unittest.TestCase):
         self.assertEqual(window.current_hits[0].x, 10)
         self.assertEqual(window.preview_widget.active_hits, [hit])
 
-    def test_manual_file_selection_no_scan(self):
+    @patch('src.gui.main_window.SafeScanner')
+    def test_manual_file_selection_no_scan(self, mock_safescanner):
         class MockScanner:
             _scan_cache = {}
+            _vision_cache = {}
+            _regex_cache = {}
+            identity_manager = None
             def clear_cache(self):
+                pass
+            def clear_vision_cache(self):
+                pass
+            def set_vision_mode(self, mode):
                 pass
             def redact(self, path, out, hits):
                 return True
         
+        mock_safescanner.return_value = MockScanner()
         window = SafeMARCMainWindow()
-        window.scanner = MockScanner()
         
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QListWidgetItem

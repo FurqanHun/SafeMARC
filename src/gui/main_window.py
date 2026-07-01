@@ -722,7 +722,6 @@ class QuickAddIdentityDialog(QDialog):
         completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.combo_name.setCompleter(completer)
         
-        # Ensure the line edit styling matches
         if self.combo_name.lineEdit():
             self.combo_name.lineEdit().setStyleSheet("""
                 background-color: #1F2937;
@@ -800,7 +799,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.setGeometry(x, y, w, h)
         self.setAcceptDrops(True)
 
-        # Load Keyboard Shortcuts Configuration
         from PySide6.QtCore import QSettings
         from src.gui.settings_dialog import DEFAULT_SHORTCUTS
         self.settings = QSettings("SafeMARC", "SafeMARC")
@@ -808,7 +806,6 @@ class SafeMARCMainWindow(QMainWindow):
         for key, default_seq in DEFAULT_SHORTCUTS.items():
             self.shortcuts_config[key] = self.settings.value(f"shortcut_{key}", default_seq)
 
-        # Core Engines
         sface_exists = False
         body_exists = False
         has_tesseract = False
@@ -845,7 +842,6 @@ class SafeMARCMainWindow(QMainWindow):
             engine_status = "AI Engine Error"
             status_state = "error"
 
-        # Central Widget & Main Layout
         central_widget = QWidget()
         central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
@@ -887,14 +883,12 @@ class SafeMARCMainWindow(QMainWindow):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
 
-        # Header
         header_layout = QHBoxLayout()
         self.title_label = QLabel("SafeMARC")
         self.title_label.setStyleSheet(
             "font-size: 26px; font-weight: 800; color: #10B981; letter-spacing: 0.5px; font-family: 'Segoe UI', Arial, sans-serif;"
         )
         
-        # PDF Navigation Page Selector (hidden by default)
         from PySide6.QtWidgets import QFrame, QSpinBox
         self.pdf_nav_container = QFrame()
         self.pdf_nav_container.setObjectName("pdfNavContainer")
@@ -1024,7 +1018,6 @@ class SafeMARCMainWindow(QMainWindow):
         
         main_layout.addLayout(header_layout)
 
-        # Splitter for sidebar and preview
         self.splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(self.splitter, 1)
 
@@ -1032,7 +1025,6 @@ class SafeMARCMainWindow(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar_widget)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         
-        # File Queue
         self.file_list = QListWidget()
         self.file_list.setStyleSheet("""
             QListWidget {
@@ -1095,7 +1087,6 @@ class SafeMARCMainWindow(QMainWindow):
         
         sidebar_layout.addWidget(self.file_list, 1)
 
-        # Queue Buttons
         self.btn_add_file = QPushButton(" Add Files")
         self.btn_add_file.setIcon(svg_to_icon(SVG_FILE_PLUS))
         self.btn_add_file.clicked.connect(self.add_files)
@@ -1165,7 +1156,6 @@ class SafeMARCMainWindow(QMainWindow):
         queue_btns_container.addLayout(row2_layout)
         sidebar_layout.addLayout(queue_btns_container)
 
-        # Settings Group (Styled Card instead of native GroupBox)
         settings_card = QWidget()
         settings_card.setObjectName("settingsCard")
         settings_card.setStyleSheet("""
@@ -2614,7 +2604,6 @@ class SafeMARCMainWindow(QMainWindow):
             
         patterns = []
         
-        # 1. Load active predefined region patterns from patterns.py
         try:
             from src.core.patterns import PREDEFINED_PATTERNS
             for region_name, is_active in getattr(self, "active_regions", {}).items():
@@ -2630,7 +2619,6 @@ class SafeMARCMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error loading predefined patterns: {e}")
             
-        # 2. Gather custom patterns from rows
         for i in range(self.text_patterns_layout.count()):
             item = self.text_patterns_layout.itemAt(i)
             if item:
@@ -2650,9 +2638,7 @@ class SafeMARCMainWindow(QMainWindow):
                     
         self.scanner.set_text_patterns(patterns)
         
-        # Auto-rescan if a file is loaded
         if self.current_file_path:
-            # Cache current selections before rescanning
             manuals = self.preview_widget.active_hits.copy()
             ckey = self.get_current_cache_key()
             self.user_selections_cache[ckey] = {
@@ -2985,7 +2971,6 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.current_file_path:
             return
             
-        # Cache manual boxes before rescanning.
         manuals = self.preview_widget.active_hits.copy()
         ckey = self.get_current_cache_key()
         self.user_selections_cache[ckey] = {
@@ -3289,7 +3274,6 @@ class SafeMARCMainWindow(QMainWindow):
             return merged_hits
 
         if self.scanner and ckey in self.scanner._scan_cache:
-            # Instant cache hit!
             merged_hits = list(self.scanner._scan_cache[ckey])
             # Inject persistent manual hits from the preview widget
             for ph in self.preview_widget.persistent_manual_hits:
@@ -3342,7 +3326,6 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.scanner or not self.current_file_path:
             return
 
-        # Explicitly cache manual hits BEFORE any redaction processing
         manuals = self.preview_widget.active_hits.copy()
         ckey = self.get_current_cache_key()
         self.user_selections_cache[ckey] = {
@@ -3388,7 +3371,6 @@ class SafeMARCMainWindow(QMainWindow):
         self.batch_index = 0
         self.batch_success_count = 0
 
-        # Clear OCR cache if preservation is False
         from PySide6.QtCore import QSettings
         settings = QSettings("SafeMARC", "SafeMARC")
         preserve = str(settings.value("preserve_session_cache", "false")).lower() == "true"
@@ -3435,7 +3417,6 @@ class SafeMARCMainWindow(QMainWindow):
         if not self.is_batch_mode:
             return
             
-        # Explicitly cache manual hits BEFORE skipping
         if self.current_file_path:
             manuals = self.preview_widget.active_hits.copy()
             ckey = self.get_current_cache_key()
@@ -3508,7 +3489,6 @@ class SafeMARCMainWindow(QMainWindow):
             
         self.is_navigating_backward = True
         
-        # Explicitly cache manual hits BEFORE going previous
         if self.current_file_path:
             manuals = self.preview_widget.active_hits.copy()
             ckey = self.get_current_cache_key()
@@ -3588,7 +3568,6 @@ class SafeMARCMainWindow(QMainWindow):
         if new_index == self.active_pdf_index:
             return
             
-        # Cache current page selections
         if self.current_file_path:
             manuals = self.preview_widget.active_hits.copy()
             ckey = self.get_current_cache_key()
@@ -3608,7 +3587,6 @@ class SafeMARCMainWindow(QMainWindow):
         redacted_dir = os.path.join(tempfile.gettempdir(), "safemarc_temp", "redacted")
         os.makedirs(redacted_dir, exist_ok=True)
         
-        # Save current page's selections
         if self.current_file_path:
             manuals = self.preview_widget.active_hits.copy()
             ckey = self.get_current_cache_key()
@@ -3617,7 +3595,6 @@ class SafeMARCMainWindow(QMainWindow):
                 "reviewed": True
             }
 
-        # Initialize the outputs with the original page paths
         self.active_pdf_outputs = [p["image_path"] for p in self.active_pdf_pages]
 
         for idx, page_data in enumerate(self.active_pdf_pages):
@@ -3631,7 +3608,6 @@ class SafeMARCMainWindow(QMainWindow):
                 is_visited = cached_data.get("reviewed", False)
                 active_hits = cached_data.get("active_hits", [])
                 
-            # If the user never went through this page, skip it automatically
             if not is_visited:
                 continue
                 

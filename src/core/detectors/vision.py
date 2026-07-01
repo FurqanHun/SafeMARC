@@ -433,7 +433,6 @@ class VisionDetector(BaseDetector):
         for face in faces:
             fx, fy, fw, fh = face.x, face.y, face.w, face.h
             
-            # Check if this face is covered by any final body hit
             covered = False
             for hit in hits:
                 if _is_matching_face_body(fx, fy, fw, fh, hit.x, hit.y, hit.w, hit.h):

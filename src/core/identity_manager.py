@@ -36,10 +36,10 @@ class IdentityManager:
         self.sface_model = resource_path("assets/face_recognition_sface_2021dec.onnx")
         if os.path.exists(self.sface_model):
             self.use_sface = True
-            logger.info("[IdentityManager] SFace model file found. Biometric recognition is available.")
+            logger.info("SFace model file found. Biometric recognition is available.")
         
         if not self.use_sface:
-            logger.info("[IdentityManager] Using LBPH fallback (less accurate).")
+            logger.info("Using LBPH fallback (less accurate).")
             self.recognizer = cv2.face.LBPHFaceRecognizer_create(
                 radius=2, neighbors=8, grid_x=8, grid_y=8
             )
@@ -50,10 +50,10 @@ class IdentityManager:
         if self.sface_recognizer is None:
             if self.use_sface and os.path.exists(self.sface_model):
                 try:
-                    logger.info("[IdentityManager] Lazy-loading SFace model...")
+                    logger.info("Lazy-loading SFace model...")
                     self.sface_recognizer = cv2.FaceRecognizerSF.create(self.sface_model, "")
                 except Exception as e:
-                    logger.error(f"[IdentityManager] Failed to load SFace model lazily: {e}")
+                    logger.error(f"Failed to load SFace model lazily: {e}")
                     self.use_sface = False
         return self.sface_recognizer
 
@@ -135,7 +135,7 @@ class IdentityManager:
                                 person_has_images = True
                                 continue
                             except Exception as e:
-                                logger.error(f"[IdentityManager] Failed to load cached SFace embedding: {e}")
+                                logger.error(f"Failed to load cached SFace embedding: {e}")
                     else:
                         crop_path = img_path + ".lbph.png"
                         if os.path.exists(crop_path):
@@ -147,7 +147,7 @@ class IdentityManager:
                                     person_has_images = True
                                     continue
                             except Exception as e:
-                                logger.error(f"[IdentityManager] Failed to load cached LBPH crop: {e}")
+                                logger.error(f"Failed to load cached LBPH crop: {e}")
 
                     img = cv2.imread(img_path)
                     if img is None:
@@ -165,7 +165,7 @@ class IdentityManager:
                             npy_path = img_path + ".sface.npy"
                             np.save(npy_path, embedding)
                         except Exception as e:
-                            logger.error(f"[IdentityManager] Failed to save cached embedding: {e}")
+                            logger.error(f"Failed to save cached embedding: {e}")
                         
                         if person_name not in self.sface_embeddings:
                             self.sface_embeddings[person_name] = []
@@ -179,7 +179,7 @@ class IdentityManager:
                             crop_path = img_path + ".lbph.png"
                             cv2.imwrite(crop_path, gray_crop)
                         except Exception as e:
-                            logger.error(f"[IdentityManager] Failed to save cached LBPH crop: {e}")
+                            logger.error(f"Failed to save cached LBPH crop: {e}")
                         
                         faces_lbph.append(gray_crop)
                         labels_lbph.append(current_id)
@@ -194,9 +194,9 @@ class IdentityManager:
             total = sum(len(v) for v in self.sface_embeddings.values())
             self.is_trained = total > 0
             if self.is_trained:
-                logger.info(f"[IdentityManager] Loaded {total} SFace embeddings for {len(self.sface_embeddings)} people.")
+                logger.info(f"Loaded {total} SFace embeddings for {len(self.sface_embeddings)} people.")
             else:
-                logger.info("[IdentityManager] No identities found to train.")
+                logger.info("No identities found to train.")
         else:
             if faces_lbph and labels_lbph:
                 self.recognizer = cv2.face.LBPHFaceRecognizer_create(
@@ -204,10 +204,10 @@ class IdentityManager:
                 )
                 self.recognizer.train(faces_lbph, np.array(labels_lbph))
                 self.is_trained = True
-                logger.info(f"[IdentityManager] Trained LBPH on {len(faces_lbph)} images for {len(self.identity_map)} people.")
+                logger.info(f"Trained LBPH on {len(faces_lbph)} images for {len(self.identity_map)} people.")
             else:
                 self.is_trained = False
-                logger.info("[IdentityManager] No identities found to train.")
+                logger.info("No identities found to train.")
 
     def _build_aligned_embedding(self, img: np.ndarray):
         """
@@ -234,7 +234,7 @@ class IdentityManager:
             aligned = self._get_sface_recognizer().alignCrop(img, best)
             return self._get_sface_recognizer().feature(aligned)
         except Exception as e:
-            logger.error(f"[IdentityManager] alignCrop failed during embedding: {e}")
+            logger.error(f"alignCrop failed during embedding: {e}")
             return None
 
     def match_face_aligned(self, full_img: np.ndarray, det_row: np.ndarray,
@@ -256,7 +256,7 @@ class IdentityManager:
                 aligned = self._get_sface_recognizer().alignCrop(full_img, det_row)
                 return self._match_sface_from_aligned(aligned, num_faces)
             except Exception as e:
-                logger.error(f"[IdentityManager] alignCrop match failed ({e}), falling back to crop.")
+                logger.error(f"alignCrop match failed ({e}), falling back to crop.")
                 x, y, w, h = int(det_row[0]), int(det_row[1]), int(det_row[2]), int(det_row[3])
                 h_img, w_img = full_img.shape[:2]
                 face_crop = full_img[max(0, y):min(h_img, y + h), max(0, x):min(w_img, x + w)]
@@ -350,7 +350,7 @@ class IdentityManager:
         matched = best_score > fm_val and margin_ok
 
         logger.debug(
-            f"[DEBUG] SFace match: {best_name}, Score: {best_score:.4f} "
+            f"SFace match: {best_name}, Score: {best_score:.4f} "
             f"(Threshold: {fm_val:.2f}, Margin: {margin:.4f}) "
             f"→ {'MATCH' if matched else 'REJECT'}"
         )
@@ -378,7 +378,7 @@ class IdentityManager:
             name = self.identity_map.get(label_id, "?")
             
             matched = confidence < 115.0
-            logger.debug(f"[DEBUG] LBPH match: {name}, Distance: {confidence:.2f} → {'MATCH' if matched else 'REJECT'}")
+            logger.debug(f"LBPH match: {name}, Distance: {confidence:.2f} → {'MATCH' if matched else 'REJECT'}")
             
             if matched:
                 return name

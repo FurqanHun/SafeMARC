@@ -3,6 +3,8 @@ from typing import List, Generator, Tuple
 
 from src.core.scanner import SafeScanner
 from src.core.types import SensitiveHit
+import logging
+logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.pdf', '.webp', '.bmp', '.tiff'}
 
@@ -13,18 +15,22 @@ class BatchProcessor:
         self.scanner = scanner or SafeScanner()
 
     def _get_supported_files(self, input_path: str) -> List[str]:
+        logger.debug(f"Discovering supported files in: {input_path}")
+        files = []
         if os.path.isfile(input_path):
             _, ext = os.path.splitext(input_path)
             if ext.lower() in SUPPORTED_EXTENSIONS:
-                return [input_path]
-            return []
-
-        files = []
-        for root, _, filenames in os.walk(input_path):
-            for filename in filenames:
-                _, ext = os.path.splitext(filename)
-                if ext.lower() in SUPPORTED_EXTENSIONS:
-                    files.append(os.path.join(root, filename))
+                files.append(input_path)
+            else:
+                logger.warning(f"File {input_path} has unsupported extension.")
+        elif os.path.isdir(input_path):
+            for root, _, filenames in os.walk(input_path):
+                for filename in filenames:
+                    _, ext = os.path.splitext(filename)
+                    if ext.lower() in SUPPORTED_EXTENSIONS:
+                        files.append(os.path.join(root, filename))
+        
+        logger.info(f"Discovered {len(files)} supported files for processing.")
         return files
 
     def get_output_path(self, input_path: str, output_dir: str = None, use_suffix: bool = False) -> str:
@@ -50,9 +56,11 @@ class BatchProcessor:
         files = self._get_supported_files(input_path)
         
         if not files:
+            logger.warning(f"No supported files found in: {input_path}")
             yield input_path, False, "No supported files found."
             return
 
+        logger.info(f"Starting batch process on {len(files)} files.")
         for file_path in files:
             try:
                 out_path = self.get_output_path(file_path, output_dir, use_suffix)

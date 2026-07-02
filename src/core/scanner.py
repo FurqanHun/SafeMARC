@@ -27,21 +27,21 @@ class SafeScanner:
         self._vision_cache = {}
         self._regex_cache = {}
         self._scan_cache = {}
-        logger.debug("[SafeScanner] Session scan caches cleared.")
+        logger.debug("Session scan caches cleared.")
         
     def clear_scan_cache_only(self) -> None:
         self._scan_cache = {}
-        logger.debug("[SafeScanner] Filter scan cache cleared.")
+        logger.debug("Filter scan cache cleared.")
         
     def clear_text_cache(self) -> None:
         self._regex_cache = {}
         self._scan_cache = {}
-        logger.debug("[SafeScanner] Text/Regex cache cleared.")
+        logger.debug("Text/Regex cache cleared.")
         
     def clear_vision_cache(self) -> None:
         self._vision_cache = {}
         self._scan_cache = {}
-        logger.debug("[SafeScanner] Vision caches cleared.")
+        logger.debug("Vision caches cleared.")
         
     def set_vision_mode(self, mode: str) -> None:
         if hasattr(self, "vision_detector") and self.vision_detector:
@@ -125,7 +125,7 @@ class SafeScanner:
             else:
                 final_hits.append(hit)
 
-        logger.debug(f"[SafeScanner] Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")
+        logger.debug(f"Filtered {len(all_hits)} down to {len(final_hits)} hits ({self.face_redaction_mode} mode)")
         self._scan_cache[ckey] = list(final_hits)
         return final_hits
 

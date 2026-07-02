@@ -29,9 +29,9 @@ class RegexDetector(BaseDetector):
                 cache_file = os.path.join(cache_dir, "ocr_cache.json")
                 if os.path.exists(cache_file):
                     os.remove(cache_file)
-                    logger.debug("[RegexDetector] Cleaned up legacy disk OCR cache file.")
+                    logger.debug("Cleaned up legacy disk OCR cache file.")
         except Exception as e:
-            logger.error(f"[RegexDetector] Failed to clean up legacy disk cache: {e}")
+            logger.error(f"Failed to clean up legacy disk cache: {e}")
         self.ocr_cache = {}
 
     def save_cache(self) -> None:

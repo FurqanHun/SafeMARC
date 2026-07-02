@@ -3,11 +3,14 @@ import tempfile
 from typing import List, Dict, Optional, Tuple, Callable
 import fitz  # PyMuPDF
 from PIL import Image
+import logging
+logger = logging.getLogger(__name__)
 
 class PDFHandler:
     """Provides utility methods for PDF page extraction, word boundary parsing, and PDF reconstruction."""
     @staticmethod
     def extract_pages(pdf_path: str, progress_callback: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
+        logger.debug(f"Starting PDF page extraction for {pdf_path}")
         """
         Extracts all pages of a PDF to a temporary directory as high-quality PNGs.
         Returns a list of dicts with file paths and word bounding boxes:

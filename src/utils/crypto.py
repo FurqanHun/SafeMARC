@@ -1,11 +1,14 @@
 import os
 import hashlib
+import logging
+logger = logging.getLogger(__name__)
 
 def encrypt_data(data: bytes, password: str) -> bytes:
     """
     Encrypts arbitrary binary payload using PBKDF2-HMAC-SHA256 key derivation
     and a custom Counter (CTR) mode stream cipher driven by SHA-256.
     """
+    logger.debug(f"Encrypting {len(data)} bytes of data")
     salt = os.urandom(16)
     key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
     
@@ -29,6 +32,7 @@ def decrypt_data(encrypted_data: bytes, password: str) -> bytes:
     Decrypts a binary payload encrypted via PBKDF2-HMAC-SHA256 key derivation
     and a Counter (CTR) mode stream cipher.
     """
+    logger.debug(f"Decrypting {len(encrypted_data)} bytes of data")
     if len(encrypted_data) < 16:
         raise ValueError("Invalid encrypted data length.")
         

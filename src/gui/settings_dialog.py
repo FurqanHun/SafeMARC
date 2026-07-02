@@ -5,6 +5,8 @@ from src.core.identity_manager import IdentityManager
 from src.utils.crypto import encrypt_data, decrypt_data
 from src.utils.paths import resource_path
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 def svg_to_icon(svg_str: str, size: int = 16) -> QIcon:
     from PySide6.QtSvg import QSvgRenderer
@@ -1450,6 +1452,7 @@ class SettingsDialog(QDialog):
             QApplication.restoreOverrideCursor()
 
     def _import_identities(self):
+        logger.info("Importing identities...")
         from PySide6.QtCore import QDir
         file_path, _ = QFileDialog.getOpenFileName(
             self,

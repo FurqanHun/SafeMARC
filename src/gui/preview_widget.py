@@ -95,6 +95,8 @@ class SelectableHitItem(QGraphicsRectItem):
 from PySide6.QtGui import QPainter
 from PySide6.QtCore import Qt, QRectF, Signal, QTimer
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+import logging
+logger = logging.getLogger(__name__)
 
 class LoadingOverlay(QWidget):
     def __init__(self, parent=None):
@@ -249,6 +251,7 @@ class PreviewWidget(QGraphicsView):
             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
     def display_hits(self, hits: List[SensitiveHit], is_pdf: bool = False, pdf_source: str = None, cached_active_hits: list = None, reviewed: bool = False):
+        logger.debug(f"Displaying {len(hits)} hits on preview canvas (is_pdf={is_pdf})")
         settings = QSettings("SafeMARC", "SafeMARC")
         threshold = int(settings.value("model_text_conf", 70))
         

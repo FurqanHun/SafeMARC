@@ -173,7 +173,8 @@ classDiagram
 
     class LoadingDialog {
         +update_progress(current: int, total: int) void
-        +label
+        +QLabel label
+        +QProgressBar progress_bar
     }
 ```
 
@@ -293,6 +294,7 @@ classDiagram
         +batch_success_count
         +batch_index
         +current_hits
+        +ClickableStatusLabel status_label
     }
 
     class PreviewWidget {
@@ -370,6 +372,7 @@ classDiagram
         -_load_person_images(name: str, is_session: bool) void
         -_on_global_output_toggled(checked: bool) void
         -_browse_global_dir() void
+        -_update_logging_preferences() void
         -_delete_individual_image(img_path: str, person_name: str, is_session: bool) void
         +settings
         +tabs

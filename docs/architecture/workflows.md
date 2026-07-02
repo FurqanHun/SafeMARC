@@ -638,3 +638,35 @@ sequenceDiagram
     end
 ```
 
+---
+
+## Dynamic File Logging Management Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant SD as SettingsDialog
+    participant Root as root_logger
+    participant OS as os/glob
+    
+    User->>SD: Adjust "Max Log File Size"
+    SD->>SD: _update_logging_preferences()
+    SD->>Root: Iterate handlers to find RotatingFileHandler
+    Root-->>SD: return active file_handler
+    
+    alt max size is 0
+        SD->>Root: removeHandler(file_handler)
+        SD->>SD: file_handler.close()
+        SD->>OS: os.remove(safemarc.log*)
+        note over SD,OS: Wrapped in try/except OSError to prevent crashes on Windows locks
+    else max size > 0
+        alt file_handler missing
+            SD->>Root: addHandler(new RotatingFileHandler)
+            SD->>Root: info("Logging initialized...")
+        else file_handler exists
+            SD->>Root: removeHandler & close() old handler
+            SD->>Root: addHandler(new RotatingFileHandler with updated rules)
+        end
+    end
+```

@@ -51,15 +51,25 @@ try:
             formatter = logging.Formatter(log_fmt)
             return formatter.format(record)
 
-    file_handler = RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=3, encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"))
+    from PySide6.QtCore import QSettings
+    _early_settings = QSettings("SafeMARC", "SafeMARC")
+    log_max_mb = int(_early_settings.value("log_max_mb", 10))
+    log_backup_count = int(_early_settings.value("log_backup_count", 3))
+
+    handlers = []
     
+    if log_max_mb > 0:
+        file_handler = RotatingFileHandler(log_path, maxBytes=log_max_mb*1024*1024, backupCount=log_backup_count, encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"))
+        handlers.append(file_handler)
+        
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(ColorFormatter())
+    handlers.append(stream_handler)
     
     logging.basicConfig(
         level=logging.INFO,
-        handlers=[file_handler, stream_handler]
+        handlers=handlers
     )
     logger = logging.getLogger(__name__)
 

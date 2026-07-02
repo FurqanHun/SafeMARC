@@ -466,6 +466,38 @@ class SettingsDialog(QDialog):
         path_layout.addWidget(self.btn_browse_dir)
         gen_layout.addLayout(path_layout)
 
+        # Logging Preferences
+        from PySide6.QtWidgets import QSpinBox
+        lbl_log_title = QLabel("System Logging")
+        lbl_log_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #10B981; margin-top: 10px;")
+        gen_layout.addWidget(lbl_log_title)
+        
+        log_layout = QHBoxLayout()
+        lbl_log_mb = QLabel("Max Log File Size (MB):")
+        lbl_log_mb.setStyleSheet("color: #E5E7EB; font-size: 13px;")
+        self.spin_log_mb = QSpinBox()
+        self.spin_log_mb.setRange(0, 100)
+        self.spin_log_mb.setValue(int(self.settings.value("log_max_mb", 10)))
+        self.spin_log_mb.setStyleSheet("QSpinBox { qproperty-alignment: AlignCenter; background-color: #1F2937; color: #F3F4F6; border: 1px solid #374151; border-radius: 4px; padding: 2px 4px; min-height: 24px; }")
+        self.spin_log_mb.setAlignment(Qt.AlignCenter)
+        self.spin_log_mb.valueChanged.connect(lambda v: self.settings.setValue("log_max_mb", v))
+        
+        lbl_log_backup = QLabel("Max Backups:")
+        lbl_log_backup.setStyleSheet("color: #E5E7EB; font-size: 13px; margin-left: 20px;")
+        self.spin_log_backup = QSpinBox()
+        self.spin_log_backup.setRange(0, 50)
+        self.spin_log_backup.setValue(int(self.settings.value("log_backup_count", 3)))
+        self.spin_log_backup.setStyleSheet("QSpinBox { qproperty-alignment: AlignCenter; background-color: #1F2937; color: #F3F4F6; border: 1px solid #374151; border-radius: 4px; padding: 2px 4px; min-height: 24px; }")
+        self.spin_log_backup.setAlignment(Qt.AlignCenter)
+        self.spin_log_backup.valueChanged.connect(lambda v: self.settings.setValue("log_backup_count", v))
+        
+        log_layout.addWidget(lbl_log_mb)
+        log_layout.addWidget(self.spin_log_mb)
+        log_layout.addWidget(lbl_log_backup)
+        log_layout.addWidget(self.spin_log_backup)
+        log_layout.addStretch()
+        gen_layout.addLayout(log_layout)
+
         lbl_clip_note = QLabel("Note: Images pasted directly from your clipboard will always be saved to the global output folder to prevent them from being lost in system temporary files.")
         lbl_clip_note.setWordWrap(True)
         lbl_clip_note.setStyleSheet("color: #10B981; font-size: 11px; font-style: italic; margin-top: 10px;")

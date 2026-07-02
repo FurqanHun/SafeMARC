@@ -17,9 +17,18 @@ try:
     if sys.platform == "win32":
         os.system('')
         
+    # Early QSettings extraction for logging preferences
+    from PySide6.QtCore import QSettings
+    _early_settings = QSettings("SafeMARC", "SafeMARC")
+    log_max_mb = int(_early_settings.value("log_max_mb", 10))
+    log_backup_count = int(_early_settings.value("log_backup_count", 3))
+
     # C-level faulthandler
-    log_file_obj = open(log_path, "a", encoding="utf-8", buffering=1)
-    faulthandler.enable(file=log_file_obj)
+    if log_max_mb > 0:
+        log_file_obj = open(log_path, "a", encoding="utf-8", buffering=1)
+        faulthandler.enable(file=log_file_obj)
+    else:
+        faulthandler.enable()
     
     # Define custom SUCCESS level
     logging.SUCCESS = 25
@@ -51,10 +60,6 @@ try:
             formatter = logging.Formatter(log_fmt)
             return formatter.format(record)
 
-    from PySide6.QtCore import QSettings
-    _early_settings = QSettings("SafeMARC", "SafeMARC")
-    log_max_mb = int(_early_settings.value("log_max_mb", 10))
-    log_backup_count = int(_early_settings.value("log_backup_count", 3))
 
     handlers = []
     
@@ -87,7 +92,8 @@ try:
         
     threading.excepthook = thread_exception_handler
     
-    logger.info(f"Logging initialized. Logs are saved persistently to: {log_path}")
+    if log_max_mb > 0:
+        logger.info(f"Logging initialized. Logs are saved persistently to: {log_path}")
 except Exception as e:
     try:
         faulthandler.enable()

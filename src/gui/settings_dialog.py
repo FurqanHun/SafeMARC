@@ -480,7 +480,7 @@ class SettingsDialog(QDialog):
         self.spin_log_mb.setValue(int(self.settings.value("log_max_mb", 10)))
         self.spin_log_mb.setStyleSheet("QSpinBox { qproperty-alignment: AlignCenter; background-color: #1F2937; color: #F3F4F6; border: 1px solid #374151; border-radius: 4px; padding: 2px 4px; min-height: 24px; }")
         self.spin_log_mb.setAlignment(Qt.AlignCenter)
-        self.spin_log_mb.valueChanged.connect(lambda v: self.settings.setValue("log_max_mb", v))
+        self.spin_log_mb.valueChanged.connect(lambda v: self._update_logging_preferences())
         
         lbl_log_backup = QLabel("Max Backups:")
         lbl_log_backup.setStyleSheet("color: #E5E7EB; font-size: 13px; margin-left: 20px;")
@@ -489,7 +489,7 @@ class SettingsDialog(QDialog):
         self.spin_log_backup.setValue(int(self.settings.value("log_backup_count", 3)))
         self.spin_log_backup.setStyleSheet("QSpinBox { qproperty-alignment: AlignCenter; background-color: #1F2937; color: #F3F4F6; border: 1px solid #374151; border-radius: 4px; padding: 2px 4px; min-height: 24px; }")
         self.spin_log_backup.setAlignment(Qt.AlignCenter)
-        self.spin_log_backup.valueChanged.connect(lambda v: self.settings.setValue("log_backup_count", v))
+        self.spin_log_backup.valueChanged.connect(lambda v: self._update_logging_preferences())
         
         log_layout.addWidget(lbl_log_mb)
         log_layout.addWidget(self.spin_log_mb)
@@ -1745,6 +1745,55 @@ class SettingsDialog(QDialog):
             if self.parent():
                 if hasattr(self.parent(), "update_global_output_settings"):
                     self.parent().update_global_output_settings()
+
+    def _update_logging_preferences(self):
+        log_max_mb = self.spin_log_mb.value()
+        log_backup_count = self.spin_log_backup.value()
+        
+        self.settings.setValue("log_max_mb", log_max_mb)
+        self.settings.setValue("log_backup_count", log_backup_count)
+        
+        import logging
+        import os
+        import glob
+        from logging.handlers import RotatingFileHandler
+        from src.utils.paths import get_app_data_dir
+        
+        log_dir = get_app_data_dir()
+        log_path = os.path.join(log_dir, "safemarc.log")
+        root_logger = logging.getLogger()
+        
+        # Find existing file handler
+        file_handler = None
+        for handler in root_logger.handlers:
+            if isinstance(handler, RotatingFileHandler) and getattr(handler, "baseFilename", "") == os.path.abspath(log_path):
+                file_handler = handler
+                break
+                
+        if log_max_mb == 0:
+            if file_handler:
+                root_logger.removeHandler(file_handler)
+                file_handler.close()
+            # Delete log files
+            for f in glob.glob(log_path + "*"):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+        else:
+            if not file_handler:
+                new_handler = RotatingFileHandler(log_path, maxBytes=log_max_mb*1024*1024, backupCount=log_backup_count, encoding="utf-8")
+                new_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"))
+                root_logger.addHandler(new_handler)
+                root_logger.info(f"Logging initialized. Logs are saved persistently to: {log_path}")
+            else:
+                # Update existing handler parameters by recreating it
+                root_logger.removeHandler(file_handler)
+                file_handler.close()
+                new_handler = RotatingFileHandler(log_path, maxBytes=log_max_mb*1024*1024, backupCount=log_backup_count, encoding="utf-8")
+                new_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"))
+                root_logger.addHandler(new_handler)
+
 
     def _delete_individual_image(self, img_path, person_name, is_session):
         res = QMessageBox.question(self, "Delete Reference Image", "Are you sure you want to delete this reference image?")

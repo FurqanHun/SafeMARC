@@ -23,6 +23,30 @@ This document establishes the coding patterns, commenting guidelines, and commit
   * `src/core/`: Detection algorithms, scanners, redactors, and identity management.
   * `src/utils/`: Cryptography, file utilities, paths, and platform-specific helpers.
 
+### 1.4 Logging over Print (`src/core/*`, `src/gui/*`, `src/utils/*`)
+* Every file in the codebase imports the standard Python `logging` module and initializes a logger at the top using `logger = logging.getLogger(__name__)`. Print statements are avoided.
+
+### 1.5 Conditional Type Hinting (`src/core/scanner.py`, `src/utils/crypto.py` vs `src/gui/main_window.py`)
+* Core logic and utilities strictly define return types and argument types (e.g., `def encrypt_data(data: bytes) -> bytes:`). However, standard PyQt/PySide UI callbacks (`paintEvent`, `mousePressEvent`) or internal UI slots rarely use type hints, showing a relaxed enforcement for boilerplate GUI methods.
+
+### 1.6 Fail-Safe Exception Handling in GUI (`src/gui/settings_dialog.py`, `src/gui/main_window.py`)
+* GUI components wrap non-critical operations in broad `except Exception:` or `except Exception as e:` blocks. This fail-safe pattern ensures that minor UI errors or specific file I/O failures do not crash the entire application.
+
+### 1.7 UI Slot Naming Conventions (`src/gui/settings_dialog.py`)
+* Internal Qt slots and callbacks are consistently prefixed with a leading underscore (e.g., `_on_clicked`, `_refresh_people_list`, `_add_person`) to distinguish them from public methods and API calls.
+
+### 1.8 Lazy Imports for Performance (`src/gui/preview_widget.py`, `src/gui/settings_dialog.py`)
+* Heavy UI components or specific dialog modules (like `QMenu` in `preview_widget.py` or `QSvgRenderer` in `settings_dialog.py`) are imported locally inside the function that needs them, rather than at the top of the file, presumably to reduce application startup time.
+
+### 1.9 PEP 8 / Google Python Style Adherence (`src/utils/pdf_handler.py`, `src/core/identity_manager.py`)
+* **Naming**: Classes use `CamelCase` (`IdentityManager`, `SafeScanner`), while functions and variables strictly use `snake_case` (`extract_pages`, `image_paths`).
+* **Constants**: Module-level constants are in `UPPER_SNAKE_CASE` (e.g., `SVG_CLOSE`, `DEFAULT_SHORTCUTS`). Private constants prefix with an underscore (e.g., `_YUNET_SCORE_THRESH`).
+* **String Formatting**: `f-strings` are used universally over `.format()` or `%` formatting.
+
+### 1.10 OOP Abstractions & Static Methods (`src/core/detectors/base.py`, `src/utils/pdf_handler.py`)
+* **Interfaces**: Core system plugins (detectors) inherit from an Abstract Base Class (`class BaseDetector(ABC):`) defining `@abstractmethod` functions, mandating strict interfaces for subclasses.
+* **Static Utility Classes**: Utility files group pure functions inside static classes (e.g., `@staticmethod def extract_pages()` inside `PDFHandler`), which prevents global namespace pollution.
+
 ---
 
 ## 2. Commenting Guidelines
